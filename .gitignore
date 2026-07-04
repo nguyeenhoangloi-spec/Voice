@@ -1,39 +1,39 @@
-# Python caching and environment
-__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.venv/
-venv/
-env/
-.env
+# # Python caching and environment
+# __pycache__/
+# *.py[cod]
+# *$py.class
+# .pytest_cache/
+# .venv/
+# venv/
+# env/
+# .env
 
-# Agent directories (internal IDE configs, workflows, and tools)
-.agent/
+# # Agent directories (internal IDE configs, workflows, and tools)
+# .agent/
 
-# Local logging
-*.log
-server.log
+# # Local logging
+# *.log
+# server.log
 
-# DB
-storage/*.db
-storage/*.sqlite
+# # DB
+# storage/*.db
+# storage/*.sqlite
 
-# Media & dynamic directories
-storage/uploads/*
-storage/temp/*
-storage/audio/*
-storage/video/*
-storage/subtitles/*
-storage/exports/*
+# # Media & dynamic directories
+# storage/uploads/*
+# storage/temp/*
+# storage/audio/*
+# storage/video/*
+# storage/subtitles/*
+# storage/exports/*
 
-# Keep directory structure but ignore contents
-!storage/uploads/.gitkeep
-!storage/temp/.gitkeep
-!storage/audio/.gitkeep
-!storage/video/.gitkeep
-!storage/subtitles/.gitkeep
-!storage/exports/.gitkeep
+# # Keep directory structure but ignore contents
+# !storage/uploads/.gitkeep
+# !storage/temp/.gitkeep
+# !storage/audio/.gitkeep
+# !storage/video/.gitkeep
+# !storage/subtitles/.gitkeep
+# !storage/exports/.gitkeep
 
-# Do NOT ignore samples
-!storage/samples/
+# # Do NOT ignore samples
+# !storage/samples/
