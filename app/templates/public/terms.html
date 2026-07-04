@@ -1,0 +1,31 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="card glass" style="max-width: 800px; margin: 0 auto; padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md);">
+    <h1 style="font-size: 32px; font-weight: 800; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs);">Điều khoản & Chính sách Bản quyền</h1>
+    
+    <div>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: var(--space-xs);">1. Điều khoản sử dụng dịch vụ</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+            Chào mừng bạn đến với ứng dụng lồng tiếng VoiceAI. Bằng việc truy cập và sử dụng dịch vụ, bạn cam kết tuân thủ đầy đủ các điều khoản bảo mật dữ liệu, chính sách thanh toán và chịu hoàn toàn trách nhiệm pháp lý đối với nội dung bạn tải lên hệ thống.
+        </p>
+    </div>
+
+    <div>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: var(--space-xs);">2. Bản quyền nội dung & Bản quyền lồng tiếng</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+            <b>Quyền sở hữu trí tuệ:</b> VoiceAI cam kết tôn trọng quyền tác giả của mọi tác phẩm âm thanh và hình ảnh. Người dùng <b>chỉ được phép xử lý các video/audio mà bản thân sở hữu hoặc có quyền sử dụng hợp pháp</b>. 
+        </p>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-top: 8px;">
+            <b>Quy định nhân bản giọng nói:</b> Tuyệt đối <b>không lồng tiếng hoặc sao chép giọng nói của người thật</b> (ca sĩ, diễn viên, người nổi tiếng) khi chưa được họ hoặc người đại diện cấp quyền bằng văn bản cụ thể. Hệ thống chỉ cung cấp và hỗ trợ các giọng nói nhân tạo chuẩn hoặc do hệ thống thiết lập sẵn.
+        </p>
+    </div>
+
+    <div>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: var(--space-xs);">3. Bảo vệ dữ liệu cá nhân (GDPR / HIPAA)</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+            Dữ liệu tệp tải lên và video kết xuất sẽ được tự động xóa sạch khỏi bộ nhớ máy chủ trong vòng <b>7 ngày</b> kể từ khi hoàn thành tác vụ để đảm bảo quyền riêng tư và tiết kiệm tài nguyên lưu trữ.
+        </p>
+    </div>
+</div>
+{% endblock %}

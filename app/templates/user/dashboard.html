@@ -1,0 +1,121 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<!-- Welcome Header -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+    <div>
+        <h1 style="font-size: 32px; font-weight: 800;">Chào mừng, {{ user.full_name if user.full_name else 'Thành viên' }}!</h1>
+        <p style="font-size: 15px; color: var(--text-secondary);">Quản lý và theo dõi tiến trình lồng tiếng AI của bạn.</p>
+    </div>
+    <a href="/dubbing/create" class="btn btn-primary hover-scale">
+        <i data-lucide="plus"></i> Tạo tác vụ mới
+    </a>
+</div>
+
+<!-- Stats Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+    <!-- Stat 1 -->
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng tác vụ</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--text-primary);">{{ total_jobs }}</div>
+    </div>
+    <!-- Stat 2 -->
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Đang xử lý</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-info);">{{ processing_jobs }}</div>
+    </div>
+    <!-- Stat 3 -->
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hoàn thành</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-success);">{{ completed_jobs }}</div>
+    </div>
+    <!-- Stat 4 -->
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Thất bại</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-danger);">{{ failed_jobs }}</div>
+    </div>
+</div>
+
+<!-- Recent Jobs Section -->
+<div class="card glass">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
+        <h2 style="font-size: 20px; font-weight: 700;">Tác vụ gần đây</h2>
+        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tải lại
+        </button>
+    </div>
+
+    {% if not jobs %}
+    <div style="text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
+        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📹</div>
+        <p style="font-size: 15px;">Bạn chưa tạo tác vụ lồng tiếng nào.</p>
+        <a href="/dubbing/create" class="btn btn-primary" style="margin-top: var(--space-sm); font-size: 13px; padding: 8px 16px;">Tạo tác vụ đầu tiên</a>
+    </div>
+    {% else %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                    <th style="padding: var(--space-xs);">ID Tác vụ</th>
+                    <th style="padding: var(--space-xs);">Nguồn nội dung</th>
+                    <th style="padding: var(--space-xs);">Trạng thái</th>
+                    <th style="padding: var(--space-xs);">Tiến trình</th>
+                    <th style="padding: var(--space-xs);">Ngày tạo</th>
+                    <th style="padding: var(--space-xs); text-align: right;">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color var(--transition-fast);" class="table-row">
+                    <td style="padding: var(--space-xs); font-family: monospace; font-weight: 600;">
+                        {{ job.id[:8] }}...
+                    </td>
+                    <td style="padding: var(--space-xs); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {% if job.source_type == 'link' %}
+                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                                {{ job.source_url }}
+                            </a>
+                        {% else %}
+                            <span style="display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="file-video" style="width: 14px; height: 14px;"></i>
+                                File tải lên
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: var(--space-xs);">
+                        <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+                    </td>
+                    <td style="padding: var(--space-xs); width: 180px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 8px; width: 100px; overflow: hidden;">
+                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-primary{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                            </div>
+                            <span style="font-size: 12px; font-weight: 600;">{{ job.progress_percent }}%</span>
+                        </div>
+                    </td>
+                    <td style="padding: var(--space-xs); color: var(--text-secondary); font-size: 13px;">
+                        {{ job.created_at.strftime('%H:%M %d/%m/%Y') }}
+                    </td>
+                    <td style="padding: var(--space-xs); text-align: right;">
+                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">
+                            Chi tiết <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-row:hover {
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+    :root[data-theme="light"] .table-row:hover {
+        background-color: rgba(15, 23, 42, 0.02);
+    }
+</style>
+{% endblock %}

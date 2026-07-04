@@ -1,0 +1,333 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs);">
+    <div>
+        <h1 style="font-size: 26px; font-weight: 800;">Theo dõi tiến trình lồng tiếng</h1>
+        <p style="font-size: 14px; color: var(--text-secondary);">Mã tác vụ: <span style="font-family: monospace; font-weight: 600;">{{ job.id }}</span></p>
+    </div>
+    <div style="display: flex; gap: var(--space-xs);">
+        <a href="/dashboard" class="btn btn-secondary">
+            <i data-lucide="arrow-left"></i> Quay về Dashboard
+        </a>
+        <button id="btn-restart" class="btn btn-danger hidden" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw"></i> Thử lại
+        </button>
+    </div>
+</div>
+
+<!-- Grid Layout: Tiến trình tổng và Danh sách 20 bước -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); align-items: start;">
+    
+    <!-- Cột trái: Tiến trình tổng, Preview kết quả và Nhật ký -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+        
+        <!-- Khung tiến trình tổng (Card) -->
+        <div class="card glass" style="padding: var(--space-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="status-title" style="font-size: 18px; font-weight: 700; color: var(--color-primary);">Đang chuẩn bị...</span>
+                <span id="progress-text" style="font-size: 24px; font-weight: 800; color: var(--text-primary);">{{ job.progress_percent }}%</span>
+            </div>
+            
+            <!-- Thanh Progress -->
+            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 12px; width: 100%; overflow: hidden; margin: var(--space-xs) 0;">
+                <div id="progress-bar" class="progress-bar-fill status-gradient" style="--progress-width: {{ job.progress_percent }}%;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); font-size: 13px; color: var(--text-secondary); margin-top: var(--space-2xs);">
+                <div>Giai đoạn: <span id="current-step-label" style="font-weight: 700; color: var(--text-primary);">Khởi tạo tác vụ</span></div>
+                <div style="text-align: right;">Thời gian chạy: <span id="time-elapsed" style="font-weight: 700; color: var(--text-primary);">00:00</span></div>
+            </div>
+        </div>
+
+        <!-- Khung lỗi hiển thị nếu có -->
+        <div id="error-card" class="card glass hidden" style="border-color: var(--color-danger); background-color: rgba(239, 68, 68, 0.05);">
+            <h3 style="color: var(--color-danger); font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="alert-triangle"></i> Gặp lỗi khi xử lý lồng tiếng
+            </h3>
+            <p id="error-msg-detail" style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;"></p>
+        </div>
+
+        <!-- Khung kết quả (Chỉ hiển thị khi trạng thái hoàn thành - Completed) -->
+        <div id="results-card" class="card glass hidden" style="padding: var(--space-lg);">
+            <h2 style="font-size: 20px; font-weight: 800; color: var(--color-success); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
+                🎉 Lồng tiếng hoàn tất!
+            </h2>
+            
+            <!-- Trình phát media xem trước -->
+            <div id="media-player-container" class="hidden" style="width: 100%; border-radius: var(--radius-lg); overflow: hidden; background: #000; margin-bottom: var(--space-sm);">
+                <video id="output-video-player" controls style="width: 100%; max-height: 400px; display: block;"></video>
+            </div>
+            
+            <!-- Danh sách nút tải file -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                <h4 style="font-size: 14px; font-weight: 700;">Tải kết quả về máy:</h4>
+                <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
+                    <a id="download-video" href="#" class="btn btn-primary" download>
+                        <i data-lucide="download"></i> Tải Video MP4
+                    </a>
+                    <a id="download-audio" href="#" class="btn btn-secondary" download>
+                        <i data-lucide="music"></i> Tải MP3
+                    </a>
+                    <a id="download-srt" href="#" class="btn btn-secondary" download>
+                        <i data-lucide="file-text"></i> Tải Phụ đề (SRT)
+                    </a>
+                    <a id="btn-edit-timeline" href="#" class="btn btn-secondary" style="border-color: var(--color-secondary); color: var(--color-secondary);">
+                        <i data-lucide="edit"></i> Chỉnh sửa Timeline
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nhật ký xử lý (Log box) -->
+        <div class="card glass" style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 6px;">
+                <h3 style="font-size: 16px; font-weight: 700;">Nhật ký xử lý</h3>
+                <button id="btn-copy-log" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">Sao chép log</button>
+            </div>
+            <div id="log-console" style="background-color: #050811; border-radius: var(--radius-md); padding: var(--space-sm); font-family: monospace; font-size: 12px; height: 180px; overflow-y: auto; color: #10b981; line-height: 1.6;">
+                [Khởi tạo luồng...] Kết nối máy chủ giám sát.
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Danh sách 20 bước và trạng thái từng bước -->
+    <div class="card glass" style="padding: var(--space-sm); max-height: calc(100vh - var(--header-height) - var(--space-xl)); overflow-y: auto;">
+        <h3 style="font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2xs); margin-bottom: var(--space-xs);">
+            Quy trình Pipeline (20 bước)
+        </h3>
+        
+        <div id="steps-list-container" style="display: flex; flex-direction: column; gap: var(--space-2xs);">
+            {% for step in steps %}
+            <div class="step-row" id="step-row-{{ step.step_number }}" style="display: flex; align-items: center; justify-content: space-between; padding: 6px var(--space-xs); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); transition: background-color var(--transition-fast);">
+                <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span class="step-badge" id="step-badge-{{ step.step_number }}" style="width: 20px; height: 20px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; background-color: var(--border-color); color: var(--text-tertiary);" class="flex-center">
+                        {{ step.step_number }}
+                    </span>
+                    <span class="step-name">{{ step.name }}</span>
+                </div>
+                <div class="step-status-icon" id="step-icon-{{ step.step_number }}">
+                    <i data-lucide="circle" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const jobId = "{{ job.id }}";
+        const logConsole = document.getElementById("log-console");
+        const btnCopyLog = document.getElementById("btn-copy-log");
+        const btnRestart = document.getElementById("btn-restart");
+        const resultsCard = document.getElementById("results-card");
+        const errorCard = document.getElementById("error-card");
+        const errorMsgDetail = document.getElementById("error-msg-detail");
+        const timeElapsed = document.getElementById("time-elapsed");
+        
+        // Thời gian chạy (giả lập bộ đếm thời gian trôi qua)
+        let startTime = Date.now();
+        const timer = setInterval(() => {
+            const diff = Date.now() - startTime;
+            const mins = Math.floor(diff / 60000).toString().padStart(2, '0');
+            const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            timeElapsed.innerText = `${mins}:${secs}`;
+        }, 1000);
+
+        // Nạp và sao chép log
+        btnCopyLog.addEventListener("click", () => {
+            navigator.clipboard.writeText(logConsole.innerText);
+            showToast("Đã sao chép toàn bộ nhật ký vào bộ nhớ tạm!", "success");
+        });
+
+        // 1. Kết nối Server-Sent Events (SSE) để đồng bộ trạng thái realtime
+        const eventSource = new EventSource(`/dubbing/job/${jobId}/events`);
+        
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.error) {
+                showToast(data.error, "danger");
+                eventSource.close();
+                clearInterval(timer);
+                return;
+            }
+
+            // Cập nhật giao diện chính
+            document.getElementById("progress-text").innerText = `${data.progress_percent}%`;
+            document.getElementById("progress-bar").style.width = `${data.progress_percent}%`;
+            
+            const statusTitle = document.getElementById("status-title");
+            const currentStepLabel = document.getElementById("current-step-label");
+            
+            currentStepLabel.innerText = data.current_step_name || "Đang chạy";
+
+            if (data.status === "processing") {
+                statusTitle.innerText = "Đang xử lý lồng tiếng...";
+                statusTitle.style.color = "var(--color-info)";
+            } else if (data.status === "completed") {
+                statusTitle.innerText = "Lồng tiếng hoàn tất!";
+                statusTitle.style.color = "var(--color-success)";
+                eventSource.close();
+                clearInterval(timer);
+                loadFinalResults(); // Load video và nút download
+            } else if (data.status === "failed") {
+                statusTitle.innerText = "Lỗi tác vụ lồng tiếng!";
+                statusTitle.style.color = "var(--color-danger)";
+                eventSource.close();
+                clearInterval(timer);
+                
+                errorCard.classList.remove("hidden");
+                errorMsgDetail.innerText = data.error_message || "Lỗi không xác định trong quá trình sinh âm thanh hoặc FFmpeg render.";
+                btnRestart.classList.remove("hidden");
+            }
+
+            // Gọi API status phụ để cập nhật danh sách 20 bước và log
+            updateStepsList();
+        };
+
+        eventSource.onerror = function() {
+            // Nếu mất kết nối SSE, chuyển sang dùng Ajax polling dự phòng (mỗi 2 giây)
+            console.warn("Mất kết nối SSE. Chuyển sang chế độ Polling dự phòng.");
+            eventSource.close();
+            
+            const pollingInterval = setInterval(async () => {
+                const response = await fetch(`/dubbing/job/${jobId}/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById("progress-text").innerText = `${data.progress_percent}%`;
+                    document.getElementById("progress-bar").style.width = `${data.progress_percent}%`;
+                    document.getElementById("current-step-label").innerText = data.current_step_name;
+
+                    updateUIWithData(data);
+                    
+                    if (data.status === "completed" || data.status === "failed") {
+                        clearInterval(pollingInterval);
+                        clearInterval(timer);
+                    }
+                }
+            }, 2000);
+        };
+
+        function updateUIWithData(data) {
+            const statusTitle = document.getElementById("status-title");
+            if (data.status === "completed") {
+                statusTitle.innerText = "Lồng tiếng hoàn tất!";
+                statusTitle.style.color = "var(--color-success)";
+                loadFinalResults();
+            } else if (data.status === "failed") {
+                statusTitle.innerText = "Lỗi tác vụ!";
+                statusTitle.style.color = "var(--color-danger)";
+                errorCard.classList.remove("hidden");
+                errorMsgDetail.innerText = data.error_message;
+                btnRestart.classList.remove("hidden");
+            }
+            renderStepsAndLogs(data.steps);
+        }
+
+        async function updateStepsList() {
+            const res = await fetch(`/dubbing/job/${jobId}/status`);
+            if (res.ok) {
+                const data = await res.json();
+                renderStepsAndLogs(data.steps);
+            }
+        }
+
+        function renderStepsAndLogs(steps) {
+            let logText = "";
+            steps.forEach(step => {
+                const row = document.getElementById(`step-row-${step.step_number}`);
+                const badge = document.getElementById(`step-badge-${step.step_number}`);
+                const icon = document.getElementById(`step-icon-${step.step_number}`);
+                
+                if (row && badge && icon) {
+                    if (step.status === "completed") {
+                        row.style.color = "var(--text-primary)";
+                        badge.style.backgroundColor = "var(--color-success)";
+                        badge.style.color = "white";
+                        icon.innerHTML = `<i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: var(--color-success);"></i>`;
+                    } else if (step.status === "processing") {
+                        row.style.color = "var(--color-primary)";
+                        badge.style.backgroundColor = "var(--color-primary)";
+                        badge.style.color = "white";
+                        icon.innerHTML = `<svg class="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                    } else if (step.status === "failed") {
+                        row.style.color = "var(--color-danger)";
+                        badge.style.backgroundColor = "var(--color-danger)";
+                        badge.style.color = "white";
+                        icon.innerHTML = `<i data-lucide="x-circle" style="width: 14px; height: 14px; color: var(--color-danger);"></i>`;
+                    } else {
+                        // Pending
+                        row.style.color = "var(--text-secondary)";
+                        badge.style.backgroundColor = "var(--border-color)";
+                        badge.style.color = "var(--text-tertiary)";
+                        icon.innerHTML = `<i data-lucide="circle" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>`;
+                    }
+                }
+
+                // Tập hợp log
+                if (step.started_at) {
+                    const timeStr = step.started_at.split("T")[1].slice(0, 8);
+                    logText += `[${timeStr}] — ${step.log_message}\n`;
+                }
+            });
+
+            logConsole.innerText = logText;
+            logConsole.scrollTop = logConsole.scrollHeight;
+            
+            // Re-render Lucide icons dynamically added
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+
+        async function loadFinalResults() {
+            const res = await fetch(`/dubbing/job/${jobId}/status`);
+            if (res.ok) {
+                const data = await res.json();
+                resultsCard.classList.remove("hidden");
+                
+                // Gán link download
+                const vidExport = data.exports.find(e => e.file_type === "video");
+                const audExport = data.exports.find(e => e.file_type === "audio_mp3");
+                const srtExport = data.exports.find(e => e.file_type === "subtitle_srt");
+                
+                if (vidExport) {
+                    const playerContainer = document.getElementById("media-player-container");
+                    const player = document.getElementById("output-video-player");
+                    player.src = vidExport.file_path;
+                    playerContainer.classList.remove("hidden");
+                    
+                    document.getElementById("download-video").href = vidExport.file_path;
+                }
+                
+                if (audExport) {
+                    document.getElementById("download-audio").href = audExport.file_path;
+                }
+                
+                if (srtExport) {
+                    document.getElementById("download-srt").href = srtExport.file_path;
+                }
+
+                // Gán nút chỉnh sửa timeline
+                document.getElementById("btn-edit-timeline").href = `/dubbing/job/${jobId}/edit`;
+            }
+        }
+    });
+</script>
+
+<style>
+    .animate-spin {
+        animation: spin 1s linear infinite;
+        color: var(--color-primary);
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}

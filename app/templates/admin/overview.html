@@ -1,0 +1,90 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-md);">
+    <h1 style="font-size: 32px; font-weight: 800;">Tổng quan Hệ thống quản trị</h1>
+    <p style="font-size: 15px; color: var(--text-secondary);">Giám sát trạng thái hoạt động, quản lý người dùng và theo dõi hàng đợi tác vụ.</p>
+</div>
+
+<!-- Stats cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng số người dùng</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--text-primary);">{{ users|length }}</div>
+    </div>
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng số tác vụ</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-primary);">{{ total_jobs }}</div>
+    </div>
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tác vụ đang chạy</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-info);">{{ processing_jobs }}</div>
+    </div>
+    <div class="card glass">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tỷ lệ lỗi tác vụ</div>
+        {% if total_jobs > 0 %}
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-danger);">
+            {{ ((failed_jobs / total_jobs) * 100)|round(1) }}%
+        </div>
+        {% else %}
+        <div style="font-size: 36px; font-weight: 800; color: var(--text-tertiary);">0%</div>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md);">
+    <!-- Danh sách tất cả các task đang chạy hoặc hoàn thành -->
+    <div class="card glass">
+        <h3 style="font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Tất cả tác vụ hệ thống</h3>
+        
+        {% if not jobs %}
+        <p style="font-size: 14px; color: var(--text-secondary); text-align: center; padding: var(--space-md) 0;">Hệ thống chưa có tác vụ nào.</p>
+        {% else %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                        <th style="padding: var(--space-xs);">User ID</th>
+                        <th style="padding: var(--space-xs);">Loại</th>
+                        <th style="padding: var(--space-xs);">Trạng thái</th>
+                        <th style="padding: var(--space-xs);">Tiến trình</th>
+                        <th style="padding: var(--space-xs);">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: var(--space-xs); font-family: monospace;">User #{{ job.user_id }}</td>
+                        <td style="padding: var(--space-xs);">{{ job.source_type.upper() }}</td>
+                        <td style="padding: var(--space-xs);">
+                            <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+                        </td>
+                        <td style="padding: var(--space-xs);">{{ job.progress_percent }}%</td>
+                        <td style="padding: var(--space-xs);">
+                            <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 2px 6px; font-size: 11px;">Chi tiết</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Danh sách người dùng -->
+    <div class="card glass">
+        <h3 style="font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Tài khoản đăng ký</h3>
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); overflow-y: auto; max-height: 300px;">
+            {% for u in users %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-2xs); border-bottom: 1px dashed var(--border-color);">
+                <div style="display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis;">
+                    <span style="font-size: 13px; font-weight: 600;">{{ u.full_name if u.full_name else 'No Name' }}</span>
+                    <span style="font-size: 11px; color: var(--text-tertiary);">{{ u.email }}</span>
+                </div>
+                <span class="badge badge-completed" style="font-size: 10px; padding: 2px 6px;">{{ u.role }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

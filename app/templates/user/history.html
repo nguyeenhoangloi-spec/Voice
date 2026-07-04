@@ -1,0 +1,132 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs);">
+    <div>
+        <h1 style="font-size: 32px; font-weight: 800;">Lịch sử tác vụ</h1>
+        <p style="font-size: 15px; color: var(--text-secondary);">Xem và tải lại tất cả video đã lồng tiếng của bạn.</p>
+    </div>
+    <a href="/dubbing/create" class="btn btn-primary hover-scale">
+        <i data-lucide="plus"></i> Tạo tác vụ mới
+    </a>
+</div>
+
+<div class="card glass">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
+        <h2 style="font-size: 20px; font-weight: 700;">Danh sách tác vụ đã thực hiện</h2>
+        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tải lại
+        </button>
+    </div>
+
+    {% if not jobs %}
+    <div style="text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
+        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📁</div>
+        <p style="font-size: 15px;">Bạn chưa thực hiện tác vụ lồng tiếng nào.</p>
+        <a href="/dubbing/create" class="btn btn-primary" style="margin-top: var(--space-sm); font-size: 13px; padding: 8px 16px;">Tạo tác vụ lồng tiếng</a>
+    </div>
+    {% else %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                    <th style="padding: var(--space-xs);">Mã Tác vụ</th>
+                    <th style="padding: var(--space-xs);">Nguồn nội dung</th>
+                    <th style="padding: var(--space-xs);">Thời lượng</th>
+                    <th style="padding: var(--space-xs);">Trạng thái</th>
+                    <th style="padding: var(--space-xs);">Tiến trình</th>
+                    <th style="padding: var(--space-xs);">Ngày tạo</th>
+                    <th style="padding: var(--space-xs); text-align: right;">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color var(--transition-fast);" class="table-row">
+                    <td style="padding: var(--space-xs); font-family: monospace; font-weight: 600;">
+                        {{ job.id[:8] }}...
+                    </td>
+                    <td style="padding: var(--space-xs); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {% if job.source_type == 'link' %}
+                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                                {{ job.source_url }}
+                            </a>
+                        {% else %}
+                            <span style="display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="file-video" style="width: 14px; height: 14px;"></i>
+                                File tải lên
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: var(--space-xs); color: var(--text-secondary);">
+                        {{ (job.duration / 60)|int }}p {{ (job.duration % 60)|int }}s
+                    </td>
+                    <td style="padding: var(--space-xs);">
+                        <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+                    </td>
+                    <td style="padding: var(--space-xs); width: 150px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 6px; width: 80px; overflow: hidden;">
+                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-primary{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600;">{{ job.progress_percent }}%</span>
+                        </div>
+                    </td>
+                    <td style="padding: var(--space-xs); color: var(--text-secondary); font-size: 13px;">
+                        {{ job.created_at.strftime('%H:%M %d/%m/%Y') }}
+                    </td>
+                    <td style="padding: var(--space-xs); text-align: right; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+                        {% if job.status == 'completed' %}
+                            <a href="/storage/exports/{{ job.id }}_dubbed.mp4" download class="btn btn-primary" style="padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                <i data-lucide="download" style="width: 14px; height: 14px;"></i> Tải về
+                            </a>
+                        {% endif %}
+                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                            Chi tiết <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                        </a>
+                        <button onclick="confirmDeleteJob('{{ job.id }}')" class="btn btn-secondary" style="padding: 6px 8px; font-size: 12px; color: var(--color-error); border-color: rgba(239, 68, 68, 0.2); display: inline-flex; align-items: center; background: none; cursor: pointer;">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function confirmDeleteJob(jobId) {
+    if (confirm("Bạn có chắc chắn muốn xóa tác vụ lồng tiếng này và tất cả các file liên quan không?")) {
+        fetch(`/dubbing/history/delete/${jobId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert("Lỗi: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Đã xảy ra lỗi khi kết nối tới máy chủ.");
+        });
+    }
+}
+</script>
+
+<style>
+    .table-row:hover {
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+    :root[data-theme="light"] .table-row:hover {
+        background-color: rgba(15, 23, 42, 0.02);
+    }
+</style>
+{% endblock %}

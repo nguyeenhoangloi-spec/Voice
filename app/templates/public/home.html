@@ -1,0 +1,72 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="hero-section" style="padding: var(--space-xl) 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-md);">
+    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--color-primary); background-color: var(--color-accent-bg); padding: 6px 16px; border-radius: var(--radius-full);">
+        🔥 Trải nghiệm Lồng tiếng AI Thế hệ mới
+    </div>
+    
+    <h1 style="font-size: 54px; font-weight: 800; line-height: 1.15; letter-spacing: -1.5px; max-width: 800px;">
+        Lồng tiếng Video tự động sang <span class="text-gradient">Tiếng Việt</span> chỉ trong nháy mắt
+    </h1>
+    
+    <p style="font-size: 18px; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">
+        Chỉ cần dán liên kết video (YouTube/Direct Link) hoặc tải tệp lên. Hệ thống sẽ tự động tách nhạc nền, dịch nghĩa và lồng tiếng Việt chuẩn xác theo ngữ cảnh.
+    </p>
+
+    <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-xs);">
+        <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+            Bắt đầu lồng tiếng ngay <i data-lucide="arrow-right"></i>
+        </a>
+        <a href="/pricing" class="btn btn-secondary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+            Xem bảng giá
+        </a>
+    </div>
+</div>
+
+<div class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); margin-top: var(--space-xl);">
+    <!-- Feature 1 -->
+    <div class="card glass">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(56, 189, 248, 0.1); color: var(--color-primary); font-size: 20px;" class="flex-center">
+            <i data-lucide="link"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700;">Nhập liên kết thông minh</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+            Hỗ trợ dán liên kết từ YouTube, tệp âm thanh/video trực tiếp hoặc thu thập từ các trang web công khai có chứa thẻ media.
+        </p>
+    </div>
+
+    <!-- Feature 2 -->
+    <div class="card glass">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(168, 85, 247, 0.1); color: var(--color-secondary); font-size: 20px;" class="flex-center">
+            <i data-lucide="languages"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700;">Dịch thuật theo ngữ cảnh</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+            Dịch lời thoại tự nhiên, chính xác, bám sát ngữ cảnh của đoạn nói, phân loại được nhiều nhân vật hội thoại.
+        </p>
+    </div>
+
+    <!-- Feature 3 -->
+    <div class="card glass">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(45, 212, 191, 0.1); color: var(--color-accent); font-size: 20px;" class="flex-center">
+            <i data-lucide="audio-lines"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700;">Tách âm & Ducking nhạc nền</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+            Trích xuất giọng nói và giữ lại nhạc nền nguyên bản. Nhạc nền tự động giảm nhỏ âm lượng khi có lời lồng tiếng Việt đè lên.
+        </p>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 600px) {
+        h1 {
+            font-size: 36px !important;
+        }
+        .hero-section {
+            padding: var(--space-md) 0 !important;
+        }
+    }
+</style>
+{% endblock %}

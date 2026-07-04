@@ -1,0 +1,61 @@
+<header class="app-header glass">
+    <div class="header-left">
+        <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
+            <i data-lucide="menu"></i>
+        </button>
+        
+        <!-- Quick search or Breadcrumbs -->
+        <div style="font-weight: 500; font-size: 15px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+            <span>VoiceAI Workspace</span>
+            {% if settings and settings.AI_MODE == 'mock' %}
+            <span style="font-size: 11px; padding: 2px 6px; background-color: var(--border-color); border-radius: var(--radius-sm); font-weight: 600;">Mock AI Mode</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="header-right">
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="sidebar-toggle-btn" title="Chuyển đổi giao diện Sáng/Tối">
+            <i><!-- Icon load dynamically --></i>
+        </button>
+
+        <!-- Help Link -->
+        <a href="/help" class="sidebar-toggle-btn" title="Trợ giúp và Hướng dẫn">
+            <i data-lucide="help-circle"></i>
+        </a>
+
+        <!-- User profile -->
+        {% if user %}
+        <div class="user-avatar-container" title="Hồ sơ cá nhân">
+            <div class="user-avatar flex-center">
+                {% if user.full_name %}
+                    {{ user.full_name[:2].upper() }}
+                {% else %}
+                    {{ user.email[:2].upper() }}
+                {% endif %}
+            </div>
+            <div style="display: flex; flex-direction: column; line-height: 1.2;" class="sidebar-collapsed-hide">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">
+                    {{ user.full_name if user.full_name else 'Người dùng' }}
+                </span>
+                <span style="font-size: 11px; color: var(--text-tertiary);">
+                    {{ user.role.upper() }}
+                </span>
+            </div>
+        </div>
+        {% else %}
+        <a href="/auth/login" class="btn btn-primary" style="padding: 6px 16px; font-size: 13px;">
+            Đăng nhập
+        </a>
+        {% endif %}
+    </div>
+</header>
+
+<style>
+    /* Ẩn text profile khi sidebar hoặc màn hình thu gọn */
+    @media (max-width: 600px) {
+        .sidebar-collapsed-hide {
+            display: none !important;
+        }
+    }
+</style>

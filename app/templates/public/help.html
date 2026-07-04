@@ -1,0 +1,54 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div class="card glass" style="margin-bottom: var(--space-md); padding: var(--space-lg);">
+    <h1 style="font-size: 32px; font-weight: 800; margin-bottom: var(--space-xs);">Hướng dẫn sử dụng VoiceAI</h1>
+    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.6;">
+        Chào mừng bạn đến với <b>VoiceAI</b> - giải pháp dịch thuật và lồng tiếng video tự động bằng trí tuệ nhân tạo. Hãy tham khảo các bước bên dưới để nhanh chóng làm quen với studio làm việc của chúng tôi.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+        <div class="card glass">
+            <h2 style="font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span style="background: var(--color-accent-bg); color: var(--color-accent); width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: 14px;" class="flex-center">1</span>
+                Các bước bắt đầu lồng tiếng
+            </h2>
+            <ol style="margin-left: 20px; font-size: 14px; color: var(--text-secondary); display: flex; flex-direction: column; gap: var(--space-xs); line-height: 1.6; padding-left: 10px;">
+                <li>Đăng ký hoặc đăng nhập vào hệ thống.</li>
+                <li>Nhấp chọn mục <b>Tạo tác vụ</b> trên sidebar.</li>
+                <li>Sao chép liên kết video YouTube hoặc link tải trực tiếp (MP4, MP3) rồi nhấn <b>Dán liên kết</b> (hoặc kéo thả tệp từ máy tính).</li>
+                <li>Đợi hệ thống tải thông tin metadata của video và hiển thị màn hình preview.</li>
+                <li>Thiết lập giọng nói mong muốn (Giọng Nam/Nữ, vùng miền, tốc độ nói) rồi nhấp <b>Bắt đầu lồng tiếng</b>.</li>
+                <li>Theo dõi tiến trình xử lý real-time. Khi hoàn tất, bạn có thể tải về video lồng tiếng Việt hoặc phụ đề SRT/VTT.</li>
+            </ol>
+        </div>
+
+        <div class="card glass">
+            <h2 style="font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span style="background: var(--color-accent-bg); color: var(--color-accent); width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: 14px;" class="flex-center">2</span>
+                Câu hỏi thường gặp (FAQs)
+            </h2>
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-xs);">
+                <div>
+                    <h4 style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Hệ thống hỗ trợ các loại link nào?</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5;">Hỗ trợ liên kết video YouTube công khai, các liên kết file video/audio trực tiếp (.mp4, .mp3, .wav, .webm) và các website công khai chứa thẻ video HTML5.</p>
+                </div>
+                <div>
+                    <h4 style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Tại sao tốc độ lồng tiếng lại khác nhau?</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5;">Mô hình lồng tiếng thật (`AI_MODE=real`) đòi hỏi nhiều tài nguyên xử lý âm thanh, dịch thuật và kết xuất video. Giai đoạn dịch và tạo giọng TTS thường chiếm nhiều thời gian nhất.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Hỗ trợ kỹ thuật</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+            Nếu gặp sự cố hoặc cần hỗ trợ cấu hình FFmpeg/Miniconda, bạn có thể liên hệ trực tiếp với đội ngũ phát triển.
+        </p>
+        <button class="btn btn-primary" style="width: 100%; margin-top: var(--space-xs);" onclick="showToast('Yêu cầu hỗ trợ đã được ghi nhận!', 'success')">Gửi Ticket hỗ trợ</button>
+    </div>
+</div>
+{% endblock %}

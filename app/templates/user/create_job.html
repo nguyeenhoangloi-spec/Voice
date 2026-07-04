@@ -1,0 +1,429 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-md);">
+    <h1 style="font-size: 32px; font-weight: 800;">Tạo tác vụ lồng tiếng mới</h1>
+    <p style="font-size: 15px; color: var(--text-secondary);">Nhập URL hoặc tải tệp đa phương tiện của bạn lên để bắt đầu lồng tiếng.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-md); align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+        
+        <!-- Nhập nguồn (Link dán hoặc File Upload) -->
+        <div class="card glass">
+            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">1. Nhập nguồn nội dung</h2>
+            
+            <div style="display: flex; gap: var(--space-xs); width: 100%;">
+                <div style="position: relative; flex: 1;">
+                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp tại đây..." style="padding-right: 120px;">
+                    <button id="btn-paste" class="btn btn-secondary" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px;" type="button" title="Đọc nội dung clipboard">
+                        <i data-lucide="clipboard" style="width: 14px; height: 14px;"></i> Dán link
+                    </button>
+                </div>
+                <button id="btn-check" class="btn btn-primary">Kiểm tra</button>
+            </div>
+            
+            <div style="text-align: center; margin: var(--space-xs) 0; color: var(--text-tertiary); font-size: 13px; font-weight: 600;">HOẶC KÉO THẢ TỆP</div>
+            
+            <div id="drop-zone" style="border: 2px dashed var(--border-color); border-radius: var(--radius-lg); padding: var(--space-lg); text-align: center; cursor: pointer; transition: all var(--transition-fast);">
+                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: var(--space-xs);"></i>
+                <h4 style="font-size: 15px; font-weight: 600;">Chọn tệp video hoặc âm thanh của bạn</h4>
+                <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, thời lượng tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+            </div>
+        </div>
+
+        <!-- Cấu hình lồng tiếng (Voice settings) -->
+        <div class="card glass">
+            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">2. Cấu hình lồng tiếng</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+                <div class="form-group">
+                    <label for="voice-gender" class="form-label">Giọng đọc</label>
+                    <select id="voice-gender" class="form-control">
+                        <option value="male">Giọng Nam</option>
+                        <option value="female" selected>Giọng Nữ</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="voice-region" class="form-label">Vùng miền</label>
+                    <select id="voice-region" class="form-control">
+                        <option value="north" selected>Miền Bắc</option>
+                        <option value="south">Miền Nam</option>
+                        <option value="central">Miền Trung</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+                <div class="form-group">
+                    <label for="voice-emotion" class="form-label">Sắc thái / Cảm xúc</label>
+                    <select id="voice-emotion" class="form-control">
+                        <option value="neutral" selected>Trung tính / Bình thường</option>
+                        <option value="happy">Vui vẻ / Hào hứng</option>
+                        <option value="narrative">Kể chuyện / Ấm áp</option>
+                        <option value="news">Tin tức / Nghiêm túc</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="translation-mode" class="form-label">Chế độ dịch thuật</label>
+                    <select id="translation-mode" class="form-control">
+                        <option value="natural" selected>Tự nhiên (Phù hợp văn nói)</option>
+                        <option value="literal">Sát nghĩa (Đúng từng từ)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-2xs);">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                    <input type="checkbox" id="keep-bg-music" checked style="width: 16px; height: 16px;">
+                    Giữ lại nhạc nền & hiệu ứng âm thanh (Audio Separation)
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                    <input type="checkbox" id="generate-subtitles" checked style="width: 16px; height: 16px;">
+                    Tự động tạo phụ đề tiếng Việt (SRT & VTT)
+                </label>
+            </div>
+            
+            <button id="btn-submit" class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-sm); padding: 14px;" disabled>
+                🚀 Bắt đầu lồng tiếng
+            </button>
+        </div>
+    </div>
+
+    <!-- Cột bên phải: Preview thông tin -->
+    <div id="preview-panel" class="card glass" style="opacity: 0.6; pointer-events: none; transition: all var(--transition-normal);">
+        <h3 style="font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Xem trước nội dung</h3>
+        
+        <div id="preview-empty" style="text-align: center; padding: var(--space-lg) 0; color: var(--text-tertiary);">
+            <i data-lucide="video-off" style="width: 48px; height: 48px; margin-bottom: 10px;"></i>
+            <p style="font-size: 13px;">Chưa có nội dung xem trước. Hãy điền URL hoặc tải file để kiểm tra.</p>
+        </div>
+
+        <div id="preview-content" class="hidden" style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-md); overflow: hidden; background-color: #000; aspect-ratio: 16/9;" class="flex-center">
+                <img id="preview-thumb" src="" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600;">00:00</div>
+            </div>
+            
+            <h4 id="preview-title" style="font-size: 15px; font-weight: 700; line-height: 1.4; margin-top: var(--space-2xs);">Tiêu đề video</h4>
+            
+            <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                <div>Nguồn: <span id="preview-source" style="font-weight: 600;">YouTube</span></div>
+                <div id="preview-author-div">Tác giả: <span id="preview-author" style="font-weight: 600;">Uploader</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận bắt đầu lồng tiếng -->
+<div id="confirm-modal" class="modal-container">
+    <div class="modal-content">
+        <h3 style="font-size: 20px; font-weight: 800; margin-bottom: var(--space-xs);">Xác nhận tạo tác vụ</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+            Bạn đang chuẩn bị gửi yêu cầu lồng tiếng. Hệ thống sẽ bắt đầu pipeline xử lý 20 bước: tải dữ liệu, trích xuất audio, dịch thuật và sinh giọng lồng tiếng Việt.
+        </p>
+        <div style="font-size: 12px; color: var(--text-tertiary); margin-top: var(--space-xs); border-left: 2px solid var(--color-warning); padding-left: 8px;">
+            Lưu ý: Đảm bảo bạn có quyền sử dụng hợp pháp đối với tệp tin hoặc liên kết truyền thông này.
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-md);">
+            <button id="modal-cancel" class="btn btn-secondary" style="padding: 8px 16px;">Hủy bỏ</button>
+            <button id="modal-confirm" class="btn btn-primary" style="padding: 8px 20px;">Xác nhận & Bắt đầu</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnPaste = document.getElementById("btn-paste");
+        const btnCheck = document.getElementById("btn-check");
+        const btnSubmit = document.getElementById("btn-submit");
+        const sourceUrl = document.getElementById("source-url");
+        
+        const previewPanel = document.getElementById("preview-panel");
+        const previewEmpty = document.getElementById("preview-empty");
+        const previewContent = document.getElementById("preview-content");
+        const previewThumb = document.getElementById("preview-thumb");
+        const previewDuration = document.getElementById("preview-duration");
+        const previewTitle = document.getElementById("preview-title");
+        const previewSource = document.getElementById("preview-source");
+        const previewAuthor = document.getElementById("preview-author");
+        
+        const confirmModal = document.getElementById("confirm-modal");
+        const modalCancel = document.getElementById("modal-cancel");
+        const modalConfirm = document.getElementById("modal-confirm");
+        
+        let checkedData = null;
+
+        // 1. Tương tác với clipboard (Dán liên kết)
+        if (btnPaste) {
+            btnPaste.addEventListener("click", async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    sourceUrl.value = text;
+                    showToast("Đã dán liên kết từ bộ nhớ tạm!", "success");
+                    // Tự động kiểm tra liên kết sau khi dán
+                    btnCheck.click();
+                } catch (err) {
+                    showToast("Không thể đọc clipboard. Vui lòng cấp quyền hoặc dán thủ công.", "warning");
+                }
+            });
+        }
+
+        // Bắt sự kiện phím tắt paste (Ctrl + V)
+        sourceUrl.addEventListener("paste", () => {
+            // Đợi input nhận giá trị rồi bấm check
+            setTimeout(() => btnCheck.click(), 100);
+        });
+
+        // 2. Gọi API kiểm tra liên kết
+        btnCheck.addEventListener("click", async () => {
+            const url = sourceUrl.value.trim();
+            if (!url) {
+                showToast("Vui lòng nhập liên kết hợp lệ.", "warning");
+                return;
+            }
+
+            btnCheck.innerHTML = `<span class="flex-center" style="gap: 6px;"><svg class="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang quét...</span>`;
+            btnCheck.disabled = true;
+
+            try {
+                const response = await fetch("/dubbing/check-link", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const resData = await response.json();
+                
+                if (response.ok && resData.success) {
+                    checkedData = resData.data;
+                    
+                    // Hiển thị panel preview
+                    previewEmpty.classList.add("hidden");
+                    previewContent.classList.remove("hidden");
+                    previewPanel.style.opacity = "1";
+                    previewPanel.style.pointerEvents = "auto";
+                    
+                    // Gán các giá trị preview
+                    previewTitle.innerText = checkedData.title;
+                    previewSource.innerText = checkedData.source.toUpperCase();
+                    previewThumb.src = checkedData.thumbnail || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60";
+                    
+                    if (checkedData.author) {
+                        document.getElementById("preview-author-div").style.display = "block";
+                        previewAuthor.innerText = checkedData.author;
+                    } else {
+                        document.getElementById("preview-author-div").style.display = "none";
+                    }
+
+                    // Format duration (hh:mm:ss)
+                    const secs = checkedData.duration;
+                    const h = Math.floor(secs / 3600);
+                    const m = Math.floor((secs % 3600) / 60);
+                    const s = Math.floor(secs % 60);
+                    previewDuration.innerText = [
+                        h > 0 ? h : null,
+                        m.toString().padStart(2, '0'),
+                        s.toString().padStart(2, '0')
+                    ].filter(Boolean).join(':');
+
+                    btnSubmit.disabled = false;
+                    showToast("Liên kết được hỗ trợ và sẵn sàng lồng tiếng!", "success");
+                } else {
+                    showToast(resData.error || "Liên kết không hợp lệ hoặc không an toàn.", "danger");
+                    resetPreview();
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối với server kiểm tra link.", "danger");
+                resetPreview();
+            } finally {
+                btnCheck.innerHTML = "Kiểm tra";
+                btnCheck.disabled = false;
+            }
+        });
+
+        // Kéo thả file upload
+        const dropZone = document.getElementById("drop-zone");
+        const fileInput = document.getElementById("file-input");
+        
+        dropZone.addEventListener("click", () => fileInput.click());
+        
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "var(--color-primary)";
+            dropZone.style.background = "var(--bg-tertiary)";
+        });
+        
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.style.borderColor = "var(--border-color)";
+            dropZone.style.background = "transparent";
+        });
+        
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "var(--border-color)";
+            dropZone.style.background = "transparent";
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const maxMB = parseInt("{{ settings.MAX_UPLOAD_SIZE_MB }}");
+            if (file.size > maxMB * 1024 * 1024) {
+                showToast(`Kích thước file vượt quá giới hạn ${maxMB} MB.`, "danger");
+                return;
+            }
+            
+            // Show upload loading indicator
+            dropZone.innerHTML = `
+                <div class="flex-center" style="flex-direction: column; gap: var(--space-xs);">
+                    <svg class="animate-spin" width="32" height="32" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <h4 style="font-size: 14px;">Đang tải tệp lên server...</h4>
+                </div>
+            `;
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            try {
+                const response = await fetch("/dubbing/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                
+                const resData = await response.json();
+                if (response.ok && resData.success) {
+                    checkedData = {
+                        title: file.name,
+                        source: "file_upload",
+                        thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60",
+                        duration: resData.duration,
+                        author: "Local Upload",
+                        filepath: resData.filepath
+                    };
+
+                    previewEmpty.classList.add("hidden");
+                    previewContent.classList.remove("hidden");
+                    previewPanel.style.opacity = "1";
+                    previewPanel.style.pointerEvents = "auto";
+                    
+                    previewTitle.innerText = checkedData.title;
+                    previewSource.innerText = "LOCAL FILE";
+                    previewThumb.src = checkedData.thumbnail;
+                    
+                    // format duration
+                    const secs = checkedData.duration;
+                    const m = Math.floor(secs / 60);
+                    const s = Math.floor(secs % 60);
+                    previewDuration.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                    
+                    document.getElementById("preview-author-div").style.display = "block";
+                    previewAuthor.innerText = checkedData.author;
+                    
+                    btnSubmit.disabled = false;
+                    showToast("Tải tệp lên thành công và sẵn sàng lồng tiếng!", "success");
+                } else {
+                    showToast(resData.detail || "Không thể xử lý tệp tin tải lên.", "danger");
+                    resetUploadZone();
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối khi tải tệp lên.", "danger");
+                resetUploadZone();
+            }
+        }
+
+        function resetUploadZone() {
+            resetPreview();
+            dropZone.innerHTML = `
+                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: var(--space-xs);"></i>
+                <h4 style="font-size: 15px; font-weight: 600;">Chọn tệp video hoặc âm thanh của bạn</h4>
+                <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, thời lượng tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+            `;
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+
+        function resetPreview() {
+            checkedData = null;
+            btnSubmit.disabled = true;
+            previewEmpty.classList.remove("hidden");
+            previewContent.classList.add("hidden");
+            previewPanel.style.opacity = "0.6";
+            previewPanel.style.pointerEvents = "none";
+        }
+
+        // 3. Popup Xác nhận & Gửi lồng tiếng
+        btnSubmit.addEventListener("click", () => {
+            confirmModal.classList.add("active");
+        });
+        
+        modalCancel.addEventListener("click", () => {
+            confirmModal.classList.remove("active");
+        });
+        
+        modalConfirm.addEventListener("click", async () => {
+            confirmModal.classList.remove("active");
+            
+            // Ở Giai đoạn 1/2, chúng ta giả lập phản hồi thành công và chuyển hướng về dashboard
+            showToast("Đang tạo tác vụ lồng tiếng...", "info");
+            
+            try {
+                const response = await fetch("/dubbing/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        source_url: checkedData.source === "file_upload" ? checkedData.filepath : sourceUrl.value.trim(),
+                        source_type: checkedData.source === "file_upload" ? "upload" : "link",
+                        title: checkedData.title,
+                        duration: checkedData.duration,
+                        thumbnail: checkedData.thumbnail,
+                        voice_gender: document.getElementById("voice-gender").value,
+                        voice_region: document.getElementById("voice-region").value,
+                        voice_emotion: document.getElementById("voice-emotion").value,
+                        keep_bg_music: document.getElementById("keep-bg-music").checked,
+                        generate_subtitles: document.getElementById("generate-subtitles").checked,
+                        translation_mode: document.getElementById("translation-mode").value
+                    })
+                });
+                
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showToast("Tác vụ lồng tiếng đã được tạo thành công!", "success");
+                    // Chuyển hướng đến trang theo dõi tiến trình
+                    setTimeout(() => {
+                        window.location.href = `/dubbing/job/${result.job_id}`;
+                    }, 1000);
+                } else {
+                    showToast(result.error || "Không thể tạo tác vụ.", "danger");
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối khi gửi tác vụ.", "danger");
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Quay vòng quay CSS */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,9 @@
+name: voiceai
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - sqlite
+  - pip
+  - pip:
+      - -r requirements.txt

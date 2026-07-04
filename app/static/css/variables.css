@@ -1,0 +1,91 @@
+/* Spacing & Layout Tokens (Golden Ratio Scale) */
+:root {
+    --space-2xs: 4px;
+    --space-xs: 8px;
+    --space-sm: 16px;
+    --space-md: 24px;
+    --space-lg: 32px;
+    --space-xl: 48px;
+    --space-2xl: 64px;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+
+    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --font-sans: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    
+    /* Layout Dimensions */
+    --sidebar-width-expanded: 260px;
+    --sidebar-width-collapsed: 72px;
+    --header-height: 70px;
+}
+
+/* Light Theme Variables */
+:root[data-theme="light"] {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f5f9;
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    
+    --border-color: rgba(15, 23, 42, 0.08);
+    --border-glass: rgba(255, 255, 255, 0.6);
+    
+    /* Accent Colors */
+    --color-primary: #0ea5e9; /* Cyan Tech Blue */
+    --color-primary-hover: #0284c7;
+    --color-secondary: #a855f7; /* Tech Purple */
+    --color-accent: #14b8a6; /* Teal */
+    --color-accent-bg: rgba(20, 184, 166, 0.1);
+    
+    /* State Colors */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+
+    /* Glassmorphism 2.0 values */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-blur: blur(20px);
+    --shadow-soft: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+/* Dark Theme Variables (Default) */
+:root, :root[data-theme="dark"] {
+    --bg-primary: #0b0f19;      /* Ultra Deep Space Gray-Blue */
+    --bg-secondary: #131b2e;    /* Deep Card Gray-Blue */
+    --bg-tertiary: #1e2942;     /* Core Panel Gray-Blue */
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+    
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-glass: rgba(255, 255, 255, 0.05);
+    
+    /* Accent Colors */
+    --color-primary: #38bdf8;
+    --color-primary-hover: #0ea5e9;
+    --color-secondary: #c084fc;
+    --color-accent: #2dd4bf;
+    --color-accent-bg: rgba(45, 212, 191, 0.1);
+    
+    /* State Colors */
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --color-info: #60a5fa;
+
+    /* Glassmorphism 2.0 values */
+    --glass-bg: rgba(19, 27, 46, 0.75);
+    --glass-blur: blur(20px);
+    --shadow-soft: 0 15px 35px -12px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255, 255, 255, 0.02);
+}

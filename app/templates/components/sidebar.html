@@ -1,0 +1,60 @@
+<aside class="app-sidebar">
+    <div class="sidebar-header">
+        <a href="/" class="logo-container">
+            <span class="logo-icon">🎙️</span>
+            <span class="logo-text">Voice<span class="text-gradient">AI</span></span>
+        </a>
+    </div>
+
+    <div class="sidebar-menu">
+        <div class="menu-group-title">Tổng quan</div>
+        <a href="/dashboard" class="menu-item {% if request.url.path == '/dashboard' or request.url.path == '/dashboard/' %}active{% endif %}" data-tooltip="Bảng điều khiển">
+            <span class="menu-item-icon"><i data-lucide="layout-dashboard"></i></span>
+            <span class="menu-item-text">Dashboard</span>
+        </a>
+
+        <div class="menu-group-title">Lồng tiếng</div>
+        <a href="/dubbing/create" class="menu-item {% if request.url.path == '/dubbing/create' %}active{% endif %}" data-tooltip="Tạo tác vụ mới">
+            <span class="menu-item-icon"><i data-lucide="plus-circle"></i></span>
+            <span class="menu-item-text">Tạo tác vụ</span>
+        </a>
+        <a href="/dubbing/history" class="menu-item {% if request.url.path == '/dubbing/history' %}active{% endif %}" data-tooltip="Lịch sử tác vụ">
+            <span class="menu-item-icon"><i data-lucide="history"></i></span>
+            <span class="menu-item-text">Lịch sử</span>
+        </a>
+        <a href="/dubbing/voices" class="menu-item {% if request.url.path == '/dubbing/voices' %}active{% endif %}" data-tooltip="Mẫu giọng AI">
+            <span class="menu-item-icon"><i data-lucide="mic"></i></span>
+            <span class="menu-item-text">Mẫu giọng</span>
+        </a>
+
+        {% if user and user.role == 'admin' %}
+        <div class="menu-group-title">Quản trị</div>
+        <a href="/admin/overview" class="menu-item {% if '/admin/' in request.url.path %}active{% endif %}" data-tooltip="Trang quản trị">
+            <span class="menu-item-icon"><i data-lucide="shield-check"></i></span>
+            <span class="menu-item-text">Quản trị hệ thống</span>
+        </a>
+        {% endif %}
+
+        <div class="menu-group-title">Tùy chọn</div>
+        <a href="/pricing" class="menu-item {% if request.url.path == '/pricing' %}active{% endif %}" data-tooltip="Gói dịch vụ">
+            <span class="menu-item-icon"><i data-lucide="credit-card"></i></span>
+            <span class="menu-item-text">Gói dịch vụ</span>
+        </a>
+        <a href="/help" class="menu-item {% if request.url.path == '/help' %}active{% endif %}" data-tooltip="Hướng dẫn">
+            <span class="menu-item-icon"><i data-lucide="help-circle"></i></span>
+            <span class="menu-item-text">Hướng dẫn</span>
+        </a>
+        
+        {% if user %}
+        <a href="/auth/logout" class="menu-item" data-tooltip="Đăng xuất">
+            <span class="menu-item-icon"><i data-lucide="log-out"></i></span>
+            <span class="menu-item-text">Đăng xuất</span>
+        </a>
+        {% else %}
+        <a href="/auth/login" class="menu-item {% if request.url.path == '/auth/login' %}active{% endif %}" data-tooltip="Đăng nhập">
+            <span class="menu-item-icon"><i data-lucide="log-in"></i></span>
+            <span class="menu-item-text">Đăng nhập</span>
+        </a>
+        {% endif %}
+    </div>
+</aside>

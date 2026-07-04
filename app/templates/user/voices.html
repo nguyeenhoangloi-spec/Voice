@@ -1,0 +1,45 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-md);">
+    <h1 style="font-size: 32px; font-weight: 800;">Mẫu giọng lồng tiếng AI</h1>
+    <p style="font-size: 15px; color: var(--text-secondary);">Nghe thử và lựa chọn giọng đọc phù hợp nhất cho dự án video của bạn.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md);">
+    {% for voice in voices %}
+    <div class="card glass voice-card" style="display: flex; flex-direction: column; justify-content: space-between; padding: var(--space-md); transition: all var(--transition-normal);">
+        <div>
+            <!-- Giới tính + Vùng miền -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+                <span class="badge badge-completed" style="font-size: 11px; padding: 2px 8px;">{{ voice.gender }}</span>
+                <span style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">{{ voice.region }}</span>
+            </div>
+            
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">{{ voice.name }}</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: var(--space-sm);">{{ voice.desc }}</p>
+        </div>
+
+        <div>
+            <!-- Trình chơi audio nghe thử -->
+            <div style="background-color: rgba(255, 255, 255, 0.03); border-radius: var(--radius-md); padding: 8px; margin-bottom: var(--space-xs); border: 1px solid var(--border-color);">
+                <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px;">Nghe thử mẫu giọng:</label>
+                <audio controls style="width: 100%; height: 32px;" src="/storage/samples/{{ voice.id }}.wav"></audio>
+            </div>
+            
+            <a href="/dubbing/create" class="btn btn-secondary" style="width: 100%; text-align: center; display: block; font-size: 12px; padding: 8px 0;">
+                Sử dụng giọng đọc này <i data-lucide="chevron-right" style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i>
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .voice-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--color-primary);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+</style>
+{% endblock %}
