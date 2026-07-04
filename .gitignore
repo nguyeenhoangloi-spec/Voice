@@ -9,7 +9,7 @@
 # .env
 
 # # Agent directories (internal IDE configs, workflows, and tools)
-# .agent/
+.agent/
 
 # # Local logging
 # *.log
