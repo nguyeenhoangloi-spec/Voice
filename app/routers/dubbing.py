@@ -166,7 +166,8 @@ def api_create_job(
         "voice_emotion": req.voice_emotion,
         "keep_bg_music": req.keep_bg_music,
         "generate_subtitles": req.generate_subtitles,
-        "translation_mode": req.translation_mode
+        "translation_mode": req.translation_mode,
+        "video_context": req.video_context or "neutral"
     }
     
     new_job = DubbingJob(

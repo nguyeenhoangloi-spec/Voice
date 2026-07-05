@@ -17,6 +17,7 @@ class JobCreateRequest(BaseModel):
     keep_bg_music: bool
     generate_subtitles: bool
     translation_mode: Optional[str] = "vietnamese"
+    video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
 
 class TimelineSegmentEdit(BaseModel):
     id: int

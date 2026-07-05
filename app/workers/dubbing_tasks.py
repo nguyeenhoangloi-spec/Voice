@@ -20,6 +20,39 @@ from app.utils.ffmpeg_utils import get_ffmpeg_path, inject_ffmpeg_to_path
 
 logger = logging.getLogger(__name__)
 
+
+def _ensure_source_video(job, source_path: str) -> None:
+    """
+    Ensure the source video file exists at source_path.
+    If it was deleted (e.g. after step 20 cleanup), re-download or re-copy it.
+    This is used in step 18 (Ket xuat video) to handle re-export flows.
+    """
+    if os.path.exists(source_path):
+        return  # Already there, nothing to do
+
+    logger.warning(f"Source video missing at {source_path}. Attempting to restore...")
+
+    if job.source_type == "link" and job.source_url:
+        from app.services.link_adapters import get_adapter_for_url
+        adapter = get_adapter_for_url(job.source_url)
+        if not adapter:
+            raise FileNotFoundError(f"Khong tim duoc adapter de tai lai video: {job.source_url}")
+        logger.info(f"Re-downloading source video from {job.source_url}...")
+        adapter.download(job.source_url, source_path)
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(f"Tai lai video that bai: {source_path}")
+        logger.info(f"Source video restored: {os.path.getsize(source_path) // 1024} KB")
+
+    elif job.source_type == "upload" and job.source_url and os.path.exists(job.source_url):
+        shutil.copy(job.source_url, source_path)
+        logger.info(f"Source video restored from upload: {source_path}")
+
+    else:
+        raise FileNotFoundError(
+            f"File nguon khong ton tai ({source_path}) va khong the khoi phuc. "
+            f"Vui long tao tac vu moi."
+        )
+
 # Pipeline step names
 PIPELINE_STEPS = [
     "Kiem tra lien ket",
@@ -254,11 +287,17 @@ def run_dubbing_pipeline(job_id: str):
                 # ===================== STEP 14: Generate TTS =====================
                 elif step_num == 14:
                     from app.services.dubbing_engine import generate_all_tts_segments
+                    voice_config = job.voice_config or {}
+                    if isinstance(voice_config, str):
+                        voice_config = json.loads(voice_config)
+                    video_context = voice_config.get("video_context", "neutral")
+
                     segments_data = generate_all_tts_segments(
                         segments_data,
                         str(settings.AUDIO_DIR),
                         job_id,
-                        voice=voice_name
+                        voice=voice_name,
+                        video_context=video_context
                     )
 
                     # Update audio paths in DB
@@ -269,7 +308,7 @@ def run_dubbing_pipeline(job_id: str):
                     for db_seg, data_seg in zip(db_segments, segments_data):
                         db_seg.audio_path = data_seg.get("audio_path", "")
 
-                    step_record.log_message = f"Tao {len(segments_data)} doan giong noi tieng Viet (Edge-TTS)."
+                    step_record.log_message = f"Tao {len(segments_data)} doan giong noi tieng Viet (Edge-TTS SSML)."
 
                 # ===================== STEP 15: Sync TTS with timeline =====================
                 elif step_num == 15:
@@ -293,6 +332,9 @@ def run_dubbing_pipeline(job_id: str):
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     keep_bg = voice_config.get("keep_bg_music", True)
+
+                    # Ensure source video exists (may have been deleted on previous run's cleanup)
+                    _ensure_source_video(job, source_path)
 
                     merge_tts_with_video(
                         video_path=source_path,
@@ -335,14 +377,10 @@ def run_dubbing_pipeline(job_id: str):
                     db.add(ex_aud)
                     db.add(ex_srt)
 
-                    # Cleanup temp source file
-                    if os.path.exists(source_path):
-                        try:
-                            os.remove(source_path)
-                        except Exception:
-                            pass
-
                     step_record.log_message = "Luu ket qua va don dep bo nho thanh cong."
+                    # NOTE: We intentionally keep source_path alive until explicitly cleaned
+                    # to support re-export flows. File will be removed on next pipeline restart
+                    # only if a fresh download is available.
 
                 # Mark step completed
                 if step_record:

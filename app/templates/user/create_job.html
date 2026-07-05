@@ -74,6 +74,18 @@
                 </div>
             </div>
 
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-top: var(--space-xs);">
+                <div class="form-group">
+                    <label for="video-context" class="form-label">Nhịp độ video</label>
+                    <select id="video-context" class="form-control" title="Ảnh hưởng tốc độ đọc SSML">
+                        <option value="neutral" selected>Bình thường</option>
+                        <option value="fast">Nhanh / Hào hứng</option>
+                        <option value="slow">Chậm / Trầm lắng</option>
+                        <option value="teaching">Giảng dạy / Giải thích</option>
+                    </select>
+                </div>
+            </div>
+
             <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-2xs);">
                 <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
                     <input type="checkbox" id="keep-bg-music" checked style="width: 16px; height: 16px;">
@@ -395,7 +407,8 @@
                         voice_emotion: document.getElementById("voice-emotion").value,
                         keep_bg_music: document.getElementById("keep-bg-music").checked,
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
-                        translation_mode: document.getElementById("translation-mode").value
+                        translation_mode: document.getElementById("translation-mode").value,
+                        video_context: document.getElementById("video-context").value
                     })
                 });
                 

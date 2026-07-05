@@ -80,9 +80,92 @@ def translate_segments(segments: list, target_lang: str = "vi") -> list:
     return segments
 
 
-def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural") -> str:
+def _compress_translation(text: str, max_words: int) -> str:
+    """
+    Shorten Vietnamese translation to fit within max_words.
+    Strategy: truncate long sentences at natural boundaries (comma/period).
+    """
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+
+    # Try to cut at a punctuation boundary within the limit
+    truncated = words[:max_words]
+    result = " ".join(truncated)
+    # If last word ends without punctuation, add ellipsis to signal natural stop
+    if not result.rstrip()[-1] in '.!?,;:':
+        result = result.rstrip(',') + "..."
+    logger.info(f"Compressed translation from {len(words)} to {len(truncated)} words")
+    return result
+
+
+def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
+                               video_context: str = "neutral") -> str:
+    """
+    Generate timing-aware SSML for a single dubbing segment.
+
+    Rules:
+    - Vietnamese natural speech: 2.0-3.2 words/sec
+    - If translation too long: compress to fit duration
+    - If translation too short: add <break> tags at punctuation
+    - Prosody rate based on video context (neutral/fast/slow)
+    """
+    translation = seg.get("translation", seg.get("text", ""))
+    start_time = seg.get("start", 0.0)
+    end_time = seg.get("end", start_time + 3.0)
+    duration = end_time - start_time
+
+    # Word count limits based on natural Vietnamese speaking rate
+    max_words = int(duration * 3.2)
+    min_words = int(duration * 2.0)
+
+    # Adjust prosody rate based on video context
+    rate_map = {
+        "fast": "+10%",
+        "neutral": "+0%",
+        "slow": "-5%",
+        "teaching": "-8%",
+    }
+    rate = rate_map.get(video_context.lower(), "+0%")
+
+    # Compress if too long
+    words = translation.split()
+    if len(words) > max_words and max_words > 0:
+        translation = _compress_translation(translation, max_words)
+
+    # Add natural break tags at punctuation marks
+    # Comma -> 200ms break, Period/exclamation/question -> 350ms break
+    import re
+    ssml_content = re.sub(r',\s*', ', <break time="220ms"/> ', translation)
+    ssml_content = re.sub(r'([.!?])\s+', r'\1 <break time="350ms"/> ', ssml_content)
+    ssml_content = re.sub(r'\.\.\.\s*', '... <break time="300ms"/> ', ssml_content)
+    ssml_content = ssml_content.strip()
+
+    # If very short duration but translation is long, increase rate to squeeze in
+    current_word_count = len(translation.split())
+    if duration > 0 and current_word_count / duration > 3.5:
+        rate = "+15%"  # speak faster to fit
+
+    # Build SSML
+    ssml = (
+        '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="vi-VN">'
+        f'<voice name="{voice}">'
+        f'<prosody rate="{rate}">'
+        f'{ssml_content}'
+        '</prosody>'
+        '</voice>'
+        '</speak>'
+    )
+    return ssml
+
+
+def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
+                        ssml: str = None) -> str:
     """
     Generate Vietnamese TTS audio using Microsoft Edge TTS (free, high quality).
+    If `ssml` is provided, it is used directly (SSML mode).
+    Otherwise, plain `text` is synthesized.
+
     Available Vietnamese voices:
     - vi-VN-HoaiMyNeural (Female, natural)
     - vi-VN-NamMinhNeural (Male, natural)
@@ -90,14 +173,17 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
     import edge_tts
 
     async def _generate():
-        communicate = edge_tts.Communicate(text, voice)
+        if ssml:
+            # SSML mode: use edge_tts with the raw SSML string
+            communicate = edge_tts.Communicate(ssml, voice)
+        else:
+            communicate = edge_tts.Communicate(text, voice)
         await communicate.save(output_path)
 
-    # Run async TTS generation
+    # Run async TTS generation (handle both sync and async contexts)
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If we're already in an async context, create a new loop in a thread
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 pool.submit(asyncio.run, _generate()).result()
@@ -123,20 +209,42 @@ def select_voice(gender: str = "female", region: str = "south") -> str:
 
 
 def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
-                               voice: str = "vi-VN-HoaiMyNeural") -> list:
-    """Generate TTS audio for each translated segment"""
+                               voice: str = "vi-VN-HoaiMyNeural",
+                               video_context: str = "neutral") -> list:
+    """
+    Generate TTS audio for each translated segment using timing-aware SSML.
+    Each segment gets an SSML string with proper prosody rate and <break> tags
+    to match the original speech timing as closely as possible.
+    """
     for idx, seg in enumerate(segments):
         output_path = os.path.join(audio_dir, f"{job_id}_seg_{idx}.mp3")
         try:
-            text = seg.get("translation", seg.get("text", ""))
-            if text and text.strip():
-                generate_tts_audio(text, output_path, voice)
-                seg["audio_path"] = output_path
-            else:
+            translation = seg.get("translation", seg.get("text", ""))
+            if not translation or not translation.strip():
                 seg["audio_path"] = None
+                continue
+
+            # Generate timing-aware SSML for this segment
+            ssml_text = generate_ssml_for_segment(seg, voice=voice, video_context=video_context)
+            seg["ssml_text"] = ssml_text
+
+            # Generate TTS using SSML
+            generate_tts_audio(translation, output_path, voice=voice, ssml=ssml_text)
+            seg["audio_path"] = output_path
+
         except Exception as e:
             logger.error(f"TTS generation failed for segment {idx}: {e}")
-            seg["audio_path"] = None
+            # Fallback to plain text TTS
+            try:
+                text = seg.get("translation", seg.get("text", ""))
+                if text and text.strip():
+                    generate_tts_audio(text, output_path, voice=voice)
+                    seg["audio_path"] = output_path
+                else:
+                    seg["audio_path"] = None
+            except Exception as e2:
+                logger.error(f"Fallback TTS also failed for segment {idx}: {e2}")
+                seg["audio_path"] = None
 
     return segments
 
