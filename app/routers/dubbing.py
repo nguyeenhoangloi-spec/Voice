@@ -385,16 +385,16 @@ def api_save_timeline_edit(
             seg.speaker = seg_data.speaker
             seg.emotional_tag = seg_data.emotional_tag
             
-    # Reset job và các steps từ bước 15 (Đồng bộ giọng nói) trở đi để kết xuất lại
+    # Reset job và các steps từ bước 14 (Tạo giọng nói) trở đi để kết xuất lại với bản dịch mới
     job.status = "pending"
-    job.progress_percent = 70
-    job.current_step = 15
-    job.current_step_name = PIPELINE_STEPS[14]
+    job.progress_percent = 65
+    job.current_step = 14
+    job.current_step_name = PIPELINE_STEPS[13]
     job.completed_at = None
     
     steps = db.query(JobStep).filter(JobStep.job_id == job_id).all()
     for s in steps:
-        if s.step_number >= 15:
+        if s.step_number >= 14:
             s.status = "pending"
             s.started_at = None
             s.completed_at = None

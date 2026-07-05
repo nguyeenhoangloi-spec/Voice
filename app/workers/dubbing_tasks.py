@@ -128,6 +128,30 @@ def run_dubbing_pipeline(job_id: str):
         segments_data = []
         voice_name = "vi-VN-HoaiMyNeural"
 
+        # Load existing segments and voice configuration from database if resuming a pipeline
+        if start_step > 1:
+            from app.services.dubbing_engine import select_voice
+            voice_config = job.voice_config or {}
+            if isinstance(voice_config, str):
+                voice_config = json.loads(voice_config)
+            gender = voice_config.get("voice_gender", "female")
+            region = voice_config.get("voice_region", "south")
+            voice_name = select_voice(gender, region)
+
+            db_segments = db.query(TranscriptSegment).filter(
+                TranscriptSegment.job_id == job_id
+            ).order_by(TranscriptSegment.segment_index.asc()).all()
+            
+            for db_seg in db_segments:
+                segments_data.append({
+                    "start": db_seg.start_time,
+                    "end": db_seg.end_time,
+                    "text": db_seg.text,
+                    "translation": db_seg.translation or "",
+                    "audio_path": db_seg.audio_path or ""
+                })
+            logger.info(f"Loaded {len(segments_data)} segments from DB for resume at step {start_step} using voice {voice_name}")
+
         for step_num in range(start_step, 21):
             step_name = PIPELINE_STEPS[step_num - 1]
 

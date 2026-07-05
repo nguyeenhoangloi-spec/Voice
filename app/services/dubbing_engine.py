@@ -100,9 +100,10 @@ def _compress_translation(text: str, max_words: int) -> str:
 
 
 def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
-                               video_context: str = "neutral") -> str:
+                               video_context: str = "neutral") -> dict:
     """
-    Generate timing-aware SSML for a single dubbing segment.
+    Generate timing-aware SSML parameters for a single dubbing segment.
+    Returns a dict with 'text' (containing break tags) and 'rate' (e.g. '+10%').
 
     Rules:
     - Vietnamese natural speech: 2.0-3.2 words/sec
@@ -117,7 +118,6 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 
     # Word count limits based on natural Vietnamese speaking rate
     max_words = int(duration * 3.2)
-    min_words = int(duration * 2.0)
 
     # Adjust prosody rate based on video context
     rate_map = {
@@ -133,51 +133,35 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     if len(words) > max_words and max_words > 0:
         translation = _compress_translation(translation, max_words)
 
-    # Add natural break tags at punctuation marks
-    # Comma -> 200ms break, Period/exclamation/question -> 350ms break
-    import re
-    ssml_content = re.sub(r',\s*', ', <break time="220ms"/> ', translation)
-    ssml_content = re.sub(r'([.!?])\s+', r'\1 <break time="350ms"/> ', ssml_content)
-    ssml_content = re.sub(r'\.\.\.\s*', '... <break time="300ms"/> ', ssml_content)
-    ssml_content = ssml_content.strip()
+    # Use clean translation (Edge TTS naturally pauses on punctuation like commas, periods, and ellipsis)
+    ssml_content = translation.strip()
 
     # If very short duration but translation is long, increase rate to squeeze in
-    current_word_count = len(translation.split())
+    current_word_count = len(ssml_content.split())
     if duration > 0 and current_word_count / duration > 3.5:
         rate = "+15%"  # speak faster to fit
 
-    # Build SSML
-    ssml = (
-        '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="vi-VN">'
-        f'<voice name="{voice}">'
-        f'<prosody rate="{rate}">'
-        f'{ssml_content}'
-        '</prosody>'
-        '</voice>'
-        '</speak>'
-    )
-    return ssml
+    return {
+        "text": ssml_content,
+        "rate": rate
+    }
 
 
 def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
-                        ssml: str = None) -> str:
+                        rate: str = "+0%") -> str:
     """
     Generate Vietnamese TTS audio using Microsoft Edge TTS (free, high quality).
-    If `ssml` is provided, it is used directly (SSML mode).
-    Otherwise, plain `text` is synthesized.
-
-    Available Vietnamese voices:
-    - vi-VN-HoaiMyNeural (Female, natural)
-    - vi-VN-NamMinhNeural (Male, natural)
+    Parameters:
+    - text: text to synthesize (can contain break tags like <break time="200ms"/>)
+    - voice: voice name
+    - rate: speed modification rate (e.g. "+10%", "-5%", "+0%")
     """
     import edge_tts
 
     async def _generate():
-        if ssml:
-            # SSML mode: use edge_tts with the raw SSML string
-            communicate = edge_tts.Communicate(ssml, voice)
-        else:
-            communicate = edge_tts.Communicate(text, voice)
+        # Pass break tags directly inside text parameter, and rate as constructor argument.
+        # Edge-TTS will wrap it in correct SSML tags internally without double escaping.
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
         await communicate.save(output_path)
 
     # Run async TTS generation (handle both sync and async contexts)
@@ -212,9 +196,7 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                                voice: str = "vi-VN-HoaiMyNeural",
                                video_context: str = "neutral") -> list:
     """
-    Generate TTS audio for each translated segment using timing-aware SSML.
-    Each segment gets an SSML string with proper prosody rate and <break> tags
-    to match the original speech timing as closely as possible.
+    Generate TTS audio for each translated segment using timing-aware SSML parameters.
     """
     for idx, seg in enumerate(segments):
         output_path = os.path.join(audio_dir, f"{job_id}_seg_{idx}.mp3")
@@ -224,12 +206,18 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 seg["audio_path"] = None
                 continue
 
-            # Generate timing-aware SSML for this segment
-            ssml_text = generate_ssml_for_segment(seg, voice=voice, video_context=video_context)
-            seg["ssml_text"] = ssml_text
+            # Generate timing-aware SSML configuration for this segment
+            ssml_config = generate_ssml_for_segment(seg, voice=voice, video_context=video_context)
+            seg["ssml_text"] = ssml_config["text"]
+            seg["ssml_rate"] = ssml_config["rate"]
 
-            # Generate TTS using SSML
-            generate_tts_audio(translation, output_path, voice=voice, ssml=ssml_text)
+            # Generate TTS using parameters
+            generate_tts_audio(
+                text=ssml_config["text"],
+                output_path=output_path,
+                voice=voice,
+                rate=ssml_config["rate"]
+            )
             seg["audio_path"] = output_path
 
         except Exception as e:
