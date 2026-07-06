@@ -109,49 +109,27 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
-                <div class="form-group">
-                    <label for="voice-gender" class="form-label">Giọng đọc</label>
-                    <select id="voice-gender" class="form-control">
-                        <option value="male">Giọng Nam</option>
-                        <option value="female" selected>Giọng Nữ</option>
-                    </select>
-                </div>
-                <div class="form-group" id="voice-region-wrapper" style="display: none !important;">
-                    <label for="voice-region" class="form-label">Vùng miền</label>
-                    <select id="voice-region" class="form-control">
-                        <option value="north" selected>Miền Bắc</option>
-                        <option value="south">Miền Nam</option>
-                        <option value="central">Miền Trung</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="form-group">
-                <label for="voice-profile" class="form-label">Chọn giọng cụ thể (Khuyên dùng)</label>
+                <label for="voice-profile" class="form-label">Giọng đọc chính</label>
                 <select id="voice-profile" class="form-control">
-                    <option value="auto" selected>-- Tự động chọn (Theo thiết lập ở trên) --</option>
+                    <option value="auto" selected>-- Tự động chọn --</option>
                 </select>
+                <div style="margin-top: 6px; padding: 8px 12px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); border-radius: var(--radius-sm); font-size: 12px; color: var(--color-primary); display: flex; align-items: flex-start; gap: 6px;">
+                    <span style="flex-shrink:0;">&#9432;</span>
+                    <span>Nếu video có nhiều người nói, hệ thống sẽ tự động xen kẽ giọng nam/nữ phù hợp cho từng nhân vật.</span>
+                </div>
             </div>
+            <!-- Hidden gender selector for backend compatibility -->
+            <select id="voice-gender" class="form-control" style="display:none;">
+                <option value="male">Giọng Nam</option>
+                <option value="female" selected>Giọng Nữ</option>
+            </select>
+            <select id="voice-region" class="form-control" style="display:none;">
+                <option value="north" selected>Miền Bắc</option>
+                <option value="south">Miền Nam</option>
+            </select>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
-                <div class="form-group">
-                    <label for="voice-emotion" class="form-label">Sắc thái / Cảm xúc</label>
-                    <select id="voice-emotion" class="form-control">
-                        <option value="neutral" selected>Trung tính / Bình thường</option>
-                        <option value="happy">Vui vẻ / Hào hứng</option>
-                        <option value="narrative">Kể chuyện / Ấm áp</option>
-                        <option value="news">Tin tức / Nghiêm túc</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="translation-mode" class="form-label">Chế độ dịch thuật</label>
-                    <select id="translation-mode" class="form-control">
-                        <option value="natural" selected>Tự nhiên (Phù hợp văn nói)</option>
-                        <option value="literal">Sát nghĩa (Đúng từng từ)</option>
-                    </select>
-                </div>
-            </div>
+
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
@@ -299,7 +277,7 @@
 
         // 1. Load tất cả giọng đọc khả dụng vào dropdown
         function initVoiceProfileDropdown() {
-            voiceProfileSelect.innerHTML = '<option value="auto" selected>-- Tự động chọn (Theo thiết lập ở trên) --</option>';
+            voiceProfileSelect.innerHTML = '<option value="auto">-- Tự động chọn (Theo giới tính) --</option>';
             const engine = ttsEngineSelect.value;
             const engineVoices = voicesConfig[engine.toLowerCase()] || [];
             engineVoices.forEach(voice => {
@@ -308,6 +286,12 @@
                 opt.textContent = voice.text;
                 voiceProfileSelect.appendChild(opt);
             });
+            // Auto-select first female voice by default
+            const defaultVoice = engineVoices.find(v => v.gender === "female") || engineVoices[0];
+            if (defaultVoice) {
+                voiceProfileSelect.value = defaultVoice.value;
+                voiceGenderSelect.value = defaultVoice.gender;
+            }
         }
 
         // Lắng nghe thay đổi TTS Engine để reload voices
@@ -624,11 +608,9 @@
                         voice_gender: document.getElementById("voice-gender").value,
                         voice_region: document.getElementById("voice-region").value,
                         voice_profile: document.getElementById("voice-profile").value,
-                        voice_emotion: document.getElementById("voice-emotion").value,
                         keep_bg_music: document.getElementById("keep-bg-music").checked,
                         bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
-                        translation_mode: document.getElementById("translation-mode").value,
                         video_context: document.getElementById("video-context").value,
                         whisper_model: document.getElementById("whisper-model").value
                     })
@@ -687,3 +669,5 @@
     }
 </style>
 {% endblock %}
+
+
