@@ -63,6 +63,157 @@
     :root[data-theme="light"] .dashboard-table tr:hover {
         background-color: rgba(15, 23, 42, 0.015) !important;
     }
+
+    /* CSS cho Grid View */
+    .jobs-grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: var(--space-md);
+        margin-top: 10px;
+    }
+
+    .job-card {
+        background: rgba(30, 41, 59, 0.35);
+        border: 1px solid var(--border-glass);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    :root[data-theme="light"] .job-card {
+        background: rgba(255, 255, 255, 0.45);
+    }
+
+    .job-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.08);
+        border-color: rgba(56, 189, 248, 0.3);
+    }
+
+    .job-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .job-card-body {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .job-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--border-color);
+        padding-top: 14px;
+        margin-top: 4px;
+    }
+
+    /* CSS cho Toggle View Buttons */
+    .view-toggle-group {
+        display: inline-flex;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 4px;
+        gap: 2px;
+    }
+
+    :root[data-theme="light"] .view-toggle-group {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .view-toggle-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        width: 34px;
+        height: 34px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+    }
+
+    .view-toggle-btn.active {
+        background: var(--color-primary);
+        color: white;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .view-toggle-btn:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+    }
+
+    /* CSS cho Phân trang (Pagination) */
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        margin-top: var(--space-lg);
+        padding-top: var(--space-md);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .pagination-btn {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+    }
+
+    :root[data-theme="light"] .pagination-btn {
+        background: rgba(0, 0, 0, 0.02);
+    }
+
+    .pagination-btn.active {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+
+    .pagination-btn:hover:not(.active):not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+        transform: translateY(-1px);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    /* Animation cho việc đổi trang */
+    .fade-in-smooth {
+        animation: fadeInSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes fadeInSmooth {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 
 <!-- Welcome Header -->
@@ -120,13 +271,26 @@
     </div>
 </div>
 
-<!-- Recent Jobs Section (Dùng inline style nâng cao để đảm bảo card glass luôn hiển thị) -->
+<!-- Recent Jobs Section -->
 <div class="card glass hover-glow dashboard-card-section" style="padding: 24px !important; display: flex; flex-direction: column; gap: 20px; background: var(--glass-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 4px;">
         <h2 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Tác vụ gần đây</h2>
-        <button class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px;" onclick="window.location.reload()">
-            <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 6px;"></i> Tải lại
-        </button>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <!-- View Mode Switcher -->
+            <div class="view-toggle-group">
+                <button class="view-toggle-btn active" id="btn-list-view" title="Xem dạng bảng danh sách">
+                    <i data-lucide="list" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button class="view-toggle-btn" id="btn-grid-view" title="Xem dạng lưới hiện đại">
+                    <i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>
+                </button>
+            </div>
+
+            <button class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px;" onclick="window.location.reload()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 6px;"></i> Tải lại
+            </button>
+        </div>
     </div>
 
     {% if not jobs %}
@@ -136,7 +300,8 @@
         <a href="/dubbing/create" class="btn btn-primary hover-scale" style="font-size: 14px; padding: 10px 20px;">Tạo tác vụ đầu tiên</a>
     </div>
     {% else %}
-    <div class="table-container-fixed">
+    <!-- 1. Dạng danh sách (List View) -->
+    <div class="table-container-fixed" id="container-list-view">
         <table class="dashboard-table">
             <thead>
                 <tr>
@@ -148,9 +313,9 @@
                     <th style="text-align: right;">Hành động</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="table-body">
                 {% for job in jobs %}
-                <tr>
+                <tr class="job-item-row">
                     <td style="font-family: monospace; font-weight: 700; color: var(--text-primary);">
                         {{ job.id[:8] }}...
                     </td>
@@ -184,7 +349,7 @@
                     <td style="text-align: right;">
                         <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                             <span>Chi tiết</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
                         </a>
                     </td>
                 </tr>
@@ -192,8 +357,201 @@
             </tbody>
         </table>
     </div>
+
+    <!-- 2. Dạng lưới (Grid View) -->
+    <div class="jobs-grid-container" id="container-grid-view" style="display: none;">
+        {% for job in jobs %}
+        <div class="job-card job-item-card">
+            <div class="job-card-header">
+                <span style="font-family: monospace; font-weight: 700; color: var(--text-primary); font-size: 14px;">
+                    #{{ job.id[:8] }}
+                </span>
+                <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+            </div>
+            
+            <div class="job-card-body">
+                <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px;">Nguồn video</div>
+                <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                    {% if job.source_type == 'link' %}
+                        <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: inline-flex; align-items: center; gap: 6px;" class="hover-scale">
+                            <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                            {{ job.source_url }}
+                        </a>
+                    {% else %}
+                        <span style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary);">
+                            <i data-lucide="file-video" style="width: 14px; height: 14px;"></i>
+                            File tải lên
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; margin-top: 8px;">Tiến trình</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="background-color: rgba(255,255,255,0.05); border-radius: var(--radius-full); height: 8px; width: 100%; overflow: hidden; border: 1px solid var(--border-color);">
+                        <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-gradient{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                    </div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-primary); flex-shrink: 0;">{{ job.progress_percent }}%</span>
+                </div>
+            </div>
+
+            <div class="job-card-footer">
+                <span style="color: var(--text-secondary); font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="calendar" style="width: 12px; height: 12px;"></i>
+                    {{ job.created_at.strftime('%H:%M %d/%m/%Y') }}
+                </span>
+                <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 2px;">
+                    <span>Chi tiết</span>
+                    <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 3. Thanh điều hướng phân trang (Pagination Controls) -->
+    <div class="pagination-container" id="pagination-controls">
+        <button class="pagination-btn" id="pagination-prev" title="Trang trước">
+            <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i>
+        </button>
+        <div style="display: flex; gap: 4px;" id="pagination-numbers">
+            <!-- Nút trang sẽ được sinh động bằng JS -->
+        </div>
+        <button class="pagination-btn" id="pagination-next" title="Trang sau">
+            <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+        </button>
+    </div>
     {% endif %}
 </div>
+
+<!-- Scripts xử lý phân trang & chuyển đổi View Mode -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ITEMS_PER_PAGE = 8;
+        let currentPage = 1;
+        let activeView = localStorage.getItem("dashboard-view-mode") || "list"; // list hoặc grid
+
+        const btnListView = document.getElementById("btn-list-view");
+        const btnGridView = document.getElementById("btn-grid-view");
+        const containerListView = document.getElementById("container-list-view");
+        const containerGridView = document.getElementById("container-grid-view");
+        
+        const listItems = document.querySelectorAll(".job-item-row");
+        const gridItems = document.querySelectorAll(".job-item-card");
+        const totalItems = listItems.length;
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+        const btnPrev = document.getElementById("pagination-prev");
+        const btnNext = document.getElementById("pagination-next");
+        const paginationNumbersContainer = document.getElementById("pagination-numbers");
+
+        // 1. Khởi tạo/Chuyển đổi View Mode
+        function setViewMode(mode) {
+            activeView = mode;
+            localStorage.setItem("dashboard-view-mode", mode);
+
+            if (mode === "grid") {
+                btnListView.classList.remove("active");
+                btnGridView.classList.add("active");
+                containerListView.style.display = "none";
+                containerGridView.style.display = "grid";
+            } else {
+                btnGridView.classList.remove("active");
+                btnListView.classList.add("active");
+                containerGridView.style.display = "none";
+                containerListView.style.display = "block";
+            }
+            renderPage();
+        }
+
+        if (btnListView && btnGridView) {
+            btnListView.addEventListener("click", () => setViewMode("list"));
+            btnGridView.addEventListener("click", () => setViewMode("grid"));
+            setViewMode(activeView);
+        }
+
+        // 2. Hàm render trang hiện tại
+        function renderPage() {
+            if (totalItems === 0) return;
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+
+            // Render Dạng danh sách
+            listItems.forEach((item, index) => {
+                if (index >= startIndex && index < endIndex) {
+                    item.style.display = "";
+                    item.classList.add("fade-in-smooth");
+                } else {
+                    item.style.display = "none";
+                    item.classList.remove("fade-in-smooth");
+                }
+            });
+
+            // Render Dạng lưới
+            gridItems.forEach((item, index) => {
+                if (index >= startIndex && index < endIndex) {
+                    item.style.display = "flex";
+                    item.classList.add("fade-in-smooth");
+                } else {
+                    item.style.display = "none";
+                    item.classList.remove("fade-in-smooth");
+                }
+            });
+
+            // Cập nhật trạng thái nút điều hướng
+            btnPrev.disabled = (currentPage === 1);
+            btnNext.disabled = (currentPage === totalPages);
+
+            // Vẽ lại các số trang
+            renderPaginationNumbers();
+            
+            // Re-render Lucide icons để đảm bảo icon tải động hoạt động tốt
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+
+        // 3. Hàm vẽ các số trang
+        function renderPaginationNumbers() {
+            if (!paginationNumbersContainer) return;
+            paginationNumbersContainer.innerHTML = "";
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement("button");
+                pageBtn.className = `pagination-btn ${i === currentPage ? "active" : ""}`;
+                pageBtn.innerText = i;
+                pageBtn.addEventListener("click", () => {
+                    currentPage = i;
+                    renderPage();
+                    window.scrollTo({ top: containerListView.offsetTop - 100, behavior: 'smooth' });
+                });
+                paginationNumbersContainer.appendChild(pageBtn);
+            }
+        }
+
+        // 4. Đăng ký click nút Prev/Next
+        if (btnPrev && btnNext) {
+            btnPrev.addEventListener("click", () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderPage();
+                    window.scrollTo({ top: containerListView.offsetTop - 100, behavior: 'smooth' });
+                }
+            });
+
+            btnNext.addEventListener("click", () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderPage();
+                    window.scrollTo({ top: containerListView.offsetTop - 100, behavior: 'smooth' });
+                }
+            });
+        }
+
+        // Khởi tạo trang đầu tiên
+        renderPage();
+    });
+</script>
 
 <style>
     @keyframes spin {
@@ -202,3 +560,4 @@
     }
 </style>
 {% endblock %}
+
