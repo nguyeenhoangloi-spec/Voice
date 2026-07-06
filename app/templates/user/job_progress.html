@@ -196,6 +196,9 @@
         const errorMsgDetail = document.getElementById("error-msg-detail");
         const timeElapsed = document.getElementById("time-elapsed");
         
+        // Guard flag: chỉ gọi loadFinalResults() đúng 1 lần
+        let resultsLoaded = false;
+        
         // Thời gian chạy (giả lập bộ đếm thời gian trôi qua)
         let startTime = Date.now();
         const timer = setInterval(() => {
@@ -241,7 +244,10 @@
                 statusTitle.style.color = "var(--color-success)";
                 eventSource.close();
                 clearInterval(timer);
-                loadFinalResults(); // Load video và nút download
+                if (!resultsLoaded) {
+                    resultsLoaded = true;
+                    loadFinalResults(); // Load video và nút download
+                }
             } else if (data.status === "failed") {
                 statusTitle.innerText = "Lỗi tác vụ lồng tiếng!";
                 statusTitle.style.color = "var(--color-danger)";
@@ -273,7 +279,14 @@
 
                     updateUIWithData(data);
                     
-                    if (data.status === "completed" || data.status === "failed") {
+                    if (data.status === "completed") {
+                        clearInterval(pollingInterval);
+                        clearInterval(timer);
+                        if (!resultsLoaded) {
+                            resultsLoaded = true;
+                            loadFinalResults();
+                        }
+                    } else if (data.status === "failed") {
                         clearInterval(pollingInterval);
                         clearInterval(timer);
                     }
@@ -286,7 +299,10 @@
             if (data.status === "completed") {
                 statusTitle.innerText = "Lồng tiếng hoàn tất!";
                 statusTitle.style.color = "var(--color-success)";
-                loadFinalResults();
+                if (!resultsLoaded) {
+                    resultsLoaded = true;
+                    loadFinalResults();
+                }
             } else if (data.status === "failed") {
                 statusTitle.innerText = "Lỗi tác vụ!";
                 statusTitle.style.color = "var(--color-danger)";
@@ -362,27 +378,14 @@
                 if (vidExport) {
                     const playerContainer = document.getElementById("media-player-container");
                     const player = document.getElementById("output-video-player");
+                    
+                    // Gán src và ép browser nạp nguồn video mới
                     player.src = vidExport.file_path;
+                    player.load(); // CRITICAL: bắt buộc phải gọi để trình duyệt nhận diện nguồn mới
                     playerContainer.classList.remove("hidden");
                     
-                    // Thêm sự kiện click thông minh vào màn hình video để Play/Pause
-                    if (!player.dataset.clickEventRegistered) {
-                        player.addEventListener("click", (e) => {
-                            const rect = player.getBoundingClientRect();
-                            const clickY = e.clientY - rect.top;
-                            // Chỉ trigger play/pause nếu click phía trên thanh điều khiển (50px dưới cùng)
-                            if (clickY < rect.height - 50) {
-                                if (player.paused) {
-                                    player.play();
-                                } else {
-                                    player.pause();
-                                }
-                            }
-                        });
-                        player.dataset.clickEventRegistered = "true";
-                    }
-                    
                     document.getElementById("download-video").href = vidExport.file_path;
+                    document.getElementById("download-video").setAttribute("download", "");
                 }
                 
                 if (audExport) {

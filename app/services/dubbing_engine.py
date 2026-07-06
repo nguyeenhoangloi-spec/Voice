@@ -20,6 +20,111 @@ from app.utils.ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
 logger = logging.getLogger(__name__)
 
 
+def preprocess_text_for_tts(text: str) -> str:
+    """
+    Normalize text before feeding to TTS to improve pronunciation accuracy.
+    Handles: numbers, currency, units, special characters, foreign proper nouns.
+    """
+    import re
+
+    if not text or not text.strip():
+        return text
+
+    # --- Currency ---
+    text = re.sub(r'\$(\d[\d,\.]*)', lambda m: _num_to_viet(m.group(1).replace(',','').replace('.','')) + ' đô la', text)
+    text = re.sub(r'(\d[\d,\.]*)\s*USD', lambda m: _num_to_viet(m.group(1).replace(',','').replace('.','')) + ' đô la Mỹ', text)
+    text = re.sub(r'(\d[\d,\.]*)\s*VND', lambda m: _num_to_viet(m.group(1).replace(',','').replace('.','')) + ' đồng', text)
+
+    # --- Percentages ---
+    text = re.sub(r'(\d+)%', lambda m: _num_to_viet(m.group(1)) + ' phần trăm', text)
+
+    # --- Large standalone numbers (4+ digits) ---
+    text = re.sub(r'\b(\d{4,})\b', lambda m: _num_to_viet(m.group(1)), text)
+
+    # --- Small numbers (1-3 digits) standalone ---
+    text = re.sub(r'\b(\d{1,3})\b', lambda m: _num_to_viet(m.group(1)), text)
+
+    # --- Special symbols ---
+    text = text.replace('&', ' và ')
+    text = text.replace('@', ' a còng ')
+    text = text.replace('#', ' thăng ')
+    text = text.replace('+', ' cộng ')
+    text = text.replace('=', ' bằng ')
+    text = text.replace('>', ' lớn hơn ')
+    text = text.replace('<', ' nhỏ hơn ')
+    text = text.replace('...', ' ')
+    text = text.replace('—', ', ')
+    text = text.replace('–', ', ')
+
+    # --- Clean up extra spaces ---
+    text = re.sub(r' +', ' ', text).strip()
+    return text
+
+
+def _num_to_viet(num_str: str) -> str:
+    """Convert a numeric string to Vietnamese words."""
+    try:
+        # Remove commas and leading zeros
+        num_str = num_str.replace(',', '').replace(' ', '')
+        # Handle decimal numbers
+        if '.' in num_str:
+            parts = num_str.split('.')
+            int_part = _int_to_viet(int(parts[0]))
+            dec_part = ' phẩy ' + ' '.join(_int_to_viet(int(d)) for d in parts[1])
+            return int_part + dec_part
+        return _int_to_viet(int(num_str))
+    except (ValueError, OverflowError):
+        return num_str  # fallback: keep original if conversion fails
+
+
+def _int_to_viet(n: int) -> str:
+    """Recursively convert integer to Vietnamese words."""
+    if n < 0:
+        return 'âm ' + _int_to_viet(-n)
+    ones = ['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín']
+    tens = ['','mười','hai mươi','ba mươi','bốn mươi','năm mươi',
+            'sáu mươi','bảy mươi','tám mươi','chín mươi']
+    if n < 10:
+        return ones[n]
+    if n < 100:
+        t = tens[n // 10]
+        o = ones[n % 10]
+        if n % 10 == 0:
+            return t
+        if n % 10 == 1 and n > 10:
+            return t + ' mốt'
+        if n % 10 == 5 and n > 10:
+            return t + ' lăm'
+        return t + ' ' + o
+    if n < 1000:
+        h = ones[n // 100] + ' trăm'
+        r = n % 100
+        if r == 0:
+            return h
+        if r < 10:
+            return h + ' lẻ ' + ones[r]
+        return h + ' ' + _int_to_viet(r)
+    if n < 1_000_000:
+        th = _int_to_viet(n // 1000) + ' nghìn'
+        r = n % 1000
+        if r == 0:
+            return th
+        if r < 100:
+            return th + ' không trăm ' + _int_to_viet(r)
+        return th + ' ' + _int_to_viet(r)
+    if n < 1_000_000_000:
+        m = _int_to_viet(n // 1_000_000) + ' triệu'
+        r = n % 1_000_000
+        if r == 0:
+            return m
+        return m + ' ' + _int_to_viet(r)
+    b = _int_to_viet(n // 1_000_000_000) + ' tỷ'
+    r = n % 1_000_000_000
+    if r == 0:
+        return b
+    return b + ' ' + _int_to_viet(r)
+
+
 def extract_audio_from_video(video_path: str, audio_path: str) -> str:
     """Extract audio track from video file using ffmpeg"""
     ffmpeg = get_ffmpeg_path()
@@ -38,7 +143,9 @@ def extract_audio_from_video(video_path: str, audio_path: str) -> str:
 def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     """
     Transcribe audio using OpenAI Whisper (local model).
-    Returns list of segments with start, end, text.
+    Returns list of segments with start, end, text, speaker.
+    Uses word_timestamps for more accurate timing.
+    Speaker changes are detected via silence gaps > 1.5s.
     """
     from app.utils.ffmpeg_utils import inject_ffmpeg_to_path
     inject_ffmpeg_to_path()
@@ -56,20 +163,64 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     logger.info(f"Loading Whisper model ({model_name}) on device: {device}...")
     model = whisper.load_model(model_name, device=device)
 
-    logger.info(f"Transcribing: {audio_path}")
-    result = model.transcribe(audio_path, language=None, task="transcribe")
+    logger.info(f"Transcribing with word_timestamps: {audio_path}")
+    # word_timestamps=True gives per-word timing for much more accurate sync
+    result = model.transcribe(
+        audio_path,
+        language=None,
+        task="transcribe",
+        word_timestamps=True,
+    )
 
     segments = []
     for seg in result.get("segments", []):
+        # Use word-level start/end if available for tighter timing
+        words = seg.get("words", [])
+        if words:
+            seg_start = round(words[0]["start"], 3)
+            seg_end   = round(words[-1]["end"], 3)
+        else:
+            seg_start = round(seg["start"], 2)
+            seg_end   = round(seg["end"], 2)
+
         segments.append({
-            "start": round(seg["start"], 2),
-            "end": round(seg["end"], 2),
+            "start": seg_start,
+            "end": seg_end,
             "text": seg["text"].strip(),
-            "language": result.get("language", "en")
+            "language": result.get("language", "en"),
+            "speaker": "Speaker 1",  # will be updated by speaker detection
         })
+
+    # Simple speaker change detection based on silence gaps
+    segments = _detect_speaker_changes(segments)
 
     logger.info(f"Transcribed {len(segments)} segments, detected language: {result.get('language')} (device: {device})")
     return _merge_adjacent_segments(segments)
+
+
+def _detect_speaker_changes(segments: list, silence_threshold: float = 1.5) -> list:
+    """
+    Heuristic speaker change detection based on silence gaps.
+    Gap > silence_threshold seconds → likely a different speaker.
+    Alternates between Speaker 1 and Speaker 2 on each change.
+    """
+    if not segments:
+        return segments
+
+    current_speaker = "Speaker 1"
+    speaker_switch = {"Speaker 1": "Speaker 2", "Speaker 2": "Speaker 1"}
+
+    segments[0]["speaker"] = current_speaker
+    for i in range(1, len(segments)):
+        gap = segments[i]["start"] - segments[i - 1]["end"]
+        if gap >= silence_threshold:
+            current_speaker = speaker_switch[current_speaker]
+            logger.debug(f"Speaker change at {segments[i]['start']:.2f}s (gap={gap:.2f}s) → {current_speaker}")
+        segments[i]["speaker"] = current_speaker
+
+    speakers_found = set(s["speaker"] for s in segments)
+    logger.info(f"Speaker detection: found {len(speakers_found)} speaker(s): {speakers_found}")
+    return segments
 
 def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration: float = 5.0) -> list:
     """
@@ -218,8 +369,8 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     Returns a dict with 'text' and 'rate'.
 
     Strategy:
-    - Natural Vietnamese speech: ~2.2 words/sec at normal rate
-    - Keep rate at +0% by default; only speed up if words > 2.8 words/sec (still natural)
+    - Natural Vietnamese speech: ~3.2 words/sec at normal rate
+    - Keep rate at +0% by default; only speed up if words > 3.5 words/sec (still natural)
     - If translation still too long after rate boost, compress at sentence boundaries
     - NOTE: The merge step will do a final atempo stretch to lock audio to slot exactly
     """
@@ -228,9 +379,10 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     end_time = seg.get("end", start_time + 3.0)
     duration = max(end_time - start_time, 0.5)  # at least 0.5s
 
-    # Natural rate: 1.8 w/s; max comfortable rate before sounding rushed: 2.4 w/s
-    max_words_normal = int(duration * 1.8)
-    max_words_fast   = int(duration * 2.4)  # hard ceiling at fast rate
+    # Natural rate: 3.0 w/s; max comfortable rate before sounding rushed: 4.0 w/s
+    # Vietnamese speech research: ~3.2-3.8 words/sec is natural and clear
+    max_words_normal = int(duration * 3.0)   # normal reading pace
+    max_words_fast   = int(duration * 4.5)   # hard ceiling - only compress beyond this
 
     # Adjust base rate from video context
     rate_map = {
@@ -248,7 +400,7 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     if word_count > max_words_normal:
         rate = "+15%"
 
-    # If words still exceed hard ceiling even at fast rate, compress to fit
+    # Only compress if words exceed the hard ceiling (4.5 w/s) - prevents cutting important words
     if word_count > max_words_fast and max_words_fast > 0:
         translation = _compress_translation(translation, max_words_fast)
 
@@ -322,18 +474,39 @@ def select_voice(gender: str = "female", region: str = "south", engine: str = "e
 
 
 
+# Default multi-speaker voice map (auto-assigned based on detected speakers)
+DEFAULT_SPEAKER_VOICE_MAP = {
+    "Speaker 1": "vi-VN-HoaiMyNeural",   # female voice for speaker 1
+    "Speaker 2": "vi-VN-NamMinhNeural",   # male voice for speaker 2
+    "Speaker 3": "vi-VN-HoaiMyNeural",   # female again for 3rd speaker
+    "Speaker 4": "vi-VN-NamMinhNeural",
+}
+
+
 def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                                voice: str = "vi-VN-HoaiMyNeural",
-                               video_context: str = "neutral") -> list:
+                               video_context: str = "neutral",
+                               voice_map: dict = None) -> list:
     """
     Generate TTS audio for each translated segment using timing-aware SSML parameters.
+    Supports multi-speaker: each segment can use a different voice based on its 'speaker' field.
     Processes segments in parallel to optimize processing speed for long videos.
     """
     import concurrent.futures
 
+    # Build effective voice map
+    # If only 1 unique speaker detected, use the single chosen voice for all
+    speakers = set(s.get("speaker", "Speaker 1") for s in segments)
+    if len(speakers) <= 1:
+        effective_voice_map = {spk: voice for spk in speakers}
+        logger.info(f"Single speaker detected → using voice: {voice}")
+    else:
+        # Multi-speaker: use provided voice_map or default alternating map
+        effective_voice_map = voice_map or DEFAULT_SPEAKER_VOICE_MAP
+        logger.info(f"Multi-speaker detected ({len(speakers)} speakers) → voice map: {effective_voice_map}")
+
     # Giới hạn tối đa 3 luồng chạy song song để tránh bị Microsoft từ chối WebSocket
     max_workers = 3
-
     logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
 
     def process_single_segment(idx_seg_tuple):
@@ -344,16 +517,26 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
             if not translation or not translation.strip():
                 return idx, None
 
+            # Preprocess text to improve pronunciation (numbers, symbols, etc.)
+            cleaned_text = preprocess_text_for_tts(translation)
+
+            # Determine voice for this segment's speaker
+            speaker = seg.get("speaker", "Speaker 1")
+            seg_voice = effective_voice_map.get(speaker, voice)
+
             # Generate timing-aware SSML configuration for this segment
-            ssml_config = generate_ssml_for_segment(seg, voice=voice, video_context=video_context)
+            ssml_config = generate_ssml_for_segment(seg, voice=seg_voice, video_context=video_context)
+            # Use preprocessed text in place of raw translation
+            ssml_config["text"] = preprocess_text_for_tts(ssml_config["text"])
             seg["ssml_text"] = ssml_config["text"]
             seg["ssml_rate"] = ssml_config["rate"]
+            seg["voice_used"] = seg_voice
 
             # Generate TTS using parameters
             generate_tts_audio(
                 text=ssml_config["text"],
                 output_path=output_path,
-                voice=voice,
+                voice=seg_voice,
                 rate=ssml_config["rate"]
             )
             return idx, output_path
@@ -362,9 +545,10 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
             logger.error(f"TTS generation failed for segment {idx}: {e}")
             # Fallback to plain text TTS
             try:
-                text = seg.get("translation", seg.get("text", ""))
+                text = preprocess_text_for_tts(seg.get("translation", seg.get("text", "")))
                 if text and text.strip():
-                    generate_tts_audio(text, output_path, voice=voice)
+                    seg_voice = effective_voice_map.get(seg.get("speaker", "Speaker 1"), voice)
+                    generate_tts_audio(text, output_path, voice=seg_voice)
                     return idx, output_path
             except Exception as e2:
                 logger.error(f"Fallback TTS also failed for segment {idx}: {e2}")
@@ -437,7 +621,8 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             available_duration = slot_duration
             if next_start_ms > end_ms:
                 gap = next_start_ms - end_ms
-                available_duration += min(gap, 800)  # borrow at most 0.8s from gap
+                # Borrow up to 1.2s from the gap to next segment (was 0.8s)
+                available_duration += min(gap, 1200)
 
             tts_len = len(tts_audio)
             if tts_len > 0 and available_duration > 0:
@@ -445,13 +630,19 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
 
                 applied_ratio = 1.0
                 if speed_ratio > 1.02:  # TTS is longer than available slot -> speed up
-                    # Limit maximum speed stretch to 1.25x to preserve natural voice quality
-                    applied_ratio = min(speed_ratio, 1.25)
-                    logger.debug(f"Seg {idx}: stretched speed-up atempo={applied_ratio:.2f}x (original ratio was {speed_ratio:.2f}x)")
-                elif speed_ratio < 0.95:  # TTS is shorter than available slot -> slow down to stretch
-                    # Limit minimum speed stretch to 0.85x to preserve natural voice quality
+                    # Allow up to 1.5x speed-up before cutting words (was 1.35x)
+                    applied_ratio = min(speed_ratio, 1.50)
+                    logger.debug(f"Seg {idx}: speed-up atempo={applied_ratio:.2f}x (ratio={speed_ratio:.2f}x)")
+                elif speed_ratio < 0.90:  # TTS is much shorter -> slow down slightly
+                    # Only slow down to 0.85x max to avoid sounding unnatural
                     applied_ratio = max(speed_ratio, 0.85)
-                    logger.debug(f"Seg {idx}: stretched slow-down atempo={applied_ratio:.2f}x (original ratio was {speed_ratio:.2f}x)")
+                    # Skip slow-down if ratio is too extreme (TTS way shorter than slot)
+                    # — just let it play naturally and pad silence
+                    if speed_ratio < 0.60:
+                        applied_ratio = 1.0  # Don't stretch, pad silence naturally
+                        logger.debug(f"Seg {idx}: TTS much shorter ({speed_ratio:.2f}x) → keeping natural pace")
+                    else:
+                        logger.debug(f"Seg {idx}: slow-down atempo={applied_ratio:.2f}x (ratio={speed_ratio:.2f}x)")
 
                 if applied_ratio != 1.0:
                     filter_str = f"atempo={applied_ratio:.4f}"
@@ -465,6 +656,10 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                     if result_speed.returncode == 0 and os.path.exists(temp_sped):
                         tts_audio = AudioSegment.from_file(temp_sped)
                         os.remove(temp_sped)
+
+                # Fade-in 50ms to prevent click noise at segment start
+                if len(tts_audio) > 100:
+                    tts_audio = tts_audio.fade_in(50)
 
                 # Final trim with Fade Out to prevent sudden clicks or unnatural cuts
                 max_allowed_ms = available_duration

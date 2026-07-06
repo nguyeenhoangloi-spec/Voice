@@ -272,17 +272,23 @@ def run_dubbing_pipeline(job_id: str):
                             end_time=seg["end"],
                             text=seg["text"],
                             translation="",  # Will be filled in step 11
-                            speaker=f"Speaker 1",
+                            speaker=seg.get("speaker", "Speaker 1"),  # use detected speaker
                             status="completed"
                         )
                         db.add(new_seg)
 
-                    step_record.log_message = f"Nhan dang {len(segments_data)} doan hoi thoai (Whisper ASR)."
+                    unique_speakers = set(s.get("speaker", "Speaker 1") for s in segments_data)
+                    step_record.log_message = f"Nhan dang {len(segments_data)} doan hoi thoai (Whisper ASR, word_timestamps). Tim thay {len(unique_speakers)} nguoi noi."
 
-                # ===================== STEP 9: Speaker diarization (simplified) =====================
+                # ===================== STEP 9: Speaker diarization =====================
                 elif step_num == 9:
-                    # Simple speaker detection - assign all to Speaker 1 for now
-                    step_record.log_message = f"Phan tach nguoi noi: 1 nguoi noi."
+                    # Speaker info already detected in step 8 via silence-gap heuristic
+                    unique_speakers = set(s.get("speaker", "Speaker 1") for s in segments_data)
+                    n_speakers = len(unique_speakers)
+                    if n_speakers >= 2:
+                        step_record.log_message = f"Phat hien {n_speakers} nguoi noi. Se su dung giong xen ke nam/nu."
+                    else:
+                        step_record.log_message = "Phat hien 1 nguoi noi. Su dung 1 giong duy nhat."
 
                 # ===================== STEP 10: Emotion analysis (simplified) =====================
                 elif step_num == 10:
@@ -332,18 +338,37 @@ def run_dubbing_pipeline(job_id: str):
 
                 # ===================== STEP 14: Generate TTS =====================
                 elif step_num == 14:
-                    from app.services.dubbing_engine import generate_all_tts_segments
+                    from app.services.dubbing_engine import generate_all_tts_segments, DEFAULT_SPEAKER_VOICE_MAP
                     voice_config = job.voice_config or {}
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     video_context = voice_config.get("video_context", "neutral")
+
+                    # Build voice_map for multi-speaker support
+                    # User can override via voice_config["speaker_voice_map"]
+                    custom_map = voice_config.get("speaker_voice_map", None)
+                    if custom_map:
+                        voice_map = custom_map
+                    else:
+                        # Auto-build: Speaker 1 uses chosen voice, Speaker 2 switches gender
+                        opposite_voice = (
+                            "vi-VN-NamMinhNeural" if voice_name == "vi-VN-HoaiMyNeural"
+                            else "vi-VN-HoaiMyNeural"
+                        )
+                        voice_map = {
+                            "Speaker 1": voice_name,
+                            "Speaker 2": opposite_voice,
+                            "Speaker 3": voice_name,
+                            "Speaker 4": opposite_voice,
+                        }
 
                     segments_data = generate_all_tts_segments(
                         segments_data,
                         str(settings.AUDIO_DIR),
                         job_id,
                         voice=voice_name,
-                        video_context=video_context
+                        video_context=video_context,
+                        voice_map=voice_map,
                     )
 
                     # Update audio paths in DB
@@ -354,7 +379,8 @@ def run_dubbing_pipeline(job_id: str):
                     for db_seg, data_seg in zip(db_segments, segments_data):
                         db_seg.audio_path = data_seg.get("audio_path", "")
 
-                    step_record.log_message = f"Tao {len(segments_data)} doan giong noi tieng Viet (Edge-TTS SSML)."
+                    voices_used = set(s.get("voice_used", voice_name) for s in segments_data)
+                    step_record.log_message = f"Tao {len(segments_data)} doan giong noi tieng Viet (Edge-TTS, {len(voices_used)} giong: {', '.join(voices_used)})"
 
                 # ===================== STEP 15: Sync TTS with timeline =====================
                 elif step_num == 15:

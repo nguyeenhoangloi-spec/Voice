@@ -41,4 +41,5 @@ openai-whisper
 
 # Translation
 deep-translator
+google-genai==0.1.1
 

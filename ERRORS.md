@@ -195,7 +195,31 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Prevention**: Luôn giới hạn số lượng luồng đồng thời ở mức an toàn (< 5 luồng) đối với các API miễn phí của bên thứ ba, đồng thời luôn tích hợp cơ chế Retry để tránh mất mát dữ liệu do lỗi mạng tạm thời.
 - **Status**: Fixed
 
+---
 
+## [2026-07-06 23:40] - Lỗi nghe thử giọng mẫu bị đứng 0:00 (401 Unauthorized)
 
+- **Type**: Runtime / Security
+- **Severity**: High
+- **File**: `app/routers/dubbing.py:460`
+- **Agent**: Voice
+- **Root Cause**: Endpoint sinh và tải file nghe thử mẫu giọng AI (`/voices/sample/{voice_id}.mp3`) yêu cầu xác thực người dùng (`user=Depends(get_current_user)`). Tuy nhiên, khi trình duyệt tải thẻ `<audio controls src="...">`, nó gửi request HTTP GET trực tiếp thông thường mà không thể tự động đính kèm Token JWT (Authorization Header) vào request, dẫn đến FastAPI trả về lỗi `401 Unauthorized` và trình phát nhạc bị lỗi không tải được.
+- **Fix Applied**: Loại bỏ dependency `user=Depends(get_current_user)` khỏi endpoint này, biến nó thành API công khai (Public) do tính năng nghe thử mẫu giọng không chứa dữ liệu nhạy cảm của người dùng.
+- **Prevention**: Tránh bắt buộc xác thực JWT đối với các tệp đa phương tiện tĩnh công khai (như file nghe thử, ảnh công cộng) được tải qua thẻ HTML trực tiếp.
+- **Status**: Fixed
 
+---
 
+## [2026-07-06 23:55] - Video kết xuất chỉ có nhạc gốc, mất tiếng lồng tiếng do thiếu ffprobe (WinError 2) trong pydub
+
+- **Type**: Runtime
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:440`
+- **Agent**: Voice
+- **Root Cause**: Thư viện xử lý âm thanh `pydub` bắt buộc phải sử dụng công cụ `ffprobe` khi gọi `AudioSegment.from_file()` để phân tích định dạng tệp âm thanh. Tuy nhiên, môi trường Windows chỉ có `ffmpeg.exe` (từ `imageio-ffmpeg`) mà hoàn toàn không có `ffprobe.exe`. Do đó, khi trộn âm thanh, `pydub` ném ra lỗi `[WinError 2] The system cannot find the file specified` cho tất cả các phân đoạn thoại, khiến tệp âm thanh tổng hợp bị rỗng. Tiếp đó, lệnh ghép video của FFmpeg bị lỗi do thiếu file âm thanh đầu vào, kích hoạt cơ chế fallback copy đè video gốc (dẫn đến video thành phẩm chỉ có âm thanh gốc).
+- **Fix Applied**: 
+  1. Cài đặt package `@ffprobe-installer/win32-x64` từ npm để lấy file nhị phân `ffprobe.exe` tĩnh 77MB chính thức.
+  2. Lưu file `ffprobe.exe` vào thư mục `binaries/` của dự án.
+  3. Cập nhật `ffmpeg_utils.py` để tự động sao chép `ffprobe.exe` vào cùng thư mục với `ffmpeg.exe` của `imageio-ffmpeg` và đưa thư mục đó vào đầu `PATH` của session khi import, đảm bảo `pydub` và các tiến trình con luôn tìm thấy cả hai.
+- **Prevention**: Luôn đảm bảo cả `ffmpeg` và `ffprobe` đều có mặt đầy đủ trong `PATH` khi làm việc với thư viện xử lý âm thanh trong python (như `pydub`, `librosa`).
+- **Status**: Fixed
