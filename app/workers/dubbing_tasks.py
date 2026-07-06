@@ -256,7 +256,12 @@ def run_dubbing_pipeline(job_id: str):
                 # ===================== STEP 8: Speech recognition (ASR) =====================
                 elif step_num == 8:
                     from app.services.dubbing_engine import transcribe_audio
-                    segments_data = transcribe_audio(extracted_audio)
+                    voice_config = job.voice_config or {}
+                    if isinstance(voice_config, str):
+                        voice_config = json.loads(voice_config)
+                    whisper_model = voice_config.get("whisper_model", "base")
+                    
+                    segments_data = transcribe_audio(extracted_audio, whisper_model=whisper_model)
 
                     # Save segments to database
                     for idx, seg in enumerate(segments_data):
@@ -286,7 +291,12 @@ def run_dubbing_pipeline(job_id: str):
                 # ===================== STEP 11: Translate to Vietnamese =====================
                 elif step_num == 11:
                     from app.services.dubbing_engine import translate_segments
-                    segments_data = translate_segments(segments_data, target_lang="vi")
+                    voice_config = job.voice_config or {}
+                    if isinstance(voice_config, str):
+                        voice_config = json.loads(voice_config)
+                    video_context = voice_config.get("video_context", "neutral")
+                    
+                    segments_data = translate_segments(segments_data, target_lang="vi", video_context=video_context)
 
                     # Update segments in DB with translations
                     db_segments = db.query(TranscriptSegment).filter(

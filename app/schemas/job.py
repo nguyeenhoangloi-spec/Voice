@@ -20,6 +20,7 @@ class JobCreateRequest(BaseModel):
     generate_subtitles: bool
     translation_mode: Optional[str] = "vietnamese"
     video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
+    whisper_model: Optional[str] = "base"      # base | small | medium
 
 
 class TimelineSegmentEdit(BaseModel):

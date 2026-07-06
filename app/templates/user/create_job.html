@@ -92,12 +92,20 @@
             <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                 <span class="step-number-badge">2</span> Cấu hình lồng tiếng
             </h2>
-            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-md);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="tts-engine" class="form-label">Công nghệ lồng tiếng (TTS Engine)</label>
                     <select id="tts-engine" class="form-control">
                         <option value="edge" selected>Microsoft Edge TTS (Miễn phí, ổn định lâu dài)</option>
                         <option value="kyma">Kyma ElevenLabs (Premium - Giọng nói siêu thực)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="whisper-model" class="form-label">Độ chính xác nhận dạng (Whisper ASR)</label>
+                    <select id="whisper-model" class="form-control">
+                        <option value="base" selected>Base (Nhanh, độ chính xác trung bình)</option>
+                        <option value="small">Small (Cân bằng - Độ chính xác tốt)</option>
+                        <option value="medium">Medium (Chậm - Độ chính xác cao)</option>
                     </select>
                 </div>
             </div>
@@ -645,7 +653,8 @@
                         bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
                         translation_mode: document.getElementById("translation-mode").value,
-                        video_context: document.getElementById("video-context").value
+                        video_context: document.getElementById("video-context").value,
+                        whisper_model: document.getElementById("whisper-model").value
                     })
 
                 });

@@ -35,7 +35,7 @@ def extract_audio_from_video(video_path: str, audio_path: str) -> str:
     return audio_path
 
 
-def transcribe_audio(audio_path: str) -> list:
+def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     """
     Transcribe audio using OpenAI Whisper (local model).
     Returns list of segments with start, end, text.
@@ -45,8 +45,13 @@ def transcribe_audio(audio_path: str) -> list:
 
     # Tự động dò tìm GPU để tăng tốc độ nhận dạng lên 10-20 lần
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    logger.info(f"Loading Whisper model (base) on device: {device}...")
-    model = whisper.load_model("base", device=device)
+    # Chuẩn hóa tên model (đảm bảo không bị hoa/thường)
+    model_name = whisper_model.strip().lower() if whisper_model else "base"
+    if model_name not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]:
+        model_name = "base"
+
+    logger.info(f"Loading Whisper model ({model_name}) on device: {device}...")
+    model = whisper.load_model(model_name, device=device)
 
     logger.info(f"Transcribing: {audio_path}")
     result = model.transcribe(audio_path, language=None, task="transcribe")
@@ -95,14 +100,14 @@ def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration
 
 
 
-def translate_segments(segments: list, target_lang: str = "vi") -> list:
+def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral") -> list:
     """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
     from app.config import settings
 
     # Sử dụng Gemini API nếu có API Key
     api_key = settings.GEMINI_API_KEY.strip()
     if api_key:
-        logger.info("Sử dụng Gemini API để dịch sát nghĩa ngữ cảnh và cô đọng thời gian...")
+        logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}...")
         try:
             from google import genai
             from google.genai import types
@@ -113,16 +118,16 @@ def translate_segments(segments: list, target_lang: str = "vi") -> list:
 
             # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
             # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
-            # => max ~2.8 words per second is comfortable with auto stretching (up to 1.25x)
+            # Allow up to 3.6 words per second to avoid drop words (we can stretch tempo using ffmpeg up to 1.25x)
             prompt = (
                 "You are an elite video dubbing translator (NOT subtitle translator).\n"
+                f"The video context/topic is: {video_context}\n\n"
                 "Translate the following video transcript segments into natural Vietnamese FOR VOICE DUBBING.\n\n"
                 "CRITICAL REQUIREMENTS:\n"
-                "1. ACCURACY: Translation must convey the original meaning correctly and completely.\n"
-                "2. TIMING: Each translation MUST fit within the duration when spoken at a comfortable, natural pace.\n"
-                "   - Vietnamese natural speech rate: 2.5-2.8 words per second.\n"
-                "   - Target word count = duration_seconds * 2.8 (strict upper limit).\n"
-                "   - Avoid word-for-word translation. Speak naturally. Do NOT summarize too much or drop important words. The translation must be fully meaningful, natural, and complete.\n"
+                "1. ACCURACY: Translation must convey the original meaning correctly and completely. Do not guess slang; translate to appropriate Vietnamese context.\n"
+                "2. TIMING: Each translation must fit within the duration when spoken at a comfortable, natural pace.\n"
+                "   - Target word count = duration_seconds * 3.6 (upper limit).\n"
+                "   - Speak naturally. Do NOT summarize too much or drop important words. The translation must be fully meaningful, natural, and complete.\n"
                 "3. NATURAL SPEECH: Use spoken Vietnamese (not written/formal). It must sound like a real person talking naturally.\n"
                 "4. OUTPUT: Return ONLY a JSON array of translated strings in the same order. No markdown, no explanation.\n"
                 "   Example: [\"câu một\", \"câu hai\"]\n\n"
@@ -130,7 +135,7 @@ def translate_segments(segments: list, target_lang: str = "vi") -> list:
             )
             for idx, seg in enumerate(segments):
                 duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                max_words = max(1, int(duration * 2.8))  # Higher word limit for this segment to avoid drop words
+                max_words = max(1, int(duration * 3.6))  # Higher word limit for this segment to avoid drop words
                 prompt += f"[{idx}] (Duration: {duration:.2f}s, max ~{max_words} Vietnamese words): {seg.get('text', '')}\n"
 
             response = client.models.generate_content(

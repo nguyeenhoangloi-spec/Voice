@@ -156,12 +156,14 @@ def api_create_job(
     voice_config = {
         "voice_gender": req.voice_gender,
         "voice_region": req.voice_region,
+        "voice_profile": req.voice_profile or "auto",
         "voice_emotion": req.voice_emotion,
         "keep_bg_music": req.keep_bg_music,
         "bg_volume_db": req.bg_volume_db if req.bg_volume_db is not None else -18,
         "generate_subtitles": req.generate_subtitles,
         "translation_mode": req.translation_mode,
-        "video_context": req.video_context or "neutral"
+        "video_context": req.video_context or "neutral",
+        "whisper_model": req.whisper_model or "base"
     }
     
     new_job = DubbingJob(
