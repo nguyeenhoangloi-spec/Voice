@@ -126,7 +126,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 "CRITICAL REQUIREMENTS:\n"
                 "1. ACCURACY: Translation must convey the original meaning correctly and completely. Do not guess slang; translate to appropriate Vietnamese context.\n"
                 "2. TIMING: Each translation must fit within the duration when spoken at a comfortable, natural pace.\n"
-                "   - Target word count = duration_seconds * 3.6 (upper limit).\n"
+                "   - Target word count is specified for each segment dynamically based on original speech rate (comfortable upper limit).\n"
                 "   - Speak naturally. Do NOT summarize too much or drop important words. The translation must be fully meaningful, natural, and complete.\n"
                 "3. NATURAL SPEECH: Use spoken Vietnamese (not written/formal). It must sound like a real person talking naturally.\n"
                 "4. OUTPUT: Return ONLY a JSON array of translated strings in the same order. No markdown, no explanation.\n"
@@ -135,8 +135,18 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             )
             for idx, seg in enumerate(segments):
                 duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                max_words = max(1, int(duration * 3.6))  # Higher word limit for this segment to avoid drop words
-                prompt += f"[{idx}] (Duration: {duration:.2f}s, max ~{max_words} Vietnamese words): {seg.get('text', '')}\n"
+                # Tính số từ câu tiếng Anh gốc
+                orig_text = seg.get("text", "").strip()
+                orig_words = len(orig_text.split()) if orig_text else 0
+                
+                # Tự động tính giới hạn từ Tiếng Việt (tiếng Việt thường dài hơn khoảng 25%)
+                max_words = max(1, int(orig_words * 1.25))
+                # Ràng buộc cận dưới: ít nhất bằng tốc độ 2.8 từ/giây để có đủ từ phát âm
+                max_words = max(max_words, max(1, int(duration * 2.8)))
+                # Ràng buộc cận trên: tối đa 3.8 từ/giây để tránh nói quá nhanh không khớp miệng
+                max_words = min(max_words, max(1, int(duration * 3.8)))
+                
+                prompt += f"[{idx}] (Duration: {duration:.2f}s, target ~{max_words} Vietnamese words based on original speech rate): {orig_text}\n"
 
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
