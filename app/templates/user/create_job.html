@@ -92,7 +92,16 @@
             <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                 <span class="step-number-badge">2</span> Cấu hình lồng tiếng
             </h2>
-            
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-md);">
+                <div class="form-group">
+                    <label for="tts-engine" class="form-label">Công nghệ lồng tiếng (TTS Engine)</label>
+                    <select id="tts-engine" class="form-control">
+                        <option value="edge" selected>Microsoft Edge TTS (Miễn phí, ổn định lâu dài)</option>
+                        <option value="kyma">Kyma ElevenLabs (Premium - Giọng nói siêu thực)</option>
+                    </select>
+                </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="voice-gender" class="form-label">Giọng đọc</label>
@@ -101,7 +110,7 @@
                         <option value="female" selected>Giọng Nữ</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="voice-region-wrapper">
                     <label for="voice-region" class="form-label">Vùng miền</label>
                     <select id="voice-region" class="form-control">
                         <option value="north" selected>Miền Bắc</option>
@@ -268,9 +277,10 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         // Cấu hình danh sách đầy đủ các giọng đọc của engine
-        const ttsEngine = "edge";
+        const ttsEngineSelect = document.getElementById("tts-engine");
         const voiceGenderSelect = document.getElementById("voice-gender");
         const voiceRegionSelect = document.getElementById("voice-region");
+        const voiceRegionWrapper = document.getElementById("voice-region-wrapper");
         const voiceProfileSelect = document.getElementById("voice-profile");
         
         const voicesConfig = {
@@ -281,14 +291,23 @@
                 { value: "vi-VN-NamMinhNeural", gender: "male", region: "north", text: "Microsoft Edge Nam (Nam Minh - Miền Bắc)" },
                 { value: "vi-VN-NamMinhNeural", gender: "male", region: "south", text: "Microsoft Edge Nam (Nam Minh - Miền Nam)" },
                 { value: "vi-VN-NamMinhNeural", gender: "male", region: "central", text: "Microsoft Edge Nam (Nam Minh - Miền Trung)" }
+            ],
+            kyma: [
+                { value: "IKne3meq5aSn9XLyUdCD", gender: "male", region: "north", text: "Kyma ElevenLabs Nam (Charlie - Trẻ trung, tự nhiên)" },
+                { value: "bIHbv24MWmeRgasZH58o", gender: "male", region: "north", text: "Kyma ElevenLabs Nam (Will - Thân thiện, ấm áp)" },
+                { value: "TX3LPaxmHKxFdv7VOQHJ", gender: "male", region: "north", text: "Kyma ElevenLabs Nam (Liam - Kể chuyện, tự sự)" },
+                { value: "nPczCjzI2devNBz1zQrb", gender: "male", region: "north", text: "Kyma ElevenLabs Nam (Brian - Truyền cảm, chín chắn)" },
+                { value: "pNInz6obpgDQGcFmaJgB", gender: "male", region: "north", text: "Kyma ElevenLabs Nam (Adam - Trầm ấm, chuyên nghiệp)" },
+                { value: "21m00Tcm4TlvDq8ikWAM", gender: "female", region: "north", text: "Kyma ElevenLabs Nữ (Rachel - Ấm áp, tự nhiên)" },
+                { value: "cgSgspJ2msm6clMCkdW9", gender: "female", region: "north", text: "Kyma ElevenLabs Nữ (Jessica - Trẻ trung, năng động)" }
             ]
         };
 
-        
         // 1. Load tất cả giọng đọc khả dụng vào dropdown
         function initVoiceProfileDropdown() {
             voiceProfileSelect.innerHTML = '<option value="auto" selected>-- Tự động chọn (Theo thiết lập ở trên) --</option>';
-            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
             engineVoices.forEach(voice => {
                 const opt = document.createElement("option");
                 opt.value = voice.value;
@@ -296,6 +315,18 @@
                 voiceProfileSelect.appendChild(opt);
             });
         }
+
+        // Lắng nghe thay đổi TTS Engine để ẩn/hiện Vùng miền và reload voices
+        ttsEngineSelect.addEventListener("change", () => {
+            const engine = ttsEngineSelect.value;
+            if (engine === "kyma") {
+                voiceRegionWrapper.style.display = "none";
+            } else {
+                voiceRegionWrapper.style.display = "block";
+            }
+            initVoiceProfileDropdown();
+            syncFromFilters();
+        });
 
         // Flag để tránh vòng lặp kích hoạt lẫn nhau
         let isSyncing = false;
@@ -306,7 +337,8 @@
             const val = voiceProfileSelect.value;
             if (val === "auto") return;
 
-            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
             const matchedVoice = engineVoices.find(v => v.value === val);
 
             if (matchedVoice) {
@@ -322,7 +354,8 @@
             if (isSyncing) return;
             const selectedGender = voiceGenderSelect.value;
             const selectedRegion = voiceRegionSelect.value;
-            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
 
             // Tìm giọng khớp gender + region
             const bestMatch = engineVoices.find(v =>
