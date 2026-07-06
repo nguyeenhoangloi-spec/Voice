@@ -6,18 +6,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-# Tự động nạp KYMA_API_KEY từ file cấu hình toàn cục của kyma-dub nếu tồn tại
-kyma_env_path = Path(os.path.expanduser("~/.config/kyma-dub/env"))
-if kyma_env_path.exists():
-    try:
-        with open(kyma_env_path, "r") as f:
-            for line in f:
-                if line.strip() and "=" in line:
-                    k, v = line.split("=", 1)
-                    if k.strip() == "KYMA_API_KEY":
-                        os.environ["KYMA_API_KEY"] = v.strip()
-    except Exception:
-        pass
+
 
 class Settings:
     APP_MODE: str = os.getenv("APP_MODE", "development")
@@ -39,7 +28,6 @@ class Settings:
     AI_MODE: str = os.getenv("AI_MODE", "mock").lower() # mock | real
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    KYMA_API_KEY: str = os.getenv("KYMA_API_KEY", "")
 
     # TTS Settings (Chỉ sử dụng Edge TTS miễn phí ổn định lâu dài)
     TTS_ENGINE: str = "edge"

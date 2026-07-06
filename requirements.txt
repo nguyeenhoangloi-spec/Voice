@@ -23,7 +23,8 @@ celery==5.4.0
 redis==5.0.7
 
 # Media Processing & Link Extraction
-yt-dlp==2024.5.27
+yt-dlp==2026.7.4
+imageio-ffmpeg==0.6.0
 pydub==0.25.1
 soundfile==0.12.1
 librosa==0.10.2
@@ -35,3 +36,5 @@ pytest-asyncio==0.23.7
 # Voice TTS Fallback
 edge-tts==7.2.8
 
+# Voice Recognition (ASR)
+openai-whisper

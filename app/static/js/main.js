@@ -302,6 +302,14 @@ class PjaxRouter {
             if (href.startsWith("#") || href.startsWith("javascript:")) return;
             
             e.preventDefault();
+            
+            // Cập nhật active class cho sidebar menu ngay lập tức để cho cảm giác phản hồi nhanh (Instant Active State)
+            if (anchor.classList.contains("menu-item") && anchor.closest(".app-sidebar")) {
+                const menuItems = document.querySelectorAll(".app-sidebar .menu-item");
+                menuItems.forEach(item => item.classList.remove("active"));
+                anchor.classList.add("active");
+            }
+
             this.navigate(anchor.href);
         });
 
@@ -364,9 +372,11 @@ class PjaxRouter {
             // Cập nhật active class cho sidebar menu
             this.updateSidebarActive(finalUrl);
 
-            // Khởi tạo lại Lucide Icons
+            // Khởi tạo lại Lucide Icons (chỉ quét trong content-wrapper để tránh giật/vẽ lại icons sidebar)
             if (typeof lucide !== "undefined") {
-                lucide.createIcons();
+                lucide.createIcons({
+                    root: document.querySelector(".content-wrapper")
+                });
             }
 
             // Cuộn trang lên đầu

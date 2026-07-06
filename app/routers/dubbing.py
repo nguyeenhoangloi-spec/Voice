@@ -410,161 +410,41 @@ def get_history_page(request: Request, user=Depends(get_current_user), db: Sessi
 @router.get("/voices", response_class=HTMLResponse)
 def get_voices_page(request: Request, user=Depends(get_current_user)):
     """Render danh sách mẫu giọng AI hệ thống (Tải nhanh, không bị blocking)"""
-    from app.config import settings
-    
-    if settings.TTS_ENGINE == "fpt":
-        voices = [
-            {
-                "id": "banmai",
-                "name": "Nữ miền Bắc (Ban Mai - Giọng chuẩn nhất)",
-                "gender": "Nữ",
-                "region": "Miền Bắc",
-                "voice": "banmai",
-                "desc": "Giọng phổ thông cực kỳ mượt mà, tự nhiên và dễ nghe nhất."
-            },
-            {
-                "id": "lannhi",
-                "name": "Nữ miền Nam (Lan Nhi)",
-                "gender": "Nữ",
-                "region": "Miền Nam",
-                "voice": "lannhi",
-                "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng và tự nhiên."
-            },
-            {
-                "id": "myan",
-                "name": "Nữ miền Trung (Mỹ An)",
-                "gender": "Nữ",
-                "region": "Miền Trung",
-                "voice": "myan",
-                "desc": "Giọng đọc miền Trung truyền cảm, mang nét đặc trưng ấm áp."
-            },
-            {
-                "id": "leminh",
-                "name": "Nam miền Bắc (Lê Minh)",
-                "gender": "Nam",
-                "region": "Miền Bắc",
-                "voice": "leminh",
-                "desc": "Giọng nam trầm ấm, rõ ràng, phù hợp đọc tin tức và tài liệu."
-            },
-            {
-                "id": "giahuy",
-                "name": "Nam miền Nam (Gia Huy)",
-                "gender": "Nam",
-                "region": "Miền Nam",
-                "voice": "giahuy",
-                "desc": "Giọng đọc lưu loát, ấm áp và thân thiện."
-            },
-            {
-                "id": "linhsan",
-                "name": "Nữ miền Bắc (Linh San - Đọc báo)",
-                "gender": "Nữ",
-                "region": "Miền Bắc",
-                "voice": "linhsan",
-                "desc": "Giọng đọc báo chính luận, mạch lạc và trang trọng."
-            },
-            {
-                "id": "thuminh",
-                "name": "Nữ miền Bắc (Thu Minh - Truyền cảm)",
-                "gender": "Nữ",
-                "region": "Miền Bắc",
-                "voice": "thuminh",
-                "desc": "Giọng nữ nhẹ nhàng, ấm áp, truyền cảm hứng."
-            }
-        ]
-
-    else:
-        # Edge TTS voices + ElevenLabs voices
-        voices = [
-            {
-                "id": "north_female",
-                "name": "Nữ miền Bắc (Hoài An - Edge)",
-                "gender": "Nữ",
-                "region": "Miền Bắc",
-                "voice": "vi-VN-HoaiMyNeural",
-                "desc": "Giọng đọc trong trẻo, chuyên nghiệp, phù hợp với bài giảng, review phim."
-            },
-            {
-                "id": "north_male",
-                "name": "Nam miền Bắc (Gia Huy - Edge)",
-                "gender": "Nam",
-                "region": "Miền Bắc",
-                "voice": "vi-VN-NamMinhNeural",
-                "desc": "Giọng đọc trầm ấm, truyền cảm, thích hợp làm tin tức, tài liệu."
-            },
-            {
-                "id": "south_female",
-                "name": "Nữ miền Nam (Thảo Chi - Edge)",
-                "gender": "Nữ",
-                "region": "Miền Nam",
-                "voice": "vi-VN-HoaiMyNeural",
-                "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng, phù hợp truyện đọc, tâm sự."
-            },
-            {
-                "id": "south_male",
-                "name": "Nam miền Nam (Minh Quân - Edge)",
-                "gender": "Nam",
-                "region": "Miền Nam",
-                "voice": "vi-VN-NamMinhNeural",
-                "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
-            },
-            {
-                "id": "charlie",
-                "name": "Charlie (ElevenLabs - Cao cấp)",
-                "gender": "Nam",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "charlie",
-                "desc": "Giọng nam cao cấp. Tông giọng ấm áp, tự nhiên, thích hợp kể chuyện, thuyết minh."
-            },
-            {
-                "id": "george",
-                "name": "George (ElevenLabs - Cao cấp)",
-                "gender": "Nam",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "george",
-                "desc": "Giọng nam chuyên nghiệp, rõ ràng, phù hợp bài giảng doanh nghiệp, thuyết trình."
-            },
-            {
-                "id": "callum",
-                "name": "Callum (ElevenLabs - Cao cấp)",
-                "gender": "Nam",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "callum",
-                "desc": "Giọng nam năng động, trẻ trung, lý tưởng cho vlog giải trí, mạng xã hội."
-            },
-            {
-                "id": "will",
-                "name": "Will (ElevenLabs - Cao cấp)",
-                "gender": "Nam",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "will",
-                "desc": "Giọng nam mạnh mẽ, tự tin, phù hợp cho video truyền động lực hoặc hướng dẫn."
-            },
-            {
-                "id": "charlotte",
-                "name": "Charlotte (ElevenLabs - Cao cấp)",
-                "gender": "Nữ",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "charlotte",
-                "desc": "Giọng nữ ngọt ngào, ấm áp, thích hợp cho các cuộc hội thoại tự nhiên."
-            },
-            {
-                "id": "alice",
-                "name": "Alice (ElevenLabs - Cao cấp)",
-                "gender": "Nữ",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "alice",
-                "desc": "Giọng nữ nhẹ nhàng, êm dịu, rất tốt cho video thiền, kể chuyện, podcast."
-            },
-            {
-                "id": "matilda",
-                "name": "Matilda (ElevenLabs - Cao cấp)",
-                "gender": "Nữ",
-                "region": "Bản quốc tế (Mỹ)",
-                "voice": "matilda",
-                "desc": "Giọng nữ giàu cảm xúc, sinh động, phù hợp để tạo kịch tính cho phim."
-            }
-        ]
-                
+    voices = [
+        {
+            "id": "north_female",
+            "name": "Nữ miền Bắc (Hoài An - Edge)",
+            "gender": "Nữ",
+            "region": "Miền Bắc",
+            "voice": "vi-VN-HoaiMyNeural",
+            "desc": "Giọng đọc trong trẻo, chuyên nghiệp, phù hợp với bài giảng, review phim."
+        },
+        {
+            "id": "north_male",
+            "name": "Nam miền Bắc (Gia Huy - Edge)",
+            "gender": "Nam",
+            "region": "Miền Bắc",
+            "voice": "vi-VN-NamMinhNeural",
+            "desc": "Giọng đọc trầm ấm, truyền cảm, thích hợp làm tin tức, tài liệu."
+        },
+        {
+            "id": "south_female",
+            "name": "Nữ miền Nam (Thảo Chi - Edge)",
+            "gender": "Nữ",
+            "region": "Miền Nam",
+            "voice": "vi-VN-HoaiMyNeural",
+            "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng, phù hợp truyện đọc, tâm sự."
+        },
+        {
+            "id": "south_male",
+            "name": "Nam miền Nam (Minh Quân - Edge)",
+            "gender": "Nam",
+            "region": "Miền Nam",
+            "voice": "vi-VN-NamMinhNeural",
+            "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
+        },
+    ]
+                 
     return templates.TemplateResponse(
         "user/voices.html",
         {
@@ -596,14 +476,6 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
             "north_male": ("vi-VN-NamMinhNeural", "Chào bạn! Tôi là Gia Huy, giọng đọc Nam miền Bắc của hệ thống Voice AI. Với tông giọng trầm ấm, rõ ràng và mạch lạc, tôi rất thích hợp cho các nội dung tin tức, phóng sự hoặc đọc tài liệu kỹ thuật. Rất hân hạnh được đồng hành cùng dự án của bạn."),
             "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Mình là Thảo Chi, giọng đọc Nữ miền Nam vô cùng ngọt ngào, dịu dàng và truyền cảm. Mình rất thích hợp để lồng tiếng cho các video tâm sự, đọc truyện đêm muộn hoặc review ẩm thực. Hãy nhấn nút bên dưới để sử dụng giọng của mình nha!"),
             "south_male": ("vi-VN-NamMinhNeural", "Chào mọi người! Mình là Minh Quân, giọng đọc Nam miền Nam đầy năng động, trẻ trung và lưu loát. Giọng của mình rất phù hợp cho các video quảng cáo sản phẩm, chia sẻ kinh nghiệm hoặc vlog đời sống. Chúc các bạn có những trải nghiệm tuyệt vời cùng Voice AI."),
-            # ElevenLabs (tiếng Anh dài ~10s để nghe rõ)
-            "charlie": ("charlie", "Hello there! This is a preview of Charlie, a premium AI voice from ElevenLabs. I am characterized by a warm, deep, and conversational tone, perfect for storytelling and video narration. I look forward to working with you."),
-            "george": ("george", "Hello! This is George, a professional AI voice from ElevenLabs. I offer a clear, authoritative, and articulate delivery, ideal for corporate videos, presentations, and documentary narrations."),
-            "callum": ("callum", "Hey there! I am Callum, an energetic and friendly AI voice from ElevenLabs. My tone is casual and engaging, which makes me a great fit for modern vlogs and social media content."),
-            "will": ("will", "Hello! This is Will, a strong and confident AI voice from ElevenLabs. I deliver words with power and precision, suitable for motivational videos, sports coverage, and tutorials."),
-            "charlotte": ("charlotte", "Hello! I am Charlotte, a sweet and natural AI voice from ElevenLabs. I speak with clarity and warmth, making me a great fit for conversational videos and explanations."),
-            "alice": ("alice", "Hello! This is Alice, a gentle and soft AI voice from ElevenLabs. My style is peaceful and soothing, which is perfect for meditation, audiobooks, and narrative content."),
-            "matilda": ("matilda", "Hi! I am Matilda, an expressive and emotional AI voice from ElevenLabs. I can bring deep narrative and storytelling elements to life in your video projects.")
         }
         
         voice_code, sample_text = voices_map.get(voice_id, (voice_id, "Xin chào! Đây là bản nghe thử giọng đọc của hệ thống Voice AI. Chúc bạn một ngày tốt lành."))
@@ -622,7 +494,7 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
                 import concurrent.futures
                 
                 # Map sang giọng Edge tương ứng
-                if voice_id in ["leminh", "giahuy", "north_male", "south_male", "charlie", "george", "callum", "will"]:
+                if voice_id in ["leminh", "giahuy", "north_male", "south_male"]:
                     edge_voice = "vi-VN-NamMinhNeural"
                 else:
                     edge_voice = "vi-VN-HoaiMyNeural"

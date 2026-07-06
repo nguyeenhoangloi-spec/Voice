@@ -173,6 +173,26 @@ def inject_ffmpeg_to_path():
         ffmpeg_path = get_ffmpeg_path()
         ffmpeg_dir = os.path.dirname(ffmpeg_path)
         
+        # Tạo bản copy tiêu chuẩn ffmpeg.exe để các thư viện bên ngoài (như Whisper) gọi được qua lệnh "ffmpeg"
+        target_ffmpeg = os.path.join(ffmpeg_dir, "ffmpeg.exe" if os.name == 'nt' else "ffmpeg")
+        if not os.path.exists(target_ffmpeg):
+            try:
+                shutil.copy2(ffmpeg_path, target_ffmpeg)
+                logger.info(f"Created standard copy of ffmpeg binary at: {target_ffmpeg}")
+            except Exception as copy_err:
+                logger.warning(f"Failed to copy ffmpeg to standard name: {copy_err}")
+
+        # Tương tự, tạo bản copy tiêu chuẩn cho ffprobe.exe
+        try:
+            ffprobe_path = get_ffprobe_path()
+            ffprobe_dir = os.path.dirname(ffprobe_path)
+            target_ffprobe = os.path.join(ffprobe_dir, "ffprobe.exe" if os.name == 'nt' else "ffprobe")
+            if not os.path.exists(target_ffprobe):
+                shutil.copy2(ffprobe_path, target_ffprobe)
+                logger.info(f"Created standard copy of ffprobe binary at: {target_ffprobe}")
+        except Exception as ff_err:
+            logger.warning(f"Failed to copy ffprobe to standard name: {ff_err}")
+        
         # Clean current PATH of broken ffmpeg directories
         path_list = os.environ.get("PATH", "").split(os.pathsep)
         cleaned_paths = []

@@ -40,6 +40,9 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     Transcribe audio using OpenAI Whisper (local model).
     Returns list of segments with start, end, text.
     """
+    from app.utils.ffmpeg_utils import inject_ffmpeg_to_path
+    inject_ffmpeg_to_path()
+    
     import whisper
     import torch
 
@@ -260,47 +263,8 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
                         rate: str = "+0%") -> str:
     """
-    Generate TTS audio using Microsoft Edge TTS (free) or Kyma ElevenLabs API.
+    Generate TTS audio using Microsoft Edge TTS (free).
     """
-    import requests
-    from app.config import settings
-
-    # Nếu voice không bắt đầu bằng "vi-VN-", tức là ta dùng giọng ElevenLabs/Kyma!
-    is_kyma = not voice.startswith("vi-VN-")
-    if is_kyma:
-        api_key = settings.KYMA_API_KEY.strip()
-        if not api_key:
-            logger.warning("KYMA_API_KEY not set. Falling back to Edge TTS (vi-VN-HoaiMyNeural).")
-            voice = "vi-VN-HoaiMyNeural"
-            is_kyma = False
-        else:
-            try:
-                logger.info(f"Calling Kyma TTS API for voice: {voice}...")
-                url = "https://api.kymaapi.com/v1/audio/speech"
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": "eleven-v3",
-                    "input": text,
-                    "voice": voice
-                }
-                res = requests.post(url, headers=headers, json=payload, timeout=60)
-                if res.status_code == 200:
-                    with open(output_path, "wb") as f:
-                        f.write(res.content)
-                    logger.info(f"[OK] Kyma TTS generated successfully! Saved to: {output_path}")
-                    return output_path
-                else:
-                    logger.error(f"Kyma API failed (HTTP {res.status_code}): {res.text}. Falling back to Edge TTS.")
-                    voice = "vi-VN-HoaiMyNeural"
-                    is_kyma = False
-            except Exception as e:
-                logger.error(f"Kyma API call failed: {e}. Falling back to Edge TTS.")
-                voice = "vi-VN-HoaiMyNeural"
-                is_kyma = False
-
     # Edge TTS logic
     import edge_tts
     import asyncio
