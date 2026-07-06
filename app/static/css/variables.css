@@ -56,6 +56,12 @@
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-blur: blur(20px);
     --shadow-soft: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.02);
+
+    /* Grid & Glow accents */
+    --glow-color: rgba(14, 165, 233, 0.08);
+    --grid-color: rgba(15, 23, 42, 0.03);
+    --bg-mesh: radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.05) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.05) 0px, transparent 50%);
 }
 
 /* Dark Theme Variables (Default) */
@@ -88,4 +94,10 @@
     --glass-bg: rgba(19, 27, 46, 0.75);
     --glass-blur: blur(20px);
     --shadow-soft: 0 15px 35px -12px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255, 255, 255, 0.02);
+
+    /* Grid & Glow accents */
+    --glow-color: rgba(56, 189, 248, 0.15);
+    --grid-color: rgba(255, 255, 255, 0.015);
+    --bg-mesh: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+              radial-gradient(at 100% 100%, rgba(192, 132, 252, 0.08) 0px, transparent 50%);
 }

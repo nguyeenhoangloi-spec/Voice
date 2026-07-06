@@ -6,7 +6,13 @@ if __name__ == "__main__":
     # Clean PATH and inject working FFmpeg binaries on startup
     inject_ffmpeg_to_path()
     
-    print(f"Starting VoiceAI server on {settings.HOST}:{settings.PORT} (AI_MODE={settings.AI_MODE})...")
+    # In ra dòng link cụ thể click được
+    host_display = "127.0.0.1" if settings.HOST == "0.0.0.0" else settings.HOST
+    print("\n" + "="*50)
+    print(f"VOICE AI DUBBING SERVER IS READY!")
+    print(f"CLICK TO OPEN: http://{host_display}:{settings.PORT}")
+    print("="*50 + "\n")
+    
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,

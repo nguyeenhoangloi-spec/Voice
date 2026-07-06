@@ -8,6 +8,8 @@ Real AI Dubbing Engine
 import os
 import asyncio
 import subprocess
+import time
+
 import json
 import logging
 import tempfile
@@ -39,9 +41,12 @@ def transcribe_audio(audio_path: str) -> list:
     Returns list of segments with start, end, text.
     """
     import whisper
+    import torch
 
-    logger.info("Loading Whisper model (base)...")
-    model = whisper.load_model("base")
+    # Tự động dò tìm GPU để tăng tốc độ nhận dạng lên 10-20 lần
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    logger.info(f"Loading Whisper model (base) on device: {device}...")
+    model = whisper.load_model("base", device=device)
 
     logger.info(f"Transcribing: {audio_path}")
     result = model.transcribe(audio_path, language=None, task="transcribe")
@@ -55,12 +60,100 @@ def transcribe_audio(audio_path: str) -> list:
             "language": result.get("language", "en")
         })
 
-    logger.info(f"Transcribed {len(segments)} segments, detected language: {result.get('language')}")
-    return segments
+    logger.info(f"Transcribed {len(segments)} segments, detected language: {result.get('language')} (device: {device})")
+    return _merge_adjacent_segments(segments)
+
+def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration: float = 5.0) -> list:
+    """
+    Gộp các phân đoạn kề nhau nếu khoảng cách nghỉ (gap) nhỏ hơn max_gap_ms
+    và tổng thời lượng sau khi gộp không vượt quá max_duration.
+    Giúp tạo thành các câu dài vừa phải, dịch thuật tự nhiên và tránh bị cắt cụt đuôi âm thanh.
+    """
+    if not segments:
+        return []
+
+    merged = []
+    current = segments[0].copy()
+
+    for next_seg in segments[1:]:
+        gap = next_seg["start"] - current["end"]
+        potential_duration = next_seg["end"] - current["start"]
+        
+        # Gộp nếu gap nhỏ và tổng thời lượng sau khi gộp không quá dài
+        if gap <= (max_gap_ms / 1000.0) and potential_duration <= max_duration:
+            current["end"] = next_seg["end"]
+            current["text"] = (current["text"].strip() + " " + next_seg["text"].strip()).strip()
+        else:
+            merged.append(current)
+            current = next_seg.copy()
+
+    merged.append(current)
+    logger.info(f"Gộp phân đoạn thoại thông minh (gap<{max_gap_ms}ms, max_dur<{max_duration}s): Giảm từ {len(segments)} xuống {len(merged)} phân đoạn.")
+    return merged
+
+
+
 
 
 def translate_segments(segments: list, target_lang: str = "vi") -> list:
-    """Translate each segment text to target language using Google Translate"""
+    """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
+    from app.config import settings
+
+    # Sử dụng Gemini API nếu có API Key
+    api_key = settings.GEMINI_API_KEY.strip()
+    if api_key:
+        logger.info("Sử dụng Gemini API để dịch sát nghĩa ngữ cảnh và cô đọng thời gian...")
+        try:
+            from google import genai
+            from google.genai import types
+            import json
+            import re
+
+            client = genai.Client(api_key=api_key)
+
+            # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
+            # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
+            # => max ~2.8 words per second is comfortable with auto stretching (up to 1.25x)
+            prompt = (
+                "You are an elite video dubbing translator (NOT subtitle translator).\n"
+                "Translate the following video transcript segments into natural Vietnamese FOR VOICE DUBBING.\n\n"
+                "CRITICAL REQUIREMENTS:\n"
+                "1. ACCURACY: Translation must convey the original meaning correctly and completely.\n"
+                "2. TIMING: Each translation MUST fit within the duration when spoken at a comfortable, natural pace.\n"
+                "   - Vietnamese natural speech rate: 2.5-2.8 words per second.\n"
+                "   - Target word count = duration_seconds * 2.8 (strict upper limit).\n"
+                "   - Avoid word-for-word translation. Speak naturally. Do NOT summarize too much or drop important words. The translation must be fully meaningful, natural, and complete.\n"
+                "3. NATURAL SPEECH: Use spoken Vietnamese (not written/formal). It must sound like a real person talking naturally.\n"
+                "4. OUTPUT: Return ONLY a JSON array of translated strings in the same order. No markdown, no explanation.\n"
+                "   Example: [\"câu một\", \"câu hai\"]\n\n"
+                "Segments to translate:\n"
+            )
+            for idx, seg in enumerate(segments):
+                duration = seg.get("end", 0.0) - seg.get("start", 0.0)
+                max_words = max(1, int(duration * 2.8))  # Higher word limit for this segment to avoid drop words
+                prompt += f"[{idx}] (Duration: {duration:.2f}s, max ~{max_words} Vietnamese words): {seg.get('text', '')}\n"
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            res_text = response.text.strip()
+
+            # Tìm mảng JSON trong phản hồi của Gemini
+            json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
+            if json_match:
+                translated_list = json.loads(json_match.group(0))
+                if len(translated_list) == len(segments):
+
+                    for idx, trans in enumerate(translated_list):
+                        segments[idx]["translation"] = trans
+                    logger.info(f"Đã dịch thành công {len(segments)} câu bằng Gemini API.")
+                    return segments
+            logger.warning("Không thể parse kết quả JSON của Gemini. Tiến hành fallback sang Google Translate.")
+        except Exception as e:
+            logger.warning(f"Lỗi khi dịch bằng Gemini API: {e}. Tiến hành fallback sang Google Translate.")
+
+    # Fallback sang Google Translate
     from deep_translator import GoogleTranslator
 
     translator = GoogleTranslator(source="auto", target=target_lang)
@@ -78,6 +171,7 @@ def translate_segments(segments: list, target_lang: str = "vi") -> list:
 
     logger.info(f"Translated {len(segments)} segments to {target_lang}")
     return segments
+
 
 
 def _compress_translation(text: str, max_words: int) -> str:
@@ -102,24 +196,25 @@ def _compress_translation(text: str, max_words: int) -> str:
 def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
                                video_context: str = "neutral") -> dict:
     """
-    Generate timing-aware SSML parameters for a single dubbing segment.
-    Returns a dict with 'text' (containing break tags) and 'rate' (e.g. '+10%').
+    Generate timing-aware TTS parameters for a single dubbing segment.
+    Returns a dict with 'text' and 'rate'.
 
-    Rules:
-    - Vietnamese natural speech: 2.0-3.2 words/sec
-    - If translation too long: compress to fit duration
-    - If translation too short: add <break> tags at punctuation
-    - Prosody rate based on video context (neutral/fast/slow)
+    Strategy:
+    - Natural Vietnamese speech: ~2.2 words/sec at normal rate
+    - Keep rate at +0% by default; only speed up if words > 2.8 words/sec (still natural)
+    - If translation still too long after rate boost, compress at sentence boundaries
+    - NOTE: The merge step will do a final atempo stretch to lock audio to slot exactly
     """
     translation = seg.get("translation", seg.get("text", ""))
     start_time = seg.get("start", 0.0)
     end_time = seg.get("end", start_time + 3.0)
-    duration = end_time - start_time
+    duration = max(end_time - start_time, 0.5)  # at least 0.5s
 
-    # Word count limits based on natural Vietnamese speaking rate
-    max_words = int(duration * 3.2)
+    # Natural rate: 1.8 w/s; max comfortable rate before sounding rushed: 2.4 w/s
+    max_words_normal = int(duration * 1.8)
+    max_words_fast   = int(duration * 2.4)  # hard ceiling at fast rate
 
-    # Adjust prosody rate based on video context
+    # Adjust base rate from video context
     rate_map = {
         "fast": "+10%",
         "neutral": "+0%",
@@ -128,18 +223,18 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     }
     rate = rate_map.get(video_context.lower(), "+0%")
 
-    # Compress if too long
     words = translation.split()
-    if len(words) > max_words and max_words > 0:
-        translation = _compress_translation(translation, max_words)
+    word_count = len(words)
 
-    # Use clean translation (Edge TTS naturally pauses on punctuation like commas, periods, and ellipsis)
+    # If words exceed normal rate, bump speed up to +15% before compressing
+    if word_count > max_words_normal:
+        rate = "+15%"
+
+    # If words still exceed hard ceiling even at fast rate, compress to fit
+    if word_count > max_words_fast and max_words_fast > 0:
+        translation = _compress_translation(translation, max_words_fast)
+
     ssml_content = translation.strip()
-
-    # If very short duration but translation is long, increase rate to squeeze in
-    current_word_count = len(ssml_content.split())
-    if duration > 0 and current_word_count / duration > 3.5:
-        rate = "+15%"  # speak faster to fit
 
     return {
         "text": ssml_content,
@@ -150,46 +245,39 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
                         rate: str = "+0%") -> str:
     """
-    Generate Vietnamese TTS audio using Microsoft Edge TTS (free, high quality).
-    Parameters:
-    - text: text to synthesize (can contain break tags like <break time="200ms"/>)
-    - voice: voice name
-    - rate: speed modification rate (e.g. "+10%", "-5%", "+0%")
+    Generate Vietnamese TTS audio using Microsoft Edge TTS (free, no API key required).
     """
     import edge_tts
+    import asyncio
+    import concurrent.futures
 
-    async def _generate():
-        # Pass break tags directly inside text parameter, and rate as constructor argument.
-        # Edge-TTS will wrap it in correct SSML tags internally without double escaping.
+    async def _gen():
         communicate = edge_tts.Communicate(text, voice, rate=rate)
         await communicate.save(output_path)
 
-    # Run async TTS generation (handle both sync and async contexts)
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                pool.submit(asyncio.run, _generate()).result()
-        else:
-            loop.run_until_complete(_generate())
+        loop = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            pool.submit(asyncio.run, _gen()).result()
     except RuntimeError:
-        asyncio.run(_generate())
+        asyncio.run(_gen())
 
-    logger.info(f"Generated TTS: {output_path} ({os.path.getsize(output_path)} bytes)")
     return output_path
 
 
-def select_voice(gender: str = "female", region: str = "south") -> str:
-    """Select appropriate Vietnamese voice based on user preferences"""
+def select_voice(gender: str = "female", region: str = "south", engine: str = "edge") -> str:
+    """Select appropriate voice based on selected engine and user preferences (Edge TTS fallback only)"""
+    # Edge TTS voices (vi-VN-HoaiMyNeural for female, vi-VN-NamMinhNeural for male)
     voice_map = {
         ("female", "north"): "vi-VN-HoaiMyNeural",
         ("female", "south"): "vi-VN-HoaiMyNeural",
+        ("female", "central"): "vi-VN-HoaiMyNeural",
         ("male", "north"): "vi-VN-NamMinhNeural",
         ("male", "south"): "vi-VN-NamMinhNeural",
+        ("male", "central"): "vi-VN-NamMinhNeural",
     }
-    key = (gender.lower(), region.lower())
-    return voice_map.get(key, "vi-VN-HoaiMyNeural")
+    return voice_map.get((gender.lower(), region.lower()), "vi-VN-HoaiMyNeural")
+
 
 
 def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
@@ -197,14 +285,22 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                                video_context: str = "neutral") -> list:
     """
     Generate TTS audio for each translated segment using timing-aware SSML parameters.
+    Processes segments in parallel to optimize processing speed for long videos.
     """
-    for idx, seg in enumerate(segments):
+    import concurrent.futures
+
+    # Cố định chạy song song tối đa 15 luồng cho Edge TTS
+    max_workers = 15
+
+    logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
+
+    def process_single_segment(idx_seg_tuple):
+        idx, seg = idx_seg_tuple
         output_path = os.path.join(audio_dir, f"{job_id}_seg_{idx}.mp3")
         try:
             translation = seg.get("translation", seg.get("text", ""))
             if not translation or not translation.strip():
-                seg["audio_path"] = None
-                continue
+                return idx, None
 
             # Generate timing-aware SSML configuration for this segment
             ssml_config = generate_ssml_for_segment(seg, voice=voice, video_context=video_context)
@@ -218,7 +314,7 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 voice=voice,
                 rate=ssml_config["rate"]
             )
-            seg["audio_path"] = output_path
+            return idx, output_path
 
         except Exception as e:
             logger.error(f"TTS generation failed for segment {idx}: {e}")
@@ -227,22 +323,33 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 text = seg.get("translation", seg.get("text", ""))
                 if text and text.strip():
                     generate_tts_audio(text, output_path, voice=voice)
-                    seg["audio_path"] = output_path
-                else:
-                    seg["audio_path"] = None
+                    return idx, output_path
             except Exception as e2:
                 logger.error(f"Fallback TTS also failed for segment {idx}: {e2}")
-                seg["audio_path"] = None
+            return idx, None
 
+    # Sử dụng ThreadPoolExecutor để chạy song song
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        tasks = [(idx, seg) for idx, seg in enumerate(segments)]
+        results = list(executor.map(process_single_segment, tasks))
+
+    # Gán kết quả audio_path ngược lại segments
+    for idx, audio_path in results:
+        segments[idx]["audio_path"] = audio_path
+
+    logger.info(f"Đã hoàn thành sinh TTS song song cho {len(segments)} segments.")
     return segments
+
 
 
 def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                           output_video_path: str, output_audio_path: str,
-                          keep_bg_music: bool = True) -> tuple:
+                          keep_bg_music: bool = True,
+                          bg_volume_db: int = -18) -> tuple:
     """
     Merge all TTS audio segments into a single audio track,
     then combine with the original video (replacing original audio).
+    bg_volume_db: volume reduction in dB for original audio (0 = full, -40 = nearly silent).
     """
     from pydub import AudioSegment
     from app.utils.ffmpeg_utils import get_video_duration
@@ -265,35 +372,63 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     # Create silent base track matching video duration
     mixed_audio = AudioSegment.silent(duration=video_duration_ms)
 
-    # Overlay each TTS segment at its correct timestamp
+     # Overlay each TTS segment at its correct timestamp
     overlay_count = 0
-    for seg in segments:
+    for idx, seg in enumerate(segments):
         if not seg.get("audio_path") or not os.path.exists(seg["audio_path"]):
             continue
         try:
             tts_audio = AudioSegment.from_file(seg["audio_path"])
             start_ms = int(seg["start"] * 1000)
-
-            # Calculate available time slot
             end_ms = int(seg["end"] * 1000)
-            slot_duration = end_ms - start_ms
 
-            # Speed up TTS if it's much longer than the slot
-            if len(tts_audio) > 0 and slot_duration > 0:
-                speed_ratio = len(tts_audio) / slot_duration
-                if speed_ratio > 1.5:
-                    # Speed up using ffmpeg atempo filter
-                    tempo = min(speed_ratio, 2.0)
-                    temp_sped = seg["audio_path"].replace(".mp3", "_sped.mp3")
+            # --- TIMING SYNC: Lock TTS audio to original segment slot ---
+            slot_duration = end_ms - start_ms  # exact slot from original transcript
+
+            # Allow borrowing up to 0.8s from the gap to next segment
+            # (so we don't cut off natural sentence endings)
+            if idx < len(segments) - 1:
+                next_start_ms = int(segments[idx + 1]["start"] * 1000)
+            else:
+                next_start_ms = video_duration_ms
+
+            available_duration = slot_duration
+            if next_start_ms > end_ms:
+                gap = next_start_ms - end_ms
+                available_duration += min(gap, 800)  # borrow at most 0.8s from gap
+
+            tts_len = len(tts_audio)
+            if tts_len > 0 and available_duration > 0:
+                speed_ratio = tts_len / available_duration
+
+                applied_ratio = 1.0
+                if speed_ratio > 1.02:  # TTS is longer than available slot -> speed up
+                    # Limit maximum speed stretch to 1.25x to preserve natural voice quality
+                    applied_ratio = min(speed_ratio, 1.25)
+                    logger.debug(f"Seg {idx}: stretched speed-up atempo={applied_ratio:.2f}x (original ratio was {speed_ratio:.2f}x)")
+                elif speed_ratio < 0.95:  # TTS is shorter than available slot -> slow down to stretch
+                    # Limit minimum speed stretch to 0.85x to preserve natural voice quality
+                    applied_ratio = max(speed_ratio, 0.85)
+                    logger.debug(f"Seg {idx}: stretched slow-down atempo={applied_ratio:.2f}x (original ratio was {speed_ratio:.2f}x)")
+
+                if applied_ratio != 1.0:
+                    filter_str = f"atempo={applied_ratio:.4f}"
+                    temp_sped = seg["audio_path"].replace(".mp3", "_sync.mp3")
                     cmd_speed = [
                         ffmpeg, "-y", "-i", seg["audio_path"],
-                        "-filter:a", f"atempo={tempo}",
+                        "-filter:a", filter_str,
                         temp_sped
                     ]
-                    subprocess.run(cmd_speed, capture_output=True)
-                    if os.path.exists(temp_sped):
+                    result_speed = subprocess.run(cmd_speed, capture_output=True)
+                    if result_speed.returncode == 0 and os.path.exists(temp_sped):
                         tts_audio = AudioSegment.from_file(temp_sped)
                         os.remove(temp_sped)
+
+                # Final trim with Fade Out to prevent sudden clicks or unnatural cuts
+                max_allowed_ms = available_duration
+                if len(tts_audio) > max_allowed_ms:
+                    fade_duration = min(150, max_allowed_ms)
+                    tts_audio = tts_audio[:max_allowed_ms].fade_out(fade_duration)
 
             mixed_audio = mixed_audio.overlay(tts_audio, position=start_ms)
             overlay_count += 1
@@ -316,13 +451,15 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
 
             if os.path.exists(temp_orig_audio):
                 orig_audio = AudioSegment.from_file(temp_orig_audio)
-                # Reduce original audio volume to -18dB so TTS is dominant
-                orig_audio = orig_audio - 18
+                # Apply user-configured volume reduction (default -18dB)
+                # Clamp to safe range: 0dB (full) to -40dB (nearly silent)
+                volume_reduction = max(-40, min(0, bg_volume_db))
+                orig_audio = orig_audio + volume_reduction  # pydub uses + to add dB offset
                 # Trim or extend to match video duration
                 orig_audio = orig_audio[:video_duration_ms]
                 mixed_audio = mixed_audio.overlay(orig_audio)
                 os.remove(temp_orig_audio)
-                logger.info("Mixed original audio as background at -18dB")
+                logger.info(f"Mixed original audio as background at {volume_reduction}dB")
         except Exception as e:
             logger.warning(f"Failed to mix background audio: {e}")
 

@@ -1,56 +1,64 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div style="text-align: center; margin-bottom: var(--space-lg);">
-    <h1 style="font-size: 36px; font-weight: 800;">Chọn gói dịch vụ phù hợp</h1>
-    <p style="font-size: 16px; color: var(--text-secondary); margin-top: 4px;">Nâng cấp để mở khóa thêm thời lượng video và giọng nói AI chất lượng cao</p>
+<div class="page-header" style="justify-content: center; text-align: center;">
+    <div>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Chọn gói dịch vụ phù hợp</h1>
+        <p class="hero-desc" style="max-width: 600px; margin: 0 auto;">Nâng cấp để mở khóa thêm thời lượng video và giọng nói AI chất lượng cao, phục vụ cho việc sáng tạo nội dung chuyên nghiệp.</p>
+    </div>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md);">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-xl);">
     <!-- Gói Free -->
-    <div class="card glass">
-        <div style="font-size: 14px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Cơ bản</div>
-        <h2 style="font-size: 32px; font-weight: 800; margin: var(--space-2xs) 0;">Miễn phí</h2>
-        <p style="font-size: 13px; color: var(--text-secondary);">Phù hợp cho cá nhân thử nghiệm dịch vụ</p>
-        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-xs) 0;">
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-xs); font-size: 13px; color: var(--text-secondary); flex: 1;">
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Tối đa 2 phút/video</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> 3 giọng đọc AI tiêu chuẩn</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Chất lượng video 720p</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="x" style="color: var(--color-danger); width: 16px; height: 16px;"></i> Không có tách nhạc nền nâng cao</li>
-        </ul>
-        <a href="/auth/register" class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-sm);">Đăng ký miễn phí</a>
+    <div class="card glass hover-glow" style="padding: var(--space-lg); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Cơ bản</div>
+            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">Miễn phí</h2>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Phù hợp cho cá nhân thử nghiệm dịch vụ</p>
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Tối đa 2 phút/video</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 3 giọng đọc AI tiêu chuẩn</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video 720p</li>
+                <li style="display: flex; align-items: center; gap: 10px; opacity: 0.5;"><i data-lucide="x" style="color: var(--color-danger); width: 18px; height: 18px;"></i> Tách nhạc nền nâng cao</li>
+            </ul>
+        </div>
+        <a href="/auth/register" class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;">Đăng ký miễn phí</a>
     </div>
 
     <!-- Gói Creator (Nổi bật) -->
-    <div class="card glass" style="border-color: var(--color-primary); box-shadow: 0 0 20px rgba(56, 189, 248, 0.15); position: relative;">
-        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: white; padding: 2px 10px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Phổ biến</div>
-        <div style="font-size: 14px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px;">Sáng tạo</div>
-        <h2 style="font-size: 32px; font-weight: 800; margin: var(--space-2xs) 0;">199.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
-        <p style="font-size: 13px; color: var(--text-secondary);">Hoàn hảo cho người sáng tạo nội dung</p>
-        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-xs) 0;">
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-xs); font-size: 13px; color: var(--text-secondary); flex: 1;">
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Tối đa 15 phút/video</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> 15+ giọng đọc AI cảm xúc</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Chất lượng video Full HD 1080p</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Hỗ trợ tách nhạc nền cao cấp</li>
-        </ul>
-        <button class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-sm);" onclick="showToast('Tính năng thanh toán sẽ hoạt động ở Giai đoạn 5!', 'info')">Nâng cấp ngay</button>
+    <div class="card glass hover-glow" style="padding: var(--space-lg); border-color: var(--color-primary); box-shadow: 0 0 30px rgba(56, 189, 248, 0.12); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="position: absolute; top: -14px; right: 24px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: white; padding: 4px 14px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);">Phổ biến</div>
+        <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Sáng tạo</div>
+            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">199.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Hoàn hảo cho người sáng tạo nội dung</p>
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Tối đa 15 phút/video</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 15+ giọng đọc AI cảm xúc</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video Full HD 1080p</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Hỗ trợ tách nhạc nền cao cấp</li>
+            </ul>
+        </div>
+        <button class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;" onclick="showToast('Tính năng thanh toán sẽ hoạt động ở Giai đoạn 5!', 'info')">Nâng cấp ngay</button>
     </div>
 
     <!-- Gói Studio -->
-    <div class="card glass">
-        <div style="font-size: 14px; font-weight: 700; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 1px;">Doanh nghiệp</div>
-        <h2 style="font-size: 32px; font-weight: 800; margin: var(--space-2xs) 0;">499.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
-        <p style="font-size: 13px; color: var(--text-secondary);">Lựa chọn tốt nhất cho các studio dịch thuật</p>
-        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-xs) 0;">
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-xs); font-size: 13px; color: var(--text-secondary); flex: 1;">
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Không giới hạn thời lượng video</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Đầy đủ 50+ giọng đọc và dịch đa ngôn ngữ</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Chất lượng video gốc Ultra HD 4K</li>
-            <li style="display: flex; align-items: center; gap: 8px;"><i data-lucide="check" style="color: var(--color-success); width: 16px; height: 16px;"></i> Nhân bản giọng nói (Voice Cloning)</li>
-        </ul>
-        <button class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-sm);" onclick="showToast('Liên hệ admin để đăng ký gói Studio!', 'info')">Liên hệ bán hàng</button>
+    <div class="card glass hover-glow" style="padding: var(--space-lg); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Doanh nghiệp</div>
+            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">499.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Lựa chọn tốt nhất cho các studio dịch thuật</p>
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Không giới hạn thời lượng video</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 50+ giọng đọc và dịch đa ngôn ngữ</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video gốc Ultra HD 4K</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Nhân bản giọng nói (Voice Cloning)</li>
+            </ul>
+        </div>
+        <button class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;" onclick="showToast('Liên hệ admin để đăng ký gói Studio!', 'info')">Liên hệ bán hàng</button>
     </div>
 </div>
 {% endblock %}

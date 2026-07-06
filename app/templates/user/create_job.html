@@ -1,43 +1,99 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div style="margin-bottom: var(--space-md);">
-    <h1 style="font-size: 32px; font-weight: 800;">Tạo tác vụ lồng tiếng mới</h1>
-    <p style="font-size: 15px; color: var(--text-secondary);">Nhập URL hoặc tải tệp đa phương tiện của bạn lên để bắt đầu lồng tiếng.</p>
+<style>
+    /* Nâng cấp hiệu ứng cho vùng kéo thả */
+    .drop-zone-premium {
+        border: 2px dashed rgba(56, 189, 248, 0.25) !important;
+        background: rgba(255, 255, 255, 0.01) !important;
+        border-radius: var(--radius-lg);
+        padding: 32px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-normal) !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .drop-zone-premium:hover, .drop-zone-premium.drag-over {
+        border-color: var(--color-primary) !important;
+        background: rgba(56, 189, 248, 0.03) !important;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-soft), 0 0 25px rgba(56, 189, 248, 0.05);
+    }
+    
+    /* Thiết kế thẻ bước tự động */
+    .step-number-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--radius-full);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+    }
+    
+    /* Transition mượt mà cho form control */
+    .form-control {
+        transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast) !important;
+    }
+    .form-control:focus {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15) !important;
+        background-color: rgba(0, 0, 0, 0.2) !important;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Tạo tác vụ lồng tiếng mới</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Nhập URL hoặc tải tệp đa phương tiện của bạn lên để bắt đầu lồng tiếng tự động bằng AI.</p>
+    </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-md); align-items: start;">
-    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+<div class="grid-split" style="grid-template-columns: 1.4fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
         
         <!-- Nhập nguồn (Link dán hoặc File Upload) -->
-        <div class="card glass">
-            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">1. Nhập nguồn nội dung</h2>
+        <div class="card glass hover-glow" style="padding: var(--space-lg); gap: var(--space-md);">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span class="step-number-badge">1</span> Nhập nguồn nội dung
+            </h2>
             
             <div style="display: flex; gap: var(--space-xs); width: 100%;">
                 <div style="position: relative; flex: 1;">
-                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp tại đây..." style="padding-right: 120px;">
-                    <button id="btn-paste" class="btn btn-secondary" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px;" type="button" title="Đọc nội dung clipboard">
-                        <i data-lucide="clipboard" style="width: 14px; height: 14px;"></i> Dán link
+                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp..." style="padding-right: 110px;">
+                    <button id="btn-paste" class="btn btn-secondary hover-scale" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px; border-radius: var(--radius-sm);" type="button" title="Đọc nội dung clipboard">
+                        <i data-lucide="clipboard" style="width: 14px; height: 14px; margin-right: 2px;"></i> Dán
                     </button>
                 </div>
-                <button id="btn-check" class="btn btn-primary">Kiểm tra</button>
+                <button id="btn-check" class="btn btn-primary hover-scale" style="padding: 0 24px;">Kiểm tra</button>
             </div>
             
-            <div style="text-align: center; margin: var(--space-xs) 0; color: var(--text-tertiary); font-size: 13px; font-weight: 600;">HOẶC KÉO THẢ TỆP</div>
+            <div style="text-align: center; margin: var(--space-2xs) 0; color: var(--text-tertiary); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Hoặc kéo thả tệp tin</div>
             
-            <div id="drop-zone" style="border: 2px dashed var(--border-color); border-radius: var(--radius-lg); padding: var(--space-lg); text-align: center; cursor: pointer; transition: all var(--transition-fast);">
-                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: var(--space-xs);"></i>
-                <h4 style="font-size: 15px; font-weight: 600;">Chọn tệp video hoặc âm thanh của bạn</h4>
-                <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, thời lượng tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+            <div id="drop-zone" class="drop-zone-premium">
+                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--color-primary); margin-bottom: var(--space-xs); opacity: 0.85;"></i>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Kéo và thả tệp video/audio tại đây</h4>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0; max-width: 320px; line-height: 1.4;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <button type="button" class="btn btn-secondary hover-scale" style="font-size: 12px; padding: 6px 14px;">Chọn tệp từ máy tính</button>
                 <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
             </div>
         </div>
 
         <!-- Cấu hình lồng tiếng (Voice settings) -->
-        <div class="card glass">
-            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">2. Cấu hình lồng tiếng</h2>
+        <div class="card glass hover-glow" style="padding: var(--space-lg); gap: var(--space-md);">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span class="step-number-badge">2</span> Cấu hình lồng tiếng
+            </h2>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="voice-gender" class="form-label">Giọng đọc</label>
                     <select id="voice-gender" class="form-control">
@@ -55,7 +111,14 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+            <div class="form-group">
+                <label for="voice-profile" class="form-label">Chọn giọng cụ thể (Khuyên dùng)</label>
+                <select id="voice-profile" class="form-control">
+                    <option value="auto" selected>-- Tự động chọn (Theo thiết lập ở trên) --</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="voice-emotion" class="form-label">Sắc thái / Cảm xúc</label>
                     <select id="voice-emotion" class="form-control">
@@ -74,7 +137,7 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-top: var(--space-xs);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="video-context" class="form-label">Nhịp độ video</label>
                     <select id="video-context" class="form-control" title="Ảnh hưởng tốc độ đọc SSML">
@@ -86,43 +149,62 @@
                 </div>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-2xs);">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
-                    <input type="checkbox" id="keep-bg-music" checked style="width: 16px; height: 16px;">
-                    Giữ lại nhạc nền & hiệu ứng âm thanh (Audio Separation)
+            <div style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-xs); border-top: 1px solid var(--border-color); padding-top: var(--space-md);">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="keep-bg-music" checked style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+                    Giữ lại nhạc nền &amp; hiệu ứng âm thanh (Audio Separation)
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
-                    <input type="checkbox" id="generate-subtitles" checked style="width: 16px; height: 16px;">
-                    Tự động tạo phụ đề tiếng Việt (SRT & VTT)
+
+                <!-- Slider âm lượng giọng gốc -->
+                <div id="bg-volume-section" style="padding: var(--space-sm); background: rgba(0, 0, 0, 0.15); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">🔊 Âm lượng giọng gốc</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="bg-volume-label" style="font-size: 13px; font-weight: 700; color: var(--color-primary);">Nhỏ (-18dB)</span>
+                            <button type="button" onclick="resetBgVolume()" title="Về mặc định (-18dB)" class="btn btn-secondary hover-scale" style="font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm);">
+                                ↺ Mặc định
+                            </button>
+                        </div>
+                    </div>
+                    <input type="range" id="bg-volume" min="-40" max="0" value="-18" step="2" style="width: 100%; accent-color: var(--color-primary); cursor: pointer;" oninput="updateBgVolumeLabel(this.value)">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+                        <span>Tắt hoàn toàn (-40dB)</span>
+                        <span>Âm lượng gốc (0dB)</span>
+                    </div>
+                </div>
+
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="generate-subtitles" checked style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+                    Tự động tạo phụ đề tiếng Việt (SRT &amp; VTT)
                 </label>
             </div>
             
-            <button id="btn-submit" class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-sm); padding: 14px;" disabled>
+            <button id="btn-submit" class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
                 🚀 Bắt đầu lồng tiếng
             </button>
         </div>
     </div>
 
     <!-- Cột bên phải: Preview thông tin -->
-    <div id="preview-panel" class="card glass" style="opacity: 0.6; pointer-events: none; transition: all var(--transition-normal);">
-        <h3 style="font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Xem trước nội dung</h3>
+    <div id="preview-panel" class="card glass" style="opacity: 0.65; pointer-events: none; transition: all var(--transition-normal); padding: var(--space-lg); gap: var(--space-md); position: sticky; top: var(--space-md);">
+        <h3 style="font-size: 18px; font-weight: 800; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin: 0; color: var(--text-primary);">Xem trước nội dung</h3>
         
-        <div id="preview-empty" style="text-align: center; padding: var(--space-lg) 0; color: var(--text-tertiary);">
-            <i data-lucide="video-off" style="width: 48px; height: 48px; margin-bottom: 10px;"></i>
-            <p style="font-size: 13px;">Chưa có nội dung xem trước. Hãy điền URL hoặc tải file để kiểm tra.</p>
+        <div id="preview-empty" style="text-align: center; padding: var(--space-xl) 0; color: var(--text-tertiary); display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="video-off" style="width: 48px; height: 48px; opacity: 0.7;"></i>
+            <p style="font-size: 14px; margin: 0; line-height: 1.4;">Chưa có nội dung xem trước.<br>Hãy điền URL hoặc tải file để kiểm tra.</p>
         </div>
 
-        <div id="preview-content" class="hidden" style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-md); overflow: hidden; background-color: #000; aspect-ratio: 16/9;" class="flex-center">
+        <div id="preview-content" class="hidden" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-lg); overflow: hidden; background-color: #070a13; aspect-ratio: 16/9; border: 1px solid var(--border-color);" class="flex-center">
                 <img id="preview-thumb" src="" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
-                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600;">00:00</div>
+                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 700; font-family: monospace;">00:00</div>
             </div>
             
-            <h4 id="preview-title" style="font-size: 15px; font-weight: 700; line-height: 1.4; margin-top: var(--space-2xs);">Tiêu đề video</h4>
+            <h4 id="preview-title" style="font-size: 16px; font-weight: 800; line-height: 1.4; color: var(--text-primary); margin: 4px 0 0 0;">Tiêu đề video</h4>
             
-            <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
-                <div>Nguồn: <span id="preview-source" style="font-weight: 600;">YouTube</span></div>
-                <div id="preview-author-div">Tác giả: <span id="preview-author" style="font-weight: 600;">Uploader</span></div>
+            <div style="font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-color); padding-top: var(--space-xs); margin-top: var(--space-2xs);">
+                <div style="display: flex; justify-content: space-between;"><span>Nguồn:</span> <span id="preview-source" style="font-weight: 700; color: var(--color-primary); text-transform: uppercase;">YouTube</span></div>
+                <div id="preview-author-div" style="display: flex; justify-content: space-between;"><span>Tác giả:</span> <span id="preview-author" style="font-weight: 700; color: var(--text-primary);">Uploader</span></div>
             </div>
         </div>
     </div>
@@ -130,26 +212,146 @@
 
 <!-- Modal xác nhận bắt đầu lồng tiếng -->
 <div id="confirm-modal" class="modal-container">
-    <div class="modal-content">
-        <h3 style="font-size: 20px; font-weight: 800; margin-bottom: var(--space-xs);">Xác nhận tạo tác vụ</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
-            Bạn đang chuẩn bị gửi yêu cầu lồng tiếng. Hệ thống sẽ bắt đầu pipeline xử lý 20 bước: tải dữ liệu, trích xuất audio, dịch thuật và sinh giọng lồng tiếng Việt.
+    <div class="modal-content glass" style="max-width: 500px; padding: var(--space-xl); gap: var(--space-md); border-color: var(--color-primary); box-shadow: 0 0 35px rgba(56, 189, 248, 0.15);">
+        <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Xác nhận tạo tác vụ lồng tiếng</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Bạn đang chuẩn bị gửi yêu cầu lồng tiếng. Hệ thống sẽ kích hoạt quy trình xử lý tự động bao gồm các bước: tải dữ liệu, trích xuất nhạc nền, dịch thuật lời thoại và ghép luồng âm thanh mới.
         </p>
-        <div style="font-size: 12px; color: var(--text-tertiary); margin-top: var(--space-xs); border-left: 2px solid var(--color-warning); padding-left: 8px;">
-            Lưu ý: Đảm bảo bạn có quyền sử dụng hợp pháp đối với tệp tin hoặc liên kết truyền thông này.
+        <div style="font-size: 12px; color: var(--color-warning); background: rgba(251, 191, 36, 0.08); border-left: 3px solid var(--color-warning); padding: 10px 14px; border-radius: var(--radius-sm); margin: 4px 0;">
+            ⚠️ Lưu ý: Đảm bảo bạn có quyền sử dụng hợp pháp đối với liên kết hoặc tệp tin đa phương tiện này.
         </div>
-        <div style="display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-md);">
-            <button id="modal-cancel" class="btn btn-secondary" style="padding: 8px 16px;">Hủy bỏ</button>
-            <button id="modal-confirm" class="btn btn-primary" style="padding: 8px 20px;">Xác nhận & Bắt đầu</button>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-sm);">
+            <button id="modal-cancel" class="btn btn-secondary hover-scale" style="padding: 10px 20px;">Hủy bỏ</button>
+            <button id="modal-confirm" class="btn btn-primary hover-scale" style="padding: 10px 24px;">Xác nhận &amp; Bắt đầu</button>
         </div>
     </div>
 </div>
+
+<style>
+    /* CSS Drop-zone Premium */
+    .drop-zone-premium {
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl) var(--space-md);
+        text-align: center;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.08);
+        transition: all var(--transition-normal);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    :root[data-theme="light"] .drop-zone-premium {
+        background: rgba(255, 255, 255, 0.4);
+    }
+    
+    .drop-zone-premium:hover {
+        border-color: var(--color-primary);
+        background: rgba(56, 189, 248, 0.04);
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.05);
+    }
+    
+    /* Animation quay cho SVG */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        // Cấu hình danh sách đầy đủ các giọng đọc của engine
+        const ttsEngine = "edge";
+        const voiceGenderSelect = document.getElementById("voice-gender");
+        const voiceRegionSelect = document.getElementById("voice-region");
+        const voiceProfileSelect = document.getElementById("voice-profile");
+        
+        const voicesConfig = {
+            edge: [
+                { value: "vi-VN-HoaiMyNeural", gender: "female", region: "north", text: "Microsoft Edge Nữ (Hoài My - Miền Bắc)" },
+                { value: "vi-VN-HoaiMyNeural", gender: "female", region: "south", text: "Microsoft Edge Nữ (Hoài My - Miền Nam)" },
+                { value: "vi-VN-HoaiMyNeural", gender: "female", region: "central", text: "Microsoft Edge Nữ (Hoài My - Miền Trung)" },
+                { value: "vi-VN-NamMinhNeural", gender: "male", region: "north", text: "Microsoft Edge Nam (Nam Minh - Miền Bắc)" },
+                { value: "vi-VN-NamMinhNeural", gender: "male", region: "south", text: "Microsoft Edge Nam (Nam Minh - Miền Nam)" },
+                { value: "vi-VN-NamMinhNeural", gender: "male", region: "central", text: "Microsoft Edge Nam (Nam Minh - Miền Trung)" }
+            ]
+        };
+
+        
+        // 1. Load tất cả giọng đọc khả dụng vào dropdown
+        function initVoiceProfileDropdown() {
+            voiceProfileSelect.innerHTML = '<option value="auto" selected>-- Tự động chọn (Theo thiết lập ở trên) --</option>';
+            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+            engineVoices.forEach(voice => {
+                const opt = document.createElement("option");
+                opt.value = voice.value;
+                opt.textContent = voice.text;
+                voiceProfileSelect.appendChild(opt);
+            });
+        }
+
+        // Flag để tránh vòng lặp kích hoạt lẫn nhau
+        let isSyncing = false;
+
+        // 2. Chiều DƯỚI → TRÊN: Chọn giọng cụ thể → cập nhật Giới tính & Vùng miền cho khớp
+        voiceProfileSelect.addEventListener("change", () => {
+            if (isSyncing) return;
+            const val = voiceProfileSelect.value;
+            if (val === "auto") return;
+
+            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+            const matchedVoice = engineVoices.find(v => v.value === val);
+
+            if (matchedVoice) {
+                isSyncing = true;
+                voiceGenderSelect.value = matchedVoice.gender;
+                voiceRegionSelect.value = matchedVoice.region;
+                isSyncing = false;
+            }
+        });
+
+        // 3. Chiều TRÊN → DƯỚI: Đổi Giới tính/Vùng miền → tự động chọn giọng phù hợp nhất ở dưới
+        function syncFromFilters() {
+            if (isSyncing) return;
+            const selectedGender = voiceGenderSelect.value;
+            const selectedRegion = voiceRegionSelect.value;
+            const engineVoices = voicesConfig[ttsEngine.toLowerCase()] || [];
+
+            // Tìm giọng khớp gender + region
+            const bestMatch = engineVoices.find(v =>
+                (selectedGender === "all" || v.gender === selectedGender) &&
+                (selectedRegion === "all" || v.region === selectedRegion)
+            );
+
+            isSyncing = true;
+            if (bestMatch) {
+                voiceProfileSelect.value = bestMatch.value;
+            } else {
+                // Không tìm thấy → fallback về auto
+                voiceProfileSelect.value = "auto";
+            }
+            isSyncing = false;
+        }
+
+        voiceGenderSelect.addEventListener("change", syncFromFilters);
+        voiceRegionSelect.addEventListener("change", syncFromFilters);
+
+        // Khởi động
+        initVoiceProfileDropdown();
+        // Sync lần đầu để chọn sẵn giọng mặc định phù hợp
+        syncFromFilters();
+
+
+
         const btnPaste = document.getElementById("btn-paste");
+
         const btnCheck = document.getElementById("btn-check");
         const btnSubmit = document.getElementById("btn-submit");
         const sourceUrl = document.getElementById("source-url");
@@ -404,12 +606,15 @@
                         thumbnail: checkedData.thumbnail,
                         voice_gender: document.getElementById("voice-gender").value,
                         voice_region: document.getElementById("voice-region").value,
+                        voice_profile: document.getElementById("voice-profile").value,
                         voice_emotion: document.getElementById("voice-emotion").value,
                         keep_bg_music: document.getElementById("keep-bg-music").checked,
+                        bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
                         translation_mode: document.getElementById("translation-mode").value,
                         video_context: document.getElementById("video-context").value
                     })
+
                 });
                 
                 const result = await response.json();
@@ -426,6 +631,30 @@
                 showToast("Lỗi kết nối khi gửi tác vụ.", "danger");
             }
         });
+    });
+
+    // Update bg volume label realtime
+    function updateBgVolumeLabel(val) {
+        const v = parseInt(val);
+        const label = document.getElementById('bg-volume-label');
+        if (v === 0)        label.textContent = 'Toàn bộ (0dB)';
+        else if (v >= -6)   label.textContent = `To (${v}dB)`;
+        else if (v >= -18)  label.textContent = `Nhỏ (${v}dB)`;
+        else if (v >= -30)  label.textContent = `Rất nhỏ (${v}dB)`;
+        else                label.textContent = `Gần tắt (${v}dB)`;
+    }
+
+    // Reset slider về mặc định -18dB
+    function resetBgVolume() {
+        const slider = document.getElementById('bg-volume');
+        slider.value = -18;
+        updateBgVolumeLabel(-18);
+    }
+
+    // Show/hide slider when checkbox toggled
+    document.getElementById('keep-bg-music').addEventListener('change', function() {
+        const section = document.getElementById('bg-volume-section');
+        section.style.display = this.checked ? 'block' : 'none';
     });
 </script>
 

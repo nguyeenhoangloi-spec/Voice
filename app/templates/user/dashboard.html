@@ -1,105 +1,190 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
+<!-- Style cục bộ cho Dashboard để đảm bảo giao diện bảng luôn hiển thị đẹp đẽ và có khoảng cách rộng rãi -->
+<style>
+    .dashboard-card-section {
+        margin-top: var(--space-xl);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .table-container-fixed {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        box-shadow: var(--shadow-soft);
+        width: 100%;
+    }
+    
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    
+    .dashboard-table th {
+        padding: 16px 20px !important;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border-color);
+        background-color: rgba(0, 0, 0, 0.15) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    :root[data-theme="light"] .dashboard-table th {
+        background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+    
+    .dashboard-table td {
+        padding: 16px 20px !important;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 14px;
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+    
+    .dashboard-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .dashboard-table tr {
+        transition: background-color var(--transition-fast);
+    }
+    
+    .dashboard-table tr:hover {
+        background-color: rgba(255, 255, 255, 0.015) !important;
+    }
+    
+    :root[data-theme="light"] .dashboard-table tr:hover {
+        background-color: rgba(15, 23, 42, 0.015) !important;
+    }
+</style>
+
 <!-- Welcome Header -->
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+<div class="page-header">
     <div>
-        <h1 style="font-size: 32px; font-weight: 800;">Chào mừng, {{ user.full_name if user.full_name else 'Thành viên' }}!</h1>
-        <p style="font-size: 15px; color: var(--text-secondary);">Quản lý và theo dõi tiến trình lồng tiếng AI của bạn.</p>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Chào mừng, {{ user.full_name if user.full_name else 'Thành viên' }}!</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Quản lý và theo dõi tiến trình lồng tiếng AI của bạn.</p>
     </div>
-    <a href="/dubbing/create" class="btn btn-primary hover-scale">
-        <i data-lucide="plus"></i> Tạo tác vụ mới
+    <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 12px 24px;">
+        <i data-lucide="plus" style="width: 18px; height: 18px;"></i> Tạo tác vụ mới
     </a>
 </div>
 
 <!-- Stats Grid -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl);">
     <!-- Stat 1 -->
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng tác vụ</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--text-primary);">{{ total_jobs }}</div>
+    <div class="card glass hover-glow" style="padding: var(--space-md) var(--space-lg); display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Tổng tác vụ</div>
+            <div style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ total_jobs }}</div>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(56, 189, 248, 0.1); color: var(--color-primary);" class="flex-center">
+            <i data-lucide="video" style="width: 24px; height: 24px;"></i>
+        </div>
     </div>
     <!-- Stat 2 -->
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Đang xử lý</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-info);">{{ processing_jobs }}</div>
+    <div class="card glass hover-glow" style="padding: var(--space-md) var(--space-lg); display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Đang xử lý</div>
+            <div style="font-size: 36px; font-weight: 800; color: var(--color-info); margin-top: 4px;">{{ processing_jobs }}</div>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(96, 165, 250, 0.1); color: var(--color-info);" class="flex-center">
+            <i data-lucide="loader" style="width: 24px; height: 24px; animation: spin 2s linear infinite;"></i>
+        </div>
     </div>
     <!-- Stat 3 -->
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hoàn thành</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-success);">{{ completed_jobs }}</div>
+    <div class="card glass hover-glow" style="padding: var(--space-md) var(--space-lg); display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Hoàn thành</div>
+            <div style="font-size: 36px; font-weight: 800; color: var(--color-success); margin-top: 4px;">{{ completed_jobs }}</div>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(52, 211, 153, 0.1); color: var(--color-success);" class="flex-center">
+            <i data-lucide="check-circle-2" style="width: 24px; height: 24px;"></i>
+        </div>
     </div>
     <!-- Stat 4 -->
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Thất bại</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-danger);">{{ failed_jobs }}</div>
+    <div class="card glass hover-glow" style="padding: var(--space-md) var(--space-lg); display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Thất bại</div>
+            <div style="font-size: 36px; font-weight: 800; color: var(--color-danger); margin-top: 4px;">{{ failed_jobs }}</div>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: rgba(248, 113, 113, 0.1); color: var(--color-danger);" class="flex-center">
+            <i data-lucide="alert-circle" style="width: 24px; height: 24px;"></i>
+        </div>
     </div>
 </div>
 
-<!-- Recent Jobs Section -->
-<div class="card glass">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
-        <h2 style="font-size: 20px; font-weight: 700;">Tác vụ gần đây</h2>
-        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.location.reload()">
-            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tải lại
+<!-- Recent Jobs Section (Dùng inline style nâng cao để đảm bảo card glass luôn hiển thị) -->
+<div class="card glass hover-glow dashboard-card-section" style="padding: 24px !important; display: flex; flex-direction: column; gap: 20px; background: var(--glass-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 4px;">
+        <h2 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Tác vụ gần đây</h2>
+        <button class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px;" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 6px;"></i> Tải lại
         </button>
     </div>
 
     {% if not jobs %}
-    <div style="text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
-        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📹</div>
-        <p style="font-size: 15px;">Bạn chưa tạo tác vụ lồng tiếng nào.</p>
-        <a href="/dubbing/create" class="btn btn-primary" style="margin-top: var(--space-sm); font-size: 13px; padding: 8px 16px;">Tạo tác vụ đầu tiên</a>
+    <div style="text-align: center; padding: var(--space-xl) 0; color: var(--text-secondary);">
+        <div style="font-size: 48px; margin-bottom: var(--space-xs);">📹</div>
+        <p style="font-size: 16px; margin-bottom: var(--space-sm);">Bạn chưa tạo tác vụ lồng tiếng nào.</p>
+        <a href="/dubbing/create" class="btn btn-primary hover-scale" style="font-size: 14px; padding: 10px 20px;">Tạo tác vụ đầu tiên</a>
     </div>
     {% else %}
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+    <div class="table-container-fixed">
+        <table class="dashboard-table">
             <thead>
-                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
-                    <th style="padding: var(--space-xs);">ID Tác vụ</th>
-                    <th style="padding: var(--space-xs);">Nguồn nội dung</th>
-                    <th style="padding: var(--space-xs);">Trạng thái</th>
-                    <th style="padding: var(--space-xs);">Tiến trình</th>
-                    <th style="padding: var(--space-xs);">Ngày tạo</th>
-                    <th style="padding: var(--space-xs); text-align: right;">Hành động</th>
+                <tr>
+                    <th>ID Tác vụ</th>
+                    <th>Nguồn nội dung</th>
+                    <th>Trạng thái</th>
+                    <th>Tiến trình</th>
+                    <th>Ngày tạo</th>
+                    <th style="text-align: right;">Hành động</th>
                 </tr>
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color var(--transition-fast);" class="table-row">
-                    <td style="padding: var(--space-xs); font-family: monospace; font-weight: 600;">
+                <tr>
+                    <td style="font-family: monospace; font-weight: 700; color: var(--text-primary);">
                         {{ job.id[:8] }}...
                     </td>
-                    <td style="padding: var(--space-xs); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {% if job.source_type == 'link' %}
-                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
+                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: inline-flex; align-items: center; gap: 6px;" class="hover-scale">
                                 <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
                                 {{ job.source_url }}
                             </a>
                         {% else %}
-                            <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary);">
                                 <i data-lucide="file-video" style="width: 14px; height: 14px;"></i>
                                 File tải lên
                             </span>
                         {% endif %}
                     </td>
-                    <td style="padding: var(--space-xs);">
+                    <td>
                         <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
                     </td>
-                    <td style="padding: var(--space-xs); width: 180px;">
+                    <td style="width: 180px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 8px; width: 100px; overflow: hidden;">
-                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-primary{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                            <div style="background-color: rgba(255,255,255,0.05); border-radius: var(--radius-full); height: 8px; width: 100px; overflow: hidden; border: 1px solid var(--border-color); flex-shrink: 0;">
+                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-gradient{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
                             </div>
-                            <span style="font-size: 12px; font-weight: 600;">{{ job.progress_percent }}%</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">{{ job.progress_percent }}%</span>
                         </div>
                     </td>
-                    <td style="padding: var(--space-xs); color: var(--text-secondary); font-size: 13px;">
+                    <td style="color: var(--text-secondary); font-size: 13px;">
                         {{ job.created_at.strftime('%H:%M %d/%m/%Y') }}
                     </td>
-                    <td style="padding: var(--space-xs); text-align: right;">
-                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">
-                            Chi tiết <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                    <td style="text-align: right;">
+                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                            <span>Chi tiết</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </a>
                     </td>
                 </tr>
@@ -111,11 +196,9 @@
 </div>
 
 <style>
-    .table-row:hover {
-        background-color: rgba(255, 255, 255, 0.02);
-    }
-    :root[data-theme="light"] .table-row:hover {
-        background-color: rgba(15, 23, 42, 0.02);
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 </style>
 {% endblock %}

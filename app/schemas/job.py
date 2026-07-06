@@ -13,11 +13,14 @@ class JobCreateRequest(BaseModel):
     
     voice_gender: str
     voice_region: str
+    voice_profile: Optional[str] = "auto"
     voice_emotion: str
     keep_bg_music: bool
+    bg_volume_db: Optional[int] = -18  # Volume of original audio: 0 (full) to -40 (nearly silent)
     generate_subtitles: bool
     translation_mode: Optional[str] = "vietnamese"
     video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
+
 
 class TimelineSegmentEdit(BaseModel):
     id: int

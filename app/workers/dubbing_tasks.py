@@ -130,13 +130,19 @@ def run_dubbing_pipeline(job_id: str):
 
         # Load existing segments and voice configuration from database if resuming a pipeline
         if start_step > 1:
-            from app.services.dubbing_engine import select_voice
             voice_config = job.voice_config or {}
             if isinstance(voice_config, str):
                 voice_config = json.loads(voice_config)
             gender = voice_config.get("voice_gender", "female")
             region = voice_config.get("voice_region", "south")
-            voice_name = select_voice(gender, region)
+            voice_profile = voice_config.get("voice_profile", "auto")
+            
+            if voice_profile and voice_profile != "auto":
+                voice_name = voice_profile
+            else:
+                from app.services.dubbing_engine import select_voice
+                voice_name = select_voice(gender, region)
+
 
             db_segments = db.query(TranscriptSegment).filter(
                 TranscriptSegment.job_id == job_id
@@ -299,14 +305,20 @@ def run_dubbing_pipeline(job_id: str):
 
                 # ===================== STEP 13: Select voice =====================
                 elif step_num == 13:
-                    from app.services.dubbing_engine import select_voice
                     voice_config = job.voice_config or {}
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     gender = voice_config.get("voice_gender", "female")
                     region = voice_config.get("voice_region", "south")
-                    voice_name = select_voice(gender, region)
+                    voice_profile = voice_config.get("voice_profile", "auto")
+                    
+                    if voice_profile and voice_profile != "auto":
+                        voice_name = voice_profile
+                    else:
+                        from app.services.dubbing_engine import select_voice
+                        voice_name = select_voice(gender, region)
                     step_record.log_message = f"Da chon giong: {voice_name}."
+
 
                 # ===================== STEP 14: Generate TTS =====================
                 elif step_num == 14:
@@ -356,6 +368,7 @@ def run_dubbing_pipeline(job_id: str):
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     keep_bg = voice_config.get("keep_bg_music", True)
+                    bg_volume_db = int(voice_config.get("bg_volume_db", -18))
 
                     # Ensure source video exists (may have been deleted on previous run's cleanup)
                     _ensure_source_video(job, source_path)
@@ -366,7 +379,8 @@ def run_dubbing_pipeline(job_id: str):
                         bg_music_path=bg_music,
                         output_video_path=final_video,
                         output_audio_path=final_audio,
-                        keep_bg_music=keep_bg
+                        keep_bg_music=keep_bg,
+                        bg_volume_db=bg_volume_db
                     )
                     step_record.log_message = f"Ket xuat video long tieng thanh cong ({os.path.getsize(final_video) // 1024} KB)."
 

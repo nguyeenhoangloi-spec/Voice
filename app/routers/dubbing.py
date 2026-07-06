@@ -3,6 +3,7 @@ import uuid
 import shutil
 import json
 import asyncio
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request, File, UploadFile, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from app.services.link_adapters import get_adapter_for_url
 from app.services.media_probe import probe_media_file
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Danh sách 20 giai đoạn lồng tiếng bắt buộc
 PIPELINE_STEPS = [
@@ -89,15 +91,11 @@ def api_check_link(req: LinkCheckRequest, user=Depends(get_current_user)):
 @router.post("/upload")
 def api_upload_file(file: UploadFile = File(...), user=Depends(get_current_user)):
     """API xử lý tải lên file video/audio cục bộ"""
-    # Kiểm tra dung lượng
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     
-    # Đọc thử header để lấy dung lượng nếu có
-    # Cách tốt nhất là chép file tạm và kiểm tra kích thước
     file_id = str(uuid.uuid4())
     file_ext = os.path.splitext(file.filename)[1].lower()
     
-    # Chỉ nhận định dạng hợp lệ
     if file_ext not in [".mp4", ".webm", ".mp3", ".wav", ".ogg", ".aac", ".m4a"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -107,23 +105,19 @@ def api_upload_file(file: UploadFile = File(...), user=Depends(get_current_user)
     temp_path = settings.UPLOADS_DIR / f"{file_id}{file_ext}"
     
     try:
-        # Lưu file tạm xuống đĩa
         with temp_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
         file_size = os.path.getsize(temp_path)
         if file_size > max_bytes:
-            # Xóa file nếu vượt quá giới hạn
             os.remove(temp_path)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Kích thước tệp tin vượt quá giới hạn {settings.MAX_UPLOAD_SIZE_MB} MB."
             )
             
-        # Probe file thông qua ffprobe
         probe_meta = probe_media_file(str(temp_path))
         
-        # Kiểm tra thời lượng
         max_duration = settings.MAX_VIDEO_DURATION_MINUTES * 60
         if probe_meta.get("duration", 0.0) > max_duration:
             os.remove(temp_path)
@@ -159,12 +153,12 @@ def api_create_job(
     """API lưu tác vụ lồng tiếng và kích hoạt pipeline xử lý ngầm"""
     job_id = str(uuid.uuid4())
     
-    # 1. Tạo bản ghi DubbingJob trong DB
     voice_config = {
         "voice_gender": req.voice_gender,
         "voice_region": req.voice_region,
         "voice_emotion": req.voice_emotion,
         "keep_bg_music": req.keep_bg_music,
+        "bg_volume_db": req.bg_volume_db if req.bg_volume_db is not None else -18,
         "generate_subtitles": req.generate_subtitles,
         "translation_mode": req.translation_mode,
         "video_context": req.video_context or "neutral"
@@ -184,7 +178,6 @@ def api_create_job(
     )
     db.add(new_job)
     
-    # 2. Khởi tạo sẵn 20 bản ghi JobStep tương ứng
     for idx, name in enumerate(PIPELINE_STEPS):
         new_step = JobStep(
             job_id=job_id,
@@ -197,11 +190,7 @@ def api_create_job(
         
     db.commit()
 
-    # Import run task ngầm
     from app.workers.dubbing_tasks import run_dubbing_pipeline
-    
-    # 3. Kích hoạt xử lý chạy ngầm
-    # Nếu cài đặt Celery & Redis thì dispatch qua Celery, ở đây ta dùng FastAPI BackgroundTasks để nhẹ và độc lập
     background_tasks.add_task(run_dubbing_pipeline, job_id)
     
     return {
@@ -215,13 +204,11 @@ def get_job_progress_page(request: Request, job_id: str, user=Depends(get_curren
     """Render trang chi tiết theo dõi tiến trình 20 bước của tác vụ lồng tiếng"""
     job = db.query(DubbingJob).filter(DubbingJob.id == job_id, DubbingJob.user_id == user.id).first()
     if not job:
-        # Nếu là admin thì vẫn cho phép xem
         if user.role == "admin":
             job = db.query(DubbingJob).filter(DubbingJob.id == job_id).first()
         if not job:
             raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ lồng tiếng.")
             
-    # Lấy thông tin 20 steps
     steps = db.query(JobStep).filter(JobStep.job_id == job_id).order_by(JobStep.step_number.asc()).all()
     
     return templates.TemplateResponse(
@@ -258,7 +245,6 @@ def get_job_status_json(job_id: str, user=Depends(get_current_user), db: Session
             "log_message": s.log_message
         })
         
-    # Nạp thêm thông tin segments nếu có (để render editor khi hoàn tất)
     segments = db.query(TranscriptSegment).filter(TranscriptSegment.job_id == job_id).order_by(TranscriptSegment.segment_index.asc()).all()
     segments_data = []
     for seg in segments:
@@ -274,7 +260,6 @@ def get_job_status_json(job_id: str, user=Depends(get_current_user), db: Session
             "audio_path": f"/storage/audio/{os.path.basename(seg.audio_path)}" if seg.audio_path else None
         })
 
-    # Lấy files exports nếu đã có
     exports = db.query(Export).filter(Export.job_id == job_id).all()
     exports_data = []
     for exp in exports:
@@ -313,7 +298,6 @@ def stream_job_events(job_id: str, user=Depends(get_current_user)):
                     yield "data: {\"error\": \"Permission denied\"}\n\n"
                     break
                     
-                # Gửi thông tin rút gọn về giao diện
                 status_data = {
                     "status": job.status,
                     "progress_percent": job.progress_percent,
@@ -323,12 +307,11 @@ def stream_job_events(job_id: str, user=Depends(get_current_user)):
                 }
                 yield f"data: {json.dumps(status_data)}\n\n"
                 
-                # Kết thúc stream nếu job đã xong hoặc thất bại
                 if job.status in ["completed", "failed"]:
                     break
             finally:
                 db.close()
-            await asyncio.sleep(1.0) # Đợi 1 giây trước khi check tiếp
+            await asyncio.sleep(1.0)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -371,7 +354,6 @@ def api_save_timeline_edit(
         if not job:
             return JSONResponse(status_code=404, content={"success": False, "error": "Không tìm thấy tác vụ."})
             
-    # Cập nhật các segments trong DB
     for seg_data in req.segments:
         seg = db.query(TranscriptSegment).filter(
             TranscriptSegment.id == seg_data.id, 
@@ -385,7 +367,6 @@ def api_save_timeline_edit(
             seg.speaker = seg_data.speaker
             seg.emotional_tag = seg_data.emotional_tag
             
-    # Reset job và các steps từ bước 14 (Tạo giọng nói) trở đi để kết xuất lại với bản dịch mới
     job.status = "pending"
     job.progress_percent = 65
     job.current_step = 14
@@ -402,7 +383,6 @@ def api_save_timeline_edit(
             
     db.commit()
     
-    # Chạy lại pipeline ngầm từ bước 15
     from app.workers.dubbing_tasks import run_dubbing_pipeline
     background_tasks.add_task(run_dubbing_pipeline, job_id)
     
@@ -427,83 +407,105 @@ def get_history_page(request: Request, user=Depends(get_current_user), db: Sessi
 
 @router.get("/voices", response_class=HTMLResponse)
 def get_voices_page(request: Request, user=Depends(get_current_user)):
-    """Render danh sách mẫu giọng AI hệ thống"""
-    # Tạo các file âm thanh mẫu nếu chưa tồn tại
-    sample_dir = settings.STORAGE_DIR / "samples"
-    os.makedirs(sample_dir, exist_ok=True)
+    """Render danh sách mẫu giọng AI hệ thống (Tải nhanh, không bị blocking)"""
+    from app.config import settings
     
-    voices = [
-        {
-            "id": "north_male",
-            "name": "Nam miền Bắc (Gia Huy)",
-            "gender": "Nam",
-            "region": "Miền Bắc",
-            "voice": "vi-VN-NamMinhNeural",
-            "text": "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Bắc Gia Huy của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn.",
-            "desc": "Giọng đọc trầm ấm, truyền cảm, thích hợp làm tin tức, tài liệu."
-        },
-        {
-            "id": "north_female",
-            "name": "Nữ miền Bắc (Hoài An)",
-            "gender": "Nữ",
-            "region": "Miền Bắc",
-            "voice": "vi-VN-HoaiMyNeural",
-            "text": "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Bắc Hoài An của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn.",
-            "desc": "Giọng đọc trong trẻo, chuyên nghiệp, phù hợp với bài giảng, review phim."
-        },
-        {
-            "id": "south_male",
-            "name": "Nam miền Nam (Minh Quân)",
-            "gender": "Nam",
-            "region": "Miền Nam",
-            "voice": "vi-VN-NamMinhNeural",
-            "text": "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Nam Minh Quân của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn.",
-            "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
-        },
-        {
-            "id": "south_female",
-            "name": "Nữ miền Nam (Thảo Chi)",
-            "gender": "Nữ",
-            "region": "Miền Nam",
-            "voice": "vi-VN-HoaiMyNeural",
-            "text": "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Nam Thảo Chi của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn.",
-            "desc": "Giọng nói ngọt ngào, dịu dàng, phù hợp truyện đọc, tâm sự."
-        }
-    ]
-    
-    import edge_tts
-    import asyncio
-    import concurrent.futures
+    if settings.TTS_ENGINE == "fpt":
+        voices = [
+            {
+                "id": "banmai",
+                "name": "Nữ miền Bắc (Ban Mai - Giọng chuẩn nhất)",
+                "gender": "Nữ",
+                "region": "Miền Bắc",
+                "voice": "banmai",
+                "desc": "Giọng phổ thông cực kỳ mượt mà, tự nhiên và dễ nghe nhất."
+            },
+            {
+                "id": "lannhi",
+                "name": "Nữ miền Nam (Lan Nhi)",
+                "gender": "Nữ",
+                "region": "Miền Nam",
+                "voice": "lannhi",
+                "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng và tự nhiên."
+            },
+            {
+                "id": "myan",
+                "name": "Nữ miền Trung (Mỹ An)",
+                "gender": "Nữ",
+                "region": "Miền Trung",
+                "voice": "myan",
+                "desc": "Giọng đọc miền Trung truyền cảm, mang nét đặc trưng ấm áp."
+            },
+            {
+                "id": "leminh",
+                "name": "Nam miền Bắc (Lê Minh)",
+                "gender": "Nam",
+                "region": "Miền Bắc",
+                "voice": "leminh",
+                "desc": "Giọng nam trầm ấm, rõ ràng, phù hợp đọc tin tức và tài liệu."
+            },
+            {
+                "id": "giahuy",
+                "name": "Nam miền Nam (Gia Huy)",
+                "gender": "Nam",
+                "region": "Miền Nam",
+                "voice": "giahuy",
+                "desc": "Giọng đọc lưu loát, ấm áp và thân thiện."
+            },
+            {
+                "id": "linhsan",
+                "name": "Nữ miền Bắc (Linh San - Đọc báo)",
+                "gender": "Nữ",
+                "region": "Miền Bắc",
+                "voice": "linhsan",
+                "desc": "Giọng đọc báo chính luận, mạch lạc và trang trọng."
+            },
+            {
+                "id": "thuminh",
+                "name": "Nữ miền Bắc (Thu Minh - Truyền cảm)",
+                "gender": "Nữ",
+                "region": "Miền Bắc",
+                "voice": "thuminh",
+                "desc": "Giọng nữ nhẹ nhàng, ấm áp, truyền cảm hứng."
+            }
+        ]
 
-    async def _gen_voice_sample(text: str, voice: str, path: str):
-        communicate = edge_tts.Communicate(text, voice)
-        await communicate.save(path)
-
-    for v in voices:
-        file_path = sample_dir / f"{v['id']}.wav"
-        if not file_path.exists():
-            try:
-                # Chạy hàm async trong sync route
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    with concurrent.futures.ThreadPoolExecutor() as pool:
-                        pool.submit(asyncio.run, _gen_voice_sample(v["text"], v["voice"], str(file_path))).result()
-                else:
-                    loop.run_until_complete(_gen_voice_sample(v["text"], v["voice"], str(file_path)))
-            except Exception as e:
-                logger.error(f"Lỗi khi sinh giọng mẫu {v['id']}: {e}")
-                # Fallback file im lặng nếu lỗi
-                import wave
-                import struct
-                try:
-                    with wave.open(str(file_path), "wb") as w:
-                        w.setnchannels(1)
-                        w.setsampwidth(2)
-                        w.setframerate(44100)
-                        for _ in range(44100):
-                            w.writeframes(struct.pack('h', 0))
-                except Exception:
-                    pass
+    else:
+        # Edge TTS voices
+        voices = [
+            {
+                "id": "north_female",
+                "name": "Nữ miền Bắc (Hoài An)",
+                "gender": "Nữ",
+                "region": "Miền Bắc",
+                "voice": "vi-VN-HoaiMyNeural",
+                "desc": "Giọng đọc trong trẻo, chuyên nghiệp, phù hợp với bài giảng, review phim."
+            },
+            {
+                "id": "north_male",
+                "name": "Nam miền Bắc (Gia Huy)",
+                "gender": "Nam",
+                "region": "Miền Bắc",
+                "voice": "vi-VN-NamMinhNeural",
+                "desc": "Giọng đọc trầm ấm, truyền cảm, thích hợp làm tin tức, tài liệu."
+            },
+            {
+                "id": "south_female",
+                "name": "Nữ miền Nam (Thảo Chi)",
+                "gender": "Nữ",
+                "region": "Miền Nam",
+                "voice": "vi-VN-HoaiMyNeural",
+                "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng, phù hợp truyện đọc, tâm sự."
+            },
+            {
+                "id": "south_male",
+                "name": "Nam miền Nam (Minh Quân)",
+                "gender": "Nam",
+                "region": "Miền Nam",
+                "voice": "vi-VN-NamMinhNeural",
+                "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
+            }
+        ]
                 
     return templates.TemplateResponse(
         "user/voices.html",
@@ -516,6 +518,79 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
     )
 
 
+@router.get("/voices/sample/{voice_id}.mp3")
+def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
+    """Sinh động (Lazy Loading) âm thanh mẫu của giọng AI và trả về dưới dạng file stream"""
+    from app.config import settings
+    from app.services.dubbing_engine import generate_tts_audio
+    from fastapi.responses import FileResponse
+    
+    sample_dir = settings.STORAGE_DIR / "samples"
+    os.makedirs(sample_dir, exist_ok=True)
+    
+    file_path = sample_dir / f"{voice_id}.mp3"
+    
+    if not file_path.exists() or file_path.stat().st_size == 0:
+        # Bản đồ giọng đọc mẫu tổng quát
+        voices_map = {
+            "banmai": ("banmai", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Bắc Ban Mai của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
+            "lannhi": ("lannhi", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Nam Lan Nhi của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
+            "myan": ("myan", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Trung Mỹ An của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
+            "leminh": ("leminh", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Bắc Lê Minh của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
+            "giahuy": ("giahuy", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Nam Gia Huy của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
+            "linhsan": ("linhsan", "Xin chào! Đây là bản nghe thử giọng đọc báo chuyên nghiệp Linh San của hệ thống Voice AI."),
+            "thuminh": ("thuminh", "Xin chào! Đây là bản nghe thử giọng đọc truyền cảm Thu Minh của hệ thống Voice AI."),
+            "north_female": ("vi-VN-HoaiMyNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Bắc Hoài An của hệ thống Voice AI."),
+            "north_male": ("vi-VN-NamMinhNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Bắc Gia Huy của hệ thống Voice AI."),
+            "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Nam Thảo Chi của hệ thống Voice AI."),
+            "south_male": ("vi-VN-NamMinhNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Nam Minh Quân của hệ thống Voice AI.")
+        }
+        
+        voice_code, sample_text = voices_map.get(voice_id, (voice_id, "Xin chào! Đây là bản nghe thử giọng đọc của hệ thống Voice AI."))
+        
+        try:
+            generate_tts_audio(
+                text=sample_text,
+                output_path=str(file_path),
+                voice=voice_code
+            )
+        except Exception as e:
+            logger.warning(f"Lỗi khi sinh giọng mẫu {voice_id}: {e}. Tiến hành fallback sang Edge TTS.")
+            try:
+                import edge_tts
+                import asyncio
+                import concurrent.futures
+                
+                # Map sang giọng Edge tương ứng
+                if voice_id in ["leminh", "giahuy", "north_male", "south_male"]:
+                    edge_voice = "vi-VN-NamMinhNeural"
+                else:
+                    edge_voice = "vi-VN-HoaiMyNeural"
+                
+                async def _gen_edge_sample():
+                    communicate = edge_tts.Communicate(sample_text, edge_voice)
+                    await communicate.save(str(file_path))
+                
+                try:
+                    loop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        pool.submit(asyncio.run, _gen_edge_sample()).result()
+                except RuntimeError:
+                    asyncio.run(_gen_edge_sample())
+
+                logger.info(f"Đã sinh thành công giọng mẫu fallback Edge TTS cho {voice_id}.")
+            except Exception as edge_err:
+                logger.error(f"Lỗi khi sinh giọng mẫu fallback Edge TTS cho {voice_id}: {edge_err}")
+                try:
+                    # Tạo file rỗng nếu cả hai đều lỗi
+                    with open(file_path, "wb") as f:
+                        f.write(b"")
+                except Exception:
+                    pass
+                    
+    return FileResponse(str(file_path), media_type="audio/mpeg")
+
+
 @router.post("/history/delete/{job_id}")
 def delete_job(job_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Xóa tác vụ lồng tiếng và file liên quan"""
@@ -523,7 +598,6 @@ def delete_job(job_id: str, user=Depends(get_current_user), db: Session = Depend
     if not job:
         raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ.")
         
-    # Xóa các files vật lý nếu tồn tại
     try:
         import glob
         for file_pattern in [
@@ -541,9 +615,6 @@ def delete_job(job_id: str, user=Depends(get_current_user), db: Session = Depend
     except Exception:
         pass
         
-    # Xóa khỏi DB
     db.delete(job)
     db.commit()
     return {"success": True, "message": "Đã xóa tác vụ thành công."}
-
-

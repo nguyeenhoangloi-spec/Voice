@@ -96,7 +96,7 @@ Sử dụng các lệnh sau để kích hoạt quy trình tác chiến chuyên s
 
 ## Hướng dẫn tùy chỉnh
 
-Thêm các hướng dẫn cụ thể cho dự án của bạn tại đây.
+1.  **Quy tắc lập trình Andrej Karpathy (Andrej Karpathy Guidelines)**: Luôn tự động kích hoạt và tuân thủ nghiêm ngặt bộ quy tắc tại [**`karpathy-guidelines.md`**](file:///d:/Voice_AI/.agent/rules/karpathy-guidelines.md) để tránh over-engineering, scope creep, tự ý giả định ngầm và đảm bảo kiểm thử thực tế trước khi hoàn thành mọi task.
 
 ---
 *Được tạo bởi Antigravity IDE*

@@ -19,6 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
         container.classList.add("sidebar-collapsed");
     }
     
+    // Gỡ bỏ class khóa tạm thời ở html để trả lại transition mượt mà
+    document.documentElement.classList.remove("sidebar-collapsed-init");
+    
     if (toggleBtn) {
         toggleBtn.addEventListener("click", () => {
             if (window.innerWidth <= 768) {

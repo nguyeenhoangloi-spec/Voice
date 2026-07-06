@@ -1,71 +1,132 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="hero-section" style="padding: var(--space-xl) 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-md);">
-    <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--color-primary); background-color: var(--color-accent-bg); padding: 6px 16px; border-radius: var(--radius-full);">
-        🔥 Trải nghiệm Lồng tiếng AI Thế hệ mới
-    </div>
-    
-    <h1 style="font-size: 54px; font-weight: 800; line-height: 1.15; letter-spacing: -1.5px; max-width: 800px;">
-        Lồng tiếng Video tự động sang <span class="text-gradient">Tiếng Việt</span> chỉ trong nháy mắt
-    </h1>
-    
-    <p style="font-size: 18px; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">
-        Chỉ cần dán liên kết video (YouTube/Direct Link) hoặc tải tệp lên. Hệ thống sẽ tự động tách nhạc nền, dịch nghĩa và lồng tiếng Việt chuẩn xác theo ngữ cảnh.
-    </p>
+<div class="grid-split" style="padding: var(--space-lg) 0;">
+    <!-- Cột Trái: Giới thiệu & Kêu gọi hành động -->
+    <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: var(--space-sm);">
+        <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--color-primary); background-color: var(--color-accent-bg); padding: 6px 16px; border-radius: var(--radius-full); width: fit-content;">
+            🔥 Trải nghiệm Lồng tiếng AI Thế hệ mới
+        </div>
+        
+        <h1 class="hero-title">
+            Lồng tiếng Video tự động sang <span class="text-gradient">Tiếng Việt</span> chỉ trong nháy mắt
+        </h1>
+        
+        <p class="hero-desc">
+            Chỉ cần dán liên kết video (YouTube/Direct Link) hoặc tải tệp lên. Hệ thống sẽ tự động tách nhạc nền, dịch nghĩa và lồng tiếng Việt chuẩn xác theo ngữ cảnh.
+        </p>
 
-    <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-xs);">
-        <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 14px 28px; font-size: 15px;">
-            Bắt đầu lồng tiếng ngay <i data-lucide="arrow-right"></i>
-        </a>
-        <a href="/pricing" class="btn btn-secondary hover-scale" style="padding: 14px 28px; font-size: 15px;">
-            Xem bảng giá
-        </a>
+        <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-xs); width: 100%; flex-wrap: wrap;">
+            <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+                Bắt đầu lồng tiếng ngay <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
+            </a>
+            <a href="/pricing" class="btn btn-secondary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+                Xem bảng giá
+            </a>
+        </div>
+    </div>
+
+    <!-- Cột Phải: Video Player Mockup Giả lập -->
+    <div class="interactive-mockup">
+        <!-- Header giả lập hệ điều hành -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-xs); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2xs);">
+            <div style="display: flex; gap: 6px;">
+                <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-danger);"></span>
+                <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-warning);"></span>
+                <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-success);"></span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-tertiary); font-family: monospace;">dubbing_sample.mp4</div>
+            <i data-lucide="more-horizontal" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>
+        </div>
+        
+        <!-- Màn hình phát video -->
+        <div style="position: relative; aspect-ratio: 16/9; background: #070a13; border-radius: var(--radius-md); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.85));"></div>
+            
+            <!-- Sóng âm audio lồng tiếng -->
+            <div style="position: absolute; bottom: 45px; left: 20px; right: 20px; display: flex; align-items: flex-end; gap: 4px; height: 35px;">
+                <div style="flex: 1; background: var(--color-primary); height: 20%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.1s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-primary); height: 50%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.3s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-accent); height: 80%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.5s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-secondary); height: 40%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.2s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-primary); height: 95%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.6s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-accent); height: 30%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.4s; transform-origin: bottom;"></div>
+                <div style="flex: 1; background: var(--color-secondary); height: 75%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.8s; transform-origin: bottom;"></div>
+            </div>
+
+            <!-- Phụ đề giả lập dịch thuật -->
+            <div style="position: absolute; bottom: 12px; font-size: 13px; font-weight: 500; color: #fff; background: rgba(11, 15, 25, 0.75); border: 1px solid var(--border-color); backdrop-filter: blur(4px); padding: 5px 14px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 6px;">
+                <span style="color: var(--color-accent);">●</span> Lồng tiếng AI: "Chào mừng bạn đến với tương lai!"
+            </div>
+
+            <!-- Nút Play phát sóng -->
+            <div style="width: 54px; height: 54px; border-radius: var(--radius-full); background: rgba(56, 189, 248, 0.15); backdrop-filter: blur(4px); border: 1px solid var(--color-primary); color: var(--color-primary); display: flex; align-items: center; justify-content: center; z-index: 1;" class="hover-scale">
+                <i data-lucide="play" style="fill: var(--color-primary); width: 22px; height: 22px; margin-left: 3px;"></i>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); margin-top: var(--space-xl);">
-    <!-- Feature 1 -->
-    <div class="card glass">
-        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(56, 189, 248, 0.1); color: var(--color-primary); font-size: 20px;" class="flex-center">
-            <i data-lucide="link"></i>
+<!-- Phần các tính năng nổi bật (Bento Grid) -->
+<div class="bento-grid" style="margin-top: var(--space-xl); margin-bottom: var(--space-lg);">
+    <!-- Feature 1 (Bento Item Large) -->
+    <div class="card glass hover-glow bento-item-large" style="padding: var(--space-md); display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
+        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(56, 189, 248, 0.1); color: var(--color-primary); flex-shrink: 0;" class="flex-center">
+            <i data-lucide="link" style="width: 28px; height: 28px;"></i>
         </div>
-        <h3 style="font-size: 18px; font-weight: 700;">Nhập liên kết thông minh</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
-            Hỗ trợ dán liên kết từ YouTube, tệp âm thanh/video trực tiếp hoặc thu thập từ các trang web công khai có chứa thẻ media.
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Tự động nhập liên kết thông minh</h3>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                Hỗ trợ dán liên kết trực tiếp từ YouTube, tệp âm thanh/video lưu trữ đám mây. Hệ thống phân tích luồng và trích xuất dữ liệu đa phương tiện tức thì mà không cần bạn phải tải xuống trước.
+            </p>
+        </div>
+    </div>
+
+    <!-- Feature 2 (Bento Item Small) -->
+    <div class="card glass hover-glow bento-item" style="padding: var(--space-md);">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(168, 85, 247, 0.1); color: var(--color-secondary); margin-bottom: var(--space-xs);" class="flex-center">
+            <i data-lucide="languages" style="width: 22px; height: 22px;"></i>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Dịch thuật ngữ cảnh</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Dịch thuật dựa trên mô hình ngôn ngữ lớn, hiểu từ lóng, bám sát ngữ cảnh trò chuyện và tự động chia lời thoại cho từng người nói.
         </p>
     </div>
 
-    <!-- Feature 2 -->
-    <div class="card glass">
-        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(168, 85, 247, 0.1); color: var(--color-secondary); font-size: 20px;" class="flex-center">
-            <i data-lucide="languages"></i>
+    <!-- Feature 3 (Bento Item Small) -->
+    <div class="card glass hover-glow bento-item" style="padding: var(--space-md);">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(45, 212, 191, 0.1); color: var(--color-accent); margin-bottom: var(--space-xs);" class="flex-center">
+            <i data-lucide="audio-lines" style="width: 22px; height: 22px;"></i>
         </div>
-        <h3 style="font-size: 18px; font-weight: 700;">Dịch thuật theo ngữ cảnh</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
-            Dịch lời thoại tự nhiên, chính xác, bám sát ngữ cảnh của đoạn nói, phân loại được nhiều nhân vật hội thoại.
+        <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Ducking nhạc nền</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Trích tách giọng nói và nhạc nền bằng AI. Nhạc nền tự động giảm nhỏ âm lượng khi có lời lồng tiếng và tự động to lại khi hết thoại.
         </p>
     </div>
 
-    <!-- Feature 3 -->
-    <div class="card glass">
-        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(45, 212, 191, 0.1); color: var(--color-accent); font-size: 20px;" class="flex-center">
-            <i data-lucide="audio-lines"></i>
+    <!-- Feature 4 (Bento Item Large) - Thêm tính năng thứ 4 để Bento Grid cân đối -->
+    <div class="card glass hover-glow bento-item-large" style="padding: var(--space-md); display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
+        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(16, 185, 129, 0.1); color: var(--color-success); flex-shrink: 0;" class="flex-center">
+            <i data-lucide="gauge" style="width: 28px; height: 28px;"></i>
         </div>
-        <h3 style="font-size: 18px; font-weight: 700;">Tách âm & Ducking nhạc nền</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
-            Trích xuất giọng nói và giữ lại nhạc nền nguyên bản. Nhạc nền tự động giảm nhỏ âm lượng khi có lời lồng tiếng Việt đè lên.
-        </p>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Tốc độ xử lý siêu tốc</h3>
+            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                Nhờ kiến trúc xử lý song song trên đám mây, các tác vụ lồng tiếng video 10 phút chỉ mất chưa đầy 3 phút để hoàn thành. Bạn có thể xuất video với chất lượng gốc lên đến 4K ngay lập tức.
+            </p>
+        </div>
     </div>
 </div>
 
 <style>
+    @keyframes pulseWave {
+        0%, 100% { transform: scaleY(1); }
+        50% { transform: scaleY(0.3); }
+    }
+    
     @media (max-width: 600px) {
-        h1 {
-            font-size: 36px !important;
-        }
-        .hero-section {
-            padding: var(--space-md) 0 !important;
+        h1.hero-title {
+            font-size: 32px !important;
         }
     }
 </style>

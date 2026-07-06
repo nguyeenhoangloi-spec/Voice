@@ -1,13 +1,13 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div style="margin-bottom: var(--space-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs);">
+<div class="page-header">
     <div>
-        <h1 style="font-size: 32px; font-weight: 800;">Lịch sử tác vụ</h1>
-        <p style="font-size: 15px; color: var(--text-secondary);">Xem và tải lại tất cả video đã lồng tiếng của bạn.</p>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Lịch sử tác vụ</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Xem và tải lại tất cả video đã lồng tiếng của bạn.</p>
     </div>
-    <a href="/dubbing/create" class="btn btn-primary hover-scale">
-        <i data-lucide="plus"></i> Tạo tác vụ mới
+    <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 12px 24px;">
+        <i data-lucide="plus" style="width: 18px; height: 18px;"></i> Tạo tác vụ mới
     </a>
 </div>
 
@@ -26,7 +26,24 @@
         <a href="/dubbing/create" class="btn btn-primary" style="margin-top: var(--space-sm); font-size: 13px; padding: 8px 16px;">Tạo tác vụ lồng tiếng</a>
     </div>
     {% else %}
-    <div style="overflow-x: auto;">
+    
+    <!-- Tab Navigation bộ lọc trạng thái tác vụ -->
+    <div class="tabs-container" style="display: flex; gap: 8px; margin-bottom: var(--space-sm); border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap;">
+        <button class="tab-btn active" data-tab="all" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: white; background-color: var(--color-primary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="list" style="width: 16px; height: 16px;"></i> Tất cả <span class="tab-count" id="count-all" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px;">0</span>
+        </button>
+        <button class="tab-btn" data-tab="processing" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="loader-2" class="icon-spin" style="width: 16px; height: 16px;"></i> Đang chạy <span class="tab-count" id="count-processing" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        </button>
+        <button class="tab-btn" data-tab="completed" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="check-circle-2" style="width: 16px; height: 16px;"></i> Hoàn thành <span class="tab-count" id="count-completed" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        </button>
+        <button class="tab-btn" data-tab="failed" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="alert-circle" style="width: 16px; height: 16px;"></i> Thất bại <span class="tab-count" id="count-failed" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        </button>
+    </div>
+
+    <div class="table-responsive" style="overflow-x: auto; transition: opacity 0.2s ease;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
             <thead>
                 <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
@@ -41,7 +58,7 @@
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr style="border-bottom: 1px solid var(--border-color); transition: background-color var(--transition-fast);" class="table-row">
+                <tr id="job-row-{{ job.id }}" data-status="{{ job.status }}" style="border-bottom: 1px solid var(--border-color); transition: all 0.2s ease, transform 0.2s ease; opacity: 1;" class="table-row job-row">
                     <td style="padding: var(--space-xs); font-family: monospace; font-weight: 600;">
                         {{ job.id[:8] }}...
                     </td>
@@ -93,10 +110,140 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Div hiển thị Empty State động khi lọc không có kết quả -->
+    <div id="no-jobs-tab" style="display: none; text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
+        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📂</div>
+        <p style="font-size: 15px;">Không có tác vụ nào thuộc trạng thái này.</p>
+    </div>
+
     {% endif %}
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. Tính toán số lượng cho các tab khi tải trang
+    updateTabCounters();
+
+    // 2. Xử lý sự kiện click chuyển Tab
+    const tabs = document.querySelectorAll(".tab-btn");
+    tabs.forEach(tab => {
+        tab.addEventListener("click", function() {
+            // Reset active style cho tất cả các tab
+            tabs.forEach(t => {
+                t.classList.remove("active");
+                t.style.backgroundColor = "transparent";
+                t.style.color = "var(--text-secondary)";
+                // Reset màu chữ đếm số lượng của tab không active
+                const countBadge = t.querySelector(".tab-count");
+                if (countBadge) {
+                    countBadge.style.backgroundColor = "rgba(128,128,128,0.15)";
+                    countBadge.style.color = "var(--text-secondary)";
+                }
+            });
+
+            // Gán active style cho tab được chọn
+            this.classList.add("active");
+            this.style.backgroundColor = "var(--color-primary)";
+            this.style.color = "white";
+            const countBadge = this.querySelector(".tab-count");
+            if (countBadge) {
+                countBadge.style.backgroundColor = "rgba(255,255,255,0.2)";
+                countBadge.style.color = "white";
+            }
+
+            const selectedTab = this.getAttribute("data-tab");
+            filterJobs(selectedTab);
+        });
+    });
+    
+    // Khởi tạo các Lucide Icons
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+});
+
+function updateTabCounters() {
+    const rows = document.querySelectorAll(".job-row");
+    let all = rows.length;
+    let processing = 0;
+    let completed = 0;
+    let failed = 0;
+
+    rows.forEach(row => {
+        const status = row.getAttribute("data-status");
+        if (status === "completed") {
+            completed++;
+        } else if (status === "failed") {
+            failed++;
+        } else {
+            // Các trạng thái đang xử lý: pending, downloading, extracting_audio, translating...
+            processing++;
+        }
+    });
+
+    // Cập nhật text badge đếm số lượng
+    document.getElementById("count-all").textContent = all;
+    document.getElementById("count-processing").textContent = processing;
+    document.getElementById("count-completed").textContent = completed;
+    document.getElementById("count-failed").textContent = failed;
+}
+
+function filterJobs(tabName) {
+    const rows = document.querySelectorAll(".job-row");
+    const tableContainer = document.querySelector(".table-responsive");
+    const emptyState = document.getElementById("no-jobs-tab");
+    let visibleCount = 0;
+
+    // Fade out bảng trước khi lọc để tạo hiệu ứng mượt mà
+    if (tableContainer) {
+        tableContainer.style.opacity = "0.3";
+    }
+
+    setTimeout(() => {
+        rows.forEach(row => {
+            const status = row.getAttribute("data-status");
+            let shouldShow = false;
+
+            if (tabName === "all") {
+                shouldShow = true;
+            } else if (tabName === "completed") {
+                shouldShow = (status === "completed");
+            } else if (tabName === "failed") {
+                shouldShow = (status === "failed");
+            } else if (tabName === "processing") {
+                shouldShow = (status !== "completed" && status !== "failed");
+            }
+
+            if (shouldShow) {
+                row.style.display = "";
+                row.style.opacity = "1";
+                row.style.transform = "scaleY(1)";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+                row.style.opacity = "0";
+                row.style.transform = "scaleY(0.95)";
+            }
+        });
+
+        // Xử lý hiển thị Empty State nếu không có tác vụ nào
+        if (visibleCount === 0) {
+            if (tableContainer) tableContainer.style.display = "none";
+            if (emptyState) emptyState.style.display = "block";
+        } else {
+            if (tableContainer) {
+                tableContainer.style.display = "block";
+                // Đưa độ mờ về lại bình thường
+                setTimeout(() => {
+                    tableContainer.style.opacity = "1";
+                }, 50);
+            }
+            if (emptyState) emptyState.style.display = "none";
+        }
+    }, 150);
+}
+
 function confirmDeleteJob(jobId) {
     if (confirm("Bạn có chắc chắn muốn xóa tác vụ lồng tiếng này và tất cả các file liên quan không?")) {
         fetch(`/dubbing/history/delete/${jobId}`, {
@@ -108,9 +255,30 @@ function confirmDeleteJob(jobId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                const row = document.getElementById(`job-row-${jobId}`);
+                if (row) {
+                    row.style.transition = 'all 0.3s ease';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(20px)';
+                    setTimeout(() => {
+                        row.remove();
+                        // Cập nhật lại số lượng đếm trên các tab
+                        updateTabCounters();
+                        
+                        // Lọc lại tab hiện tại để cập nhật bảng và empty state
+                        const activeTab = document.querySelector(".tab-btn.active")?.getAttribute("data-tab") || "all";
+                        filterJobs(activeTab);
+                        
+                        const tbody = document.querySelector("tbody");
+                        if (tbody && tbody.children.length === 0) {
+                            window.location.reload();
+                        }
+                    }, 300);
+                } else {
+                    window.location.reload();
+                }
             } else {
-                alert("Lỗi: " + data.message);
+                alert("Lỗi: " + (data.message || data.detail || "Không thể xóa tác vụ."));
             }
         })
         .catch(error => {
@@ -127,6 +295,25 @@ function confirmDeleteJob(jobId) {
     }
     :root[data-theme="light"] .table-row:hover {
         background-color: rgba(15, 23, 42, 0.02);
+    }
+    .tab-btn {
+        outline: none;
+    }
+    .tab-btn:hover:not(.active) {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary) !important;
+    }
+    :root[data-theme="light"] .tab-btn:hover:not(.active) {
+        background-color: rgba(15, 23, 42, 0.05);
+        color: var(--text-primary) !important;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .icon-spin {
+        animation: spin 2s linear infinite;
     }
 </style>
 {% endblock %}

@@ -1,110 +1,178 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div style="margin-bottom: var(--space-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs);">
+<style>
+    /* CSS Trạng thái của 20 bước Pipeline */
+    .step-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px !important;
+        border-radius: var(--radius-md) !important;
+        font-size: 13px;
+        transition: all var(--transition-normal) !important;
+        border: 1px solid transparent !important;
+    }
+    
+    .step-row.step-pending {
+        color: var(--text-secondary) !important;
+        background: transparent !important;
+    }
+    .step-row.step-pending .step-badge {
+        background-color: rgba(255,255,255,0.03) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-tertiary) !important;
+    }
+    
+    .step-row.step-processing {
+        color: var(--color-primary) !important;
+        background: rgba(56, 189, 248, 0.04) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.03) !important;
+        font-weight: 600 !important;
+    }
+    .step-row.step-processing .step-badge {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: white !important;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.3) !important;
+    }
+    
+    .step-row.step-completed {
+        color: var(--text-primary) !important;
+        background: rgba(52, 211, 153, 0.03) !important;
+        border-color: rgba(52, 211, 153, 0.1) !important;
+    }
+    .step-row.step-completed .step-badge {
+        background-color: var(--color-success) !important;
+        border-color: var(--color-success) !important;
+        color: white !important;
+    }
+    
+    .step-row.step-failed {
+        color: var(--color-danger) !important;
+        background: rgba(248, 113, 113, 0.03) !important;
+        border-color: rgba(248, 113, 113, 0.1) !important;
+    }
+    .step-row.step-failed .step-badge {
+        background-color: var(--color-danger) !important;
+        border-color: var(--color-danger) !important;
+        color: white !important;
+    }
+</style>
+
+<div class="page-header">
     <div>
-        <h1 style="font-size: 26px; font-weight: 800;">Theo dõi tiến trình lồng tiếng</h1>
-        <p style="font-size: 14px; color: var(--text-secondary);">Mã tác vụ: <span style="font-family: monospace; font-weight: 600;">{{ job.id }}</span></p>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Theo dõi tiến trình lồng tiếng</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Mã tác vụ: <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">{{ job.id }}</span></p>
     </div>
     <div style="display: flex; gap: var(--space-xs);">
-        <a href="/dashboard" class="btn btn-secondary">
-            <i data-lucide="arrow-left"></i> Quay về Dashboard
+        <a href="/dashboard" class="btn btn-secondary hover-scale" style="padding: 10px 18px;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px; margin-right: 2px;"></i> Dashboard
         </a>
-        <button id="btn-restart" class="btn btn-danger hidden" onclick="window.location.reload()">
-            <i data-lucide="refresh-cw"></i> Thử lại
+        <button id="btn-restart" class="btn btn-danger hidden hover-scale" style="padding: 10px 18px;" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw" style="width: 16px; height: 16px; margin-right: 2px;"></i> Thử lại
         </button>
     </div>
 </div>
 
 <!-- Grid Layout: Tiến trình tổng và Danh sách 20 bước -->
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); align-items: start;">
+<div class="grid-split" style="grid-template-columns: 1.5fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
     
     <!-- Cột trái: Tiến trình tổng, Preview kết quả và Nhật ký -->
-    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
         
         <!-- Khung tiến trình tổng (Card) -->
-        <div class="card glass" style="padding: var(--space-lg);">
+        <div class="card glass hover-glow" style="padding: var(--space-lg); gap: var(--space-sm);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span id="status-title" style="font-size: 18px; font-weight: 700; color: var(--color-primary);">Đang chuẩn bị...</span>
-                <span id="progress-text" style="font-size: 24px; font-weight: 800; color: var(--text-primary);">{{ job.progress_percent }}%</span>
+                <span id="status-title" style="font-size: 18px; font-weight: 800; color: var(--color-primary);">Đang chuẩn bị...</span>
+                <span id="progress-text" style="font-size: 28px; font-weight: 800; color: var(--text-primary);">{{ job.progress_percent }}%</span>
             </div>
             
             <!-- Thanh Progress -->
-            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 12px; width: 100%; overflow: hidden; margin: var(--space-xs) 0;">
+            <div style="background-color: rgba(255,255,255,0.05); border-radius: var(--radius-full); height: 12px; width: 100%; overflow: hidden; margin: var(--space-xs) 0; border: 1px solid var(--border-color);">
                 <div id="progress-bar" class="progress-bar-fill status-gradient" style="--progress-width: {{ job.progress_percent }}%;"></div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); font-size: 13px; color: var(--text-secondary); margin-top: var(--space-2xs);">
-                <div>Giai đoạn: <span id="current-step-label" style="font-weight: 700; color: var(--text-primary);">Khởi tạo tác vụ</span></div>
-                <div style="text-align: right;">Thời gian chạy: <span id="time-elapsed" style="font-weight: 700; color: var(--text-primary);">00:00</span></div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary);">
+                <div>Giai đoạn hiện tại: <span id="current-step-label" style="font-weight: 700; color: var(--text-primary);">Khởi tạo tác vụ</span></div>
+                <div>Thời gian trôi qua: <span id="time-elapsed" style="font-weight: 700; color: var(--text-primary); font-family: monospace;">00:00</span></div>
             </div>
         </div>
 
         <!-- Khung lỗi hiển thị nếu có -->
-        <div id="error-card" class="card glass hidden" style="border-color: var(--color-danger); background-color: rgba(239, 68, 68, 0.05);">
-            <h3 style="color: var(--color-danger); font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="alert-triangle"></i> Gặp lỗi khi xử lý lồng tiếng
+        <div id="error-card" class="card glass hidden" style="border-color: var(--color-danger); background-color: rgba(248, 113, 113, 0.05); padding: var(--space-lg);">
+            <h3 style="color: var(--color-danger); font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin: 0;">
+                <i data-lucide="alert-triangle" style="width: 20px; height: 20px;"></i> Gặp lỗi khi xử lý lồng tiếng
             </h3>
-            <p id="error-msg-detail" style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;"></p>
+            <p id="error-msg-detail" style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: var(--space-xs) 0 0 0;"></p>
         </div>
 
         <!-- Khung kết quả (Chỉ hiển thị khi trạng thái hoàn thành - Completed) -->
-        <div id="results-card" class="card glass hidden" style="padding: var(--space-lg);">
-            <h2 style="font-size: 20px; font-weight: 800; color: var(--color-success); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
+        <div id="results-card" class="card glass hover-glow hidden" style="padding: var(--space-lg); gap: var(--space-md);">
+            <h2 style="font-size: 20px; font-weight: 800; color: var(--color-success); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin: 0;">
                 🎉 Lồng tiếng hoàn tất!
             </h2>
             
             <!-- Trình phát media xem trước -->
-            <div id="media-player-container" class="hidden" style="width: 100%; border-radius: var(--radius-lg); overflow: hidden; background: #000; margin-bottom: var(--space-sm);">
-                <video id="output-video-player" controls style="width: 100%; max-height: 400px; display: block;"></video>
+            <div id="media-player-container" class="hidden" style="width: 100%; background: #070a13; border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                <video id="output-video-player" controls style="width: 100%; max-height: 400px; display: block; border-radius: calc(var(--radius-lg) - 1px); outline: none; cursor: pointer;"></video>
             </div>
             
             <!-- Danh sách nút tải file -->
             <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-                <h4 style="font-size: 14px; font-weight: 700;">Tải kết quả về máy:</h4>
+                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Tải kết quả về máy:</h4>
                 <div style="display: flex; gap: var(--space-xs); flex-wrap: wrap;">
-                    <a id="download-video" href="#" class="btn btn-primary" download>
-                        <i data-lucide="download"></i> Tải Video MP4
+                    <a id="download-video" href="#" class="btn btn-primary hover-scale" download>
+                        <i data-lucide="download" style="width: 16px; height: 16px;"></i> Tải Video MP4
                     </a>
-                    <a id="download-audio" href="#" class="btn btn-secondary" download>
-                        <i data-lucide="music"></i> Tải MP3
+                    <a id="download-audio" href="#" class="btn btn-secondary hover-scale" download>
+                        <i data-lucide="music" style="width: 16px; height: 16px;"></i> Tải MP3
                     </a>
-                    <a id="download-srt" href="#" class="btn btn-secondary" download>
-                        <i data-lucide="file-text"></i> Tải Phụ đề (SRT)
+                    <a id="download-srt" href="#" class="btn btn-secondary hover-scale" download>
+                        <i data-lucide="file-text" style="width: 16px; height: 16px;"></i> Tải Phụ đề (SRT)
                     </a>
-                    <a id="btn-edit-timeline" href="#" class="btn btn-secondary" style="border-color: var(--color-secondary); color: var(--color-secondary);">
-                        <i data-lucide="edit"></i> Chỉnh sửa Timeline
+                    <a id="btn-edit-timeline" href="#" class="btn btn-secondary hover-scale" style="border-color: var(--color-secondary); color: var(--color-secondary);">
+                        <i data-lucide="edit" style="width: 16px; height: 16px;"></i> Chỉnh sửa Timeline
                     </a>
                 </div>
             </div>
         </div>
 
-        <!-- Nhật ký xử lý (Log box) -->
-        <div class="card glass" style="flex: 1;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 6px;">
-                <h3 style="font-size: 16px; font-weight: 700;">Nhật ký xử lý</h3>
-                <button id="btn-copy-log" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">Sao chép log</button>
+        <!-- Nhật ký xử lý (Log box) dạng Terminal sang trọng -->
+        <div class="card glass" style="flex: 1; padding: var(--space-md); gap: var(--space-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; gap: 5px;">
+                        <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: #ff5f56; display: inline-block;"></span>
+                        <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: #ffbd2e; display: inline-block;"></span>
+                        <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: #27c93f; display: inline-block;"></span>
+                    </div>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-left: 4px;">Console Logs</span>
+                </div>
+                <button id="btn-copy-log" class="btn btn-secondary hover-scale" style="padding: 6px 12px; font-size: 12px;">Sao chép log</button>
             </div>
-            <div id="log-console" style="background-color: #050811; border-radius: var(--radius-md); padding: var(--space-sm); font-family: monospace; font-size: 12px; height: 180px; overflow-y: auto; color: #10b981; line-height: 1.6;">
+            
+            <div id="log-console" style="background-color: #050811; border-radius: var(--radius-md); padding: var(--space-sm); font-family: monospace; font-size: 12px; height: 200px; overflow-y: auto; color: var(--color-success); border: 1px solid var(--border-color); line-height: 1.6;">
                 [Khởi tạo luồng...] Kết nối máy chủ giám sát.
             </div>
         </div>
     </div>
 
     <!-- Cột phải: Danh sách 20 bước và trạng thái từng bước -->
-    <div class="card glass" style="padding: var(--space-sm); max-height: calc(100vh - var(--header-height) - var(--space-xl)); overflow-y: auto;">
-        <h3 style="font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2xs); margin-bottom: var(--space-xs);">
+    <div class="card glass" style="padding: var(--space-md); max-height: calc(100vh - var(--header-height) - var(--space-2xl)); overflow-y: auto; gap: var(--space-sm);">
+        <h3 style="font-size: 16px; font-weight: 800; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin: 0; color: var(--text-primary);">
             Quy trình Pipeline (20 bước)
         </h3>
         
-        <div id="steps-list-container" style="display: flex; flex-direction: column; gap: var(--space-2xs);">
+        <div id="steps-list-container" style="display: flex; flex-direction: column; gap: 4px;">
             {% for step in steps %}
-            <div class="step-row" id="step-row-{{ step.step_number }}" style="display: flex; align-items: center; justify-content: space-between; padding: 6px var(--space-xs); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); transition: background-color var(--transition-fast);">
-                <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <span class="step-badge" id="step-badge-{{ step.step_number }}" style="width: 20px; height: 20px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; background-color: var(--border-color); color: var(--text-tertiary);" class="flex-center">
+            <div class="step-row" id="step-row-{{ step.step_number }}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px var(--space-xs); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-secondary); transition: all var(--transition-fast);">
+                <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span class="step-badge" id="step-badge-{{ step.step_number }}" style="width: 22px; height: 22px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-tertiary); display: flex; align-items: center; justify-content: center;">
                         {{ step.step_number }}
                     </span>
-                    <span class="step-name">{{ step.name }}</span>
+                    <span class="step-name" style="font-weight: 500;">{{ step.name }}</span>
                 </div>
                 <div class="step-status-icon" id="step-icon-{{ step.step_number }}">
                     <i data-lucide="circle" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>
@@ -245,26 +313,21 @@
                 const icon = document.getElementById(`step-icon-${step.step_number}`);
                 
                 if (row && badge && icon) {
+                    // Xóa các thuộc tính style inline thô để ưu tiên CSS class transitions
+                    row.removeAttribute("style");
+                    badge.removeAttribute("style");
+                    
                     if (step.status === "completed") {
-                        row.style.color = "var(--text-primary)";
-                        badge.style.backgroundColor = "var(--color-success)";
-                        badge.style.color = "white";
+                        row.className = "step-row step-completed";
                         icon.innerHTML = `<i data-lucide="check-circle-2" style="width: 14px; height: 14px; color: var(--color-success);"></i>`;
                     } else if (step.status === "processing") {
-                        row.style.color = "var(--color-primary)";
-                        badge.style.backgroundColor = "var(--color-primary)";
-                        badge.style.color = "white";
+                        row.className = "step-row step-processing";
                         icon.innerHTML = `<svg class="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                     } else if (step.status === "failed") {
-                        row.style.color = "var(--color-danger)";
-                        badge.style.backgroundColor = "var(--color-danger)";
-                        badge.style.color = "white";
+                        row.className = "step-row step-failed";
                         icon.innerHTML = `<i data-lucide="x-circle" style="width: 14px; height: 14px; color: var(--color-danger);"></i>`;
                     } else {
-                        // Pending
-                        row.style.color = "var(--text-secondary)";
-                        badge.style.backgroundColor = "var(--border-color)";
-                        badge.style.color = "var(--text-tertiary)";
+                        row.className = "step-row step-pending";
                         icon.innerHTML = `<i data-lucide="circle" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>`;
                     }
                 }
@@ -301,6 +364,23 @@
                     const player = document.getElementById("output-video-player");
                     player.src = vidExport.file_path;
                     playerContainer.classList.remove("hidden");
+                    
+                    // Thêm sự kiện click thông minh vào màn hình video để Play/Pause
+                    if (!player.dataset.clickEventRegistered) {
+                        player.addEventListener("click", (e) => {
+                            const rect = player.getBoundingClientRect();
+                            const clickY = e.clientY - rect.top;
+                            // Chỉ trigger play/pause nếu click phía trên thanh điều khiển (50px dưới cùng)
+                            if (clickY < rect.height - 50) {
+                                if (player.paused) {
+                                    player.play();
+                                } else {
+                                    player.pause();
+                                }
+                            }
+                        });
+                        player.dataset.clickEventRegistered = "true";
+                    }
                     
                     document.getElementById("download-video").href = vidExport.file_path;
                 }

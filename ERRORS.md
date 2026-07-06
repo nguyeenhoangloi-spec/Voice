@@ -72,3 +72,22 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
   3. Cập nhật liên kết chính xác trong sidebar.
 - **Prevention**: Luôn tạo đầy đủ các trang giao diện đã liệt kê trên thanh menu điều hướng chính.
 - **Status**: Fixed
+
+---
+
+## [2026-07-05 11:35] - NameError: name 'time' is not defined in generate_fpt_tts
+
+- **Type**: Runtime
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:184`
+- **Agent**: Voice
+- **Root Cause**: Hàm `generate_fpt_tts` sử dụng `time.sleep(2)` để thăm dò (poll) kết quả file âm thanh trả về từ FPT.AI TTS API V5, tuy nhiên module `time` chưa được import ở đầu tệp `app/services/dubbing_engine.py`.
+- **Error Message**: 
+  ```text
+  TTS generation failed for segment 37: name 'time' is not defined
+  Fallback TTS also failed for segment 37: name 'time' is not defined
+  ```
+- **Fix Applied**: Thêm câu lệnh `import time` vào phần đầu tệp `app/services/dubbing_engine.py`.
+- **Prevention**: Thực hiện kiểm tra chất lượng tĩnh (linter) hoặc chạy test suite với engine thực tế để sớm phát hiện các biến/module chưa định nghĩa.
+- **Status**: Fixed
+

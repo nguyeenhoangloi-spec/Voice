@@ -25,8 +25,13 @@
     position: sticky;
     top: 0;
     z-index: 100;
+    width: var(--sidebar-width-expanded);
     transition: width var(--transition-normal);
     overflow: hidden;
+}
+
+.sidebar-collapsed .app-sidebar {
+    width: var(--sidebar-width-collapsed);
 }
 
 .sidebar-header {
@@ -57,9 +62,17 @@
     transition: opacity var(--transition-normal);
 }
 
+.sidebar-collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0;
+}
+
+.sidebar-collapsed .logo-container {
+    gap: 0;
+}
+
 .sidebar-collapsed .logo-text {
-    opacity: 0;
-    pointer-events: none;
+    display: none !important;
 }
 
 .sidebar-menu {
@@ -123,9 +136,23 @@
     transition: opacity var(--transition-normal);
 }
 
+
+.sidebar-collapsed .menu-item {
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+}
+
 .sidebar-collapsed .menu-item-text {
-    opacity: 0;
-    pointer-events: none;
+    display: none !important;
+}
+
+.sidebar-collapsed .menu-group-title {
+    visibility: hidden;
+    height: 32px;
+    padding: 0;
+    margin: 0;
 }
 
 /* Tooltips when collapsed */
@@ -224,6 +251,7 @@
     grid-area: main;
     padding: var(--space-md);
     overflow-y: auto;
+    scrollbar-gutter: stable;
     background-color: var(--bg-primary);
 }
 
@@ -279,3 +307,49 @@
         pointer-events: auto !important;
     }
 }
+
+/* Disable transitions on page load to prevent layout shift */
+.preload *,
+.preload *::before,
+.preload *::after {
+    -webkit-transition: none !important;
+    -moz-transition: none !important;
+    -ms-transition: none !important;
+    -o-transition: none !important;
+    transition: none !important;
+}
+
+/* Hide text immediately during preload + collapse to prevent text flash/jump */
+.preload .sidebar-collapsed .menu-item-text,
+.preload .sidebar-collapsed .logo-text {
+    display: none !important;
+}
+
+.preload .sidebar-collapsed .menu-group-title {
+    visibility: hidden !important;
+    height: 32px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Khóa kích thước và ẩn chữ tạm thời khi tải trang dựa trên class init ở html */
+.sidebar-collapsed-init .app-container {
+    grid-template-columns: var(--sidebar-width-collapsed) 1fr !important;
+}
+
+.sidebar-collapsed-init .app-sidebar {
+    width: var(--sidebar-width-collapsed) !important;
+}
+
+.sidebar-collapsed-init .logo-text,
+.sidebar-collapsed-init .menu-item-text {
+    display: none !important;
+}
+
+.sidebar-collapsed-init .menu-group-title {
+    visibility: hidden !important;
+    height: 32px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
