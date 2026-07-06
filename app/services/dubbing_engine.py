@@ -261,74 +261,84 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
     # Sử dụng Gemini API nếu có API Key
     api_key = settings.GEMINI_API_KEY.strip()
     if api_key:
+        import time as _time
         logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}...")
-        try:
-            from google import genai
-            from google.genai import types
-            import json
-            import re
+        for gemini_attempt in range(1, 4):  # retry up to 3 times for 503
+            try:
+                from google import genai
+                from google.genai import types
+                import json
+                import re
 
-            client = genai.Client(api_key=api_key)
+                client = genai.Client(api_key=api_key)
 
-            # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
-            # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
-            # Allow up to 3.6 words per second to avoid drop words (we can stretch tempo using ffmpeg up to 1.25x)
-            prompt = (
-                "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
-                f"Video topic/context: {video_context}\n\n"
-                "YOUR TASK: Translate English video transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
-                "STRICT RULES:\n"
-                "1. PROPER NOUNS: Keep names of people, brands, products, places UNCHANGED.\n"
-                "   - 'John said' → 'John nói' (NOT 'Giăng nói')\n"
-                "   - 'iPhone 16' → 'iPhone 16' (never translate product/brand names)\n"
-                "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
-                "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
-                "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
-                "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
-                "4. COMPLETENESS: Translate the full meaning. Never drop important information.\n"
-                "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
-                "6. TIMING: ~word count shown per segment. Approximate it but never sacrifice meaning.\n"
-                "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
-                "   Example: [\"c\u00e2u m\u1ed9t\", \"c\u00e2u hai\"]\n\n"
-                "Segments:\n"
-            )
-            for idx, seg in enumerate(segments):
-                duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                orig_text = seg.get("text", "").strip()
-                orig_words = len(orig_text.split()) if orig_text else 0
+                # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
+                # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
+                # Allow up to 3.6 words per second to avoid drop words (we can stretch tempo using ffmpeg up to 1.25x)
+                prompt = (
+                    "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
+                    f"Video topic/context: {video_context}\n\n"
+                    "YOUR TASK: Translate English video transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
+                    "STRICT RULES:\n"
+                    "1. PROPER NOUNS: Keep names of people, brands, products, places UNCHANGED.\n"
+                    "   - 'John said' → 'John nói' (NOT 'Giăng nói')\n"
+                    "   - 'iPhone 16' → 'iPhone 16' (never translate product/brand names)\n"
+                    "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
+                    "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
+                    "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
+                    "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
+                    "4. COMPLETENESS: Translate the full meaning. Never drop important information.\n"
+                    "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
+                    "6. TIMING: ~word count shown per segment. Approximate it but never sacrifice meaning.\n"
+                    "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
+                    "   Example: [\"c\u00e2u m\u1ed9t\", \"c\u00e2u hai\"]\n\n"
+                    "Segments:\n"
+                )
+                for idx, seg in enumerate(segments):
+                    duration = seg.get("end", 0.0) - seg.get("start", 0.0)
+                    orig_text = seg.get("text", "").strip()
+                    orig_words = len(orig_text.split()) if orig_text else 0
 
-                # Target word count for Vietnamese (25% longer than English)
-                max_words = max(1, int(orig_words * 1.25))
-                max_words = max(max_words, max(1, int(duration * 2.8)))
-                max_words = min(max_words, max(1, int(duration * 3.8)))
+                    # Target word count for Vietnamese (25% longer than English)
+                    max_words = max(1, int(orig_words * 1.25))
+                    max_words = max(max_words, max(1, int(duration * 2.8)))
+                    max_words = min(max_words, max(1, int(duration * 3.8)))
 
-                # Include previous segment as context clue
-                prev_text = segments[idx - 1].get("text", "").strip() if idx > 0 else ""
+                    # Include previous segment as context clue
+                    prev_text = segments[idx - 1].get("text", "").strip() if idx > 0 else ""
 
-                if prev_text:
-                    prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
-                else:
-                    prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
+                    if prev_text:
+                        prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                    else:
+                        prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-            )
-            res_text = response.text.strip()
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                )
+                res_text = response.text.strip()
 
-            # Tìm mảng JSON trong phản hồi của Gemini
-            json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
-            if json_match:
-                translated_list = json.loads(json_match.group(0))
-                if len(translated_list) == len(segments):
+                # Tìm mảng JSON trong phản hồi của Gemini
+                json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
+                if json_match:
+                    translated_list = json.loads(json_match.group(0))
+                    if len(translated_list) == len(segments):
 
-                    for idx, trans in enumerate(translated_list):
-                        segments[idx]["translation"] = trans
-                    logger.info(f"Đã dịch thành công {len(segments)} câu bằng Gemini API.")
-                    return segments
-            logger.warning("Không thể parse kết quả JSON của Gemini. Tiến hành fallback sang Google Translate.")
-        except Exception as e:
-            logger.warning(f"Lỗi khi dịch bằng Gemini API: {e}. Tiến hành fallback sang Google Translate.")
+                        for idx, trans in enumerate(translated_list):
+                            segments[idx]["translation"] = trans
+                        logger.info(f"Đã dịch thành công {len(segments)} câu bằng Gemini API.")
+                        return segments
+                logger.warning("Không thể parse kết quả JSON của Gemini. Tiến hành fallback sang Google Translate.")
+                break  # parse failed - no point retrying
+            except Exception as e:
+                err_str = str(e)
+                if "503" in err_str or "UNAVAILABLE" in err_str:
+                    if gemini_attempt < 3:
+                        logger.warning(f"Gemini 503 (lần {gemini_attempt}/3) - thử lại sau 5 giây...")
+                        _time.sleep(5)
+                        continue
+                logger.warning(f"Lỗi khi dịch bằng Gemini API: {e}. Tiến hành fallback sang Google Translate.")
+                break
 
     # Fallback sang Google Translate
     from deep_translator import GoogleTranslator
@@ -425,15 +435,24 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
     import asyncio
     import concurrent.futures
     import time
+    import random
+
+    # Sanitize text before sending to Edge TTS
+    # Remove trailing ellipsis (...) which causes "No audio received" errors
+    clean_text = text.strip()
+    clean_text = clean_text.rstrip('…').rstrip('.')
+    # Add a proper sentence-ending period so Edge TTS speaks the last word fully
+    if clean_text and clean_text[-1] not in '.!?,;:':
+        clean_text += '.'
 
     async def _gen():
-        communicate = edge_tts.Communicate(text, voice, rate=rate)
+        communicate = edge_tts.Communicate(clean_text, voice, rate=rate)
         await communicate.save(output_path)
 
     max_retries = 3
     for attempt in range(1, max_retries + 1):
         try:
-            # Xóa file cũ nếu có để đảm bảo tạo file mới hoàn toàn
+            # Remove old file to ensure fresh generation
             if os.path.exists(output_path):
                 try:
                     os.remove(output_path)
@@ -441,25 +460,28 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
                     pass
 
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     pool.submit(asyncio.run, _gen()).result()
             except RuntimeError:
                 asyncio.run(_gen())
-                
-            # Đảm bảo file được tạo thành công và có dung lượng hợp lệ (> 100 bytes)
+
+            # Verify file created and valid (> 100 bytes)
             if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
                 return output_path
-                
+
             raise ValueError("Sinh file TTS rỗng hoặc không tồn tại.")
         except Exception as e:
-            logger.warning(f"Lần thử {attempt}/{max_retries} sinh TTS thất bại cho text '{text[:20]}...': {e}")
+            logger.warning(f"Lần thử {attempt}/{max_retries} sinh TTS thất bại cho text '{clean_text[:20]}...': {e}")
             if attempt < max_retries:
-                time.sleep(2.0 * attempt)  # Backoff: 2s, 4s (tránh rate-limit Microsoft)
+                # Random jitter (0.5-1.5s) + backoff to avoid concurrent threads hitting Microsoft at same time
+                jitter = random.uniform(0.5, 1.5)
+                time.sleep(2.0 * attempt + jitter)
             else:
                 raise e
 
     return output_path
+
 
 
 def select_voice(gender: str = "female", region: str = "south", engine: str = "edge") -> str:
