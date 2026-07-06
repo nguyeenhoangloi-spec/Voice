@@ -274,33 +274,41 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
             # Allow up to 3.6 words per second to avoid drop words (we can stretch tempo using ffmpeg up to 1.25x)
             prompt = (
-                "You are an elite video dubbing translator (NOT subtitle translator).\n"
-                f"The video context/topic is: {video_context}\n\n"
-                "Translate the following video transcript segments into natural Vietnamese FOR VOICE DUBBING.\n\n"
-                "CRITICAL REQUIREMENTS:\n"
-                "1. ACCURACY: Translation must convey the original meaning correctly and completely. Do not guess slang; translate to appropriate Vietnamese context.\n"
-                "2. TIMING: Each translation must fit within the duration when spoken at a comfortable, natural pace.\n"
-                "   - Target word count is specified for each segment dynamically based on original speech rate (comfortable upper limit).\n"
-                "   - Speak naturally. Do NOT summarize too much or drop important words. The translation must be fully meaningful, natural, and complete.\n"
-                "3. NATURAL SPEECH: Use spoken Vietnamese (not written/formal). It must sound like a real person talking naturally.\n"
-                "4. OUTPUT: Return ONLY a JSON array of translated strings in the same order. No markdown, no explanation.\n"
-                "   Example: [\"câu một\", \"câu hai\"]\n\n"
-                "Segments to translate:\n"
+                "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
+                f"Video topic/context: {video_context}\n\n"
+                "YOUR TASK: Translate English video transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
+                "STRICT RULES:\n"
+                "1. PROPER NOUNS: Keep names of people, brands, products, places UNCHANGED.\n"
+                "   - 'John said' → 'John nói' (NOT 'Giăng nói')\n"
+                "   - 'iPhone 16' → 'iPhone 16' (never translate product/brand names)\n"
+                "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
+                "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
+                "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
+                "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
+                "4. COMPLETENESS: Translate the full meaning. Never drop important information.\n"
+                "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
+                "6. TIMING: ~word count shown per segment. Approximate it but never sacrifice meaning.\n"
+                "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
+                "   Example: [\"c\u00e2u m\u1ed9t\", \"c\u00e2u hai\"]\n\n"
+                "Segments:\n"
             )
             for idx, seg in enumerate(segments):
                 duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                # Tính số từ câu tiếng Anh gốc
                 orig_text = seg.get("text", "").strip()
                 orig_words = len(orig_text.split()) if orig_text else 0
-                
-                # Tự động tính giới hạn từ Tiếng Việt (tiếng Việt thường dài hơn khoảng 25%)
+
+                # Target word count for Vietnamese (25% longer than English)
                 max_words = max(1, int(orig_words * 1.25))
-                # Ràng buộc cận dưới: ít nhất bằng tốc độ 2.8 từ/giây để có đủ từ phát âm
                 max_words = max(max_words, max(1, int(duration * 2.8)))
-                # Ràng buộc cận trên: tối đa 3.8 từ/giây để tránh nói quá nhanh không khớp miệng
                 max_words = min(max_words, max(1, int(duration * 3.8)))
-                
-                prompt += f"[{idx}] (Duration: {duration:.2f}s, target ~{max_words} Vietnamese words based on original speech rate): {orig_text}\n"
+
+                # Include previous segment as context clue
+                prev_text = segments[idx - 1].get("text", "").strip() if idx > 0 else ""
+
+                if prev_text:
+                    prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                else:
+                    prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
@@ -618,8 +626,9 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     video_duration_ms = int(duration_secs * 1000) if duration_secs > 0 else 60000
     logger.info(f"Video duration: {video_duration_ms}ms")
 
-    # Create silent base track matching video duration
-    mixed_audio = AudioSegment.silent(duration=video_duration_ms)
+    # Create silent base track slightly longer than video to prevent last segment cutoff
+    # (extra 5s buffer - will be trimmed back to video_duration_ms after all overlays)
+    mixed_audio = AudioSegment.silent(duration=video_duration_ms + 5000)
 
      # Overlay each TTS segment at its correct timestamp
     overlay_count = 0
@@ -644,6 +653,9 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             logger.warning(f"Failed to overlay segment at {seg.get('start', '?')}s: {e}")
 
     logger.info(f"Overlaid {overlay_count}/{len(segments)} TTS segments onto audio track")
+
+    # Trim back to exact video duration (last segment may have run slightly over)
+    mixed_audio = mixed_audio[:video_duration_ms]
 
     # If keeping background music, try to extract and mix it from original
     if keep_bg_music:
