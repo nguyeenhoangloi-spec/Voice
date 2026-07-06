@@ -527,8 +527,12 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
             # Generate timing-aware SSML configuration for this segment
             ssml_config = generate_ssml_for_segment(seg, voice=seg_voice, video_context=video_context)
             # Use preprocessed text in place of raw translation
-            ssml_config["text"] = preprocess_text_for_tts(ssml_config["text"])
-            seg["ssml_text"] = ssml_config["text"]
+            final_text = preprocess_text_for_tts(ssml_config["text"])
+            # Ensure text ends with punctuation so Edge TTS completes the last word naturally
+            if final_text and final_text[-1] not in '.!?,;:…':
+                final_text += '.'
+            ssml_config["text"] = final_text
+            seg["ssml_text"] = final_text
             seg["ssml_rate"] = ssml_config["rate"]
             seg["voice_used"] = seg_voice
 
@@ -539,6 +543,25 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 voice=seg_voice,
                 rate=ssml_config["rate"]
             )
+
+            # ─── CHECK: Log actual audio length vs slot (no action, just info) ─
+            slot_ms = max(0, (seg.get("end", 0) - seg.get("start", 0)) * 1000)
+            if os.path.exists(output_path):
+                from pydub import AudioSegment as _AS
+                _AS.converter = get_ffmpeg_path()
+                try:
+                    _AS.ffprobe = get_ffprobe_path()
+                except Exception:
+                    pass
+                try:
+                    actual_ms = len(_AS.from_file(output_path))
+                    if actual_ms > slot_ms * 1.2:
+                        logger.info(f"Seg {idx}: audio={actual_ms:.0f}ms, slot={slot_ms:.0f}ms (will overlap slightly - OK)")
+                except Exception as _e:
+                    logger.warning(f"Seg {idx}: smart retry check FAILED ({type(_e).__name__}: {_e})")
+            # ───────────────────────────────────────────────────────────────
+
+
             return idx, output_path
 
         except Exception as e:
@@ -608,64 +631,12 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             start_ms = int(seg["start"] * 1000)
             end_ms = int(seg["end"] * 1000)
 
-            # --- TIMING SYNC: Lock TTS audio to original segment slot ---
-            slot_duration = end_ms - start_ms  # exact slot from original transcript
+            # Fade-in 50ms to prevent click noise at segment start
+            if len(tts_audio) > 100:
+                tts_audio = tts_audio.fade_in(50)
 
-            # Allow borrowing up to 0.8s from the gap to next segment
-            # (so we don't cut off natural sentence endings)
-            if idx < len(segments) - 1:
-                next_start_ms = int(segments[idx + 1]["start"] * 1000)
-            else:
-                next_start_ms = video_duration_ms
-
-            available_duration = slot_duration
-            if next_start_ms > end_ms:
-                gap = next_start_ms - end_ms
-                # Borrow up to 1.2s from the gap to next segment (was 0.8s)
-                available_duration += min(gap, 1200)
-
-            tts_len = len(tts_audio)
-            if tts_len > 0 and available_duration > 0:
-                speed_ratio = tts_len / available_duration
-
-                applied_ratio = 1.0
-                if speed_ratio > 1.02:  # TTS is longer than available slot -> speed up
-                    # Allow up to 1.5x speed-up before cutting words (was 1.35x)
-                    applied_ratio = min(speed_ratio, 1.50)
-                    logger.debug(f"Seg {idx}: speed-up atempo={applied_ratio:.2f}x (ratio={speed_ratio:.2f}x)")
-                elif speed_ratio < 0.90:  # TTS is much shorter -> slow down slightly
-                    # Only slow down to 0.85x max to avoid sounding unnatural
-                    applied_ratio = max(speed_ratio, 0.85)
-                    # Skip slow-down if ratio is too extreme (TTS way shorter than slot)
-                    # — just let it play naturally and pad silence
-                    if speed_ratio < 0.60:
-                        applied_ratio = 1.0  # Don't stretch, pad silence naturally
-                        logger.debug(f"Seg {idx}: TTS much shorter ({speed_ratio:.2f}x) → keeping natural pace")
-                    else:
-                        logger.debug(f"Seg {idx}: slow-down atempo={applied_ratio:.2f}x (ratio={speed_ratio:.2f}x)")
-
-                if applied_ratio != 1.0:
-                    filter_str = f"atempo={applied_ratio:.4f}"
-                    temp_sped = seg["audio_path"].replace(".mp3", "_sync.mp3")
-                    cmd_speed = [
-                        ffmpeg, "-y", "-i", seg["audio_path"],
-                        "-filter:a", filter_str,
-                        temp_sped
-                    ]
-                    result_speed = subprocess.run(cmd_speed, capture_output=True)
-                    if result_speed.returncode == 0 and os.path.exists(temp_sped):
-                        tts_audio = AudioSegment.from_file(temp_sped)
-                        os.remove(temp_sped)
-
-                # Fade-in 50ms to prevent click noise at segment start
-                if len(tts_audio) > 100:
-                    tts_audio = tts_audio.fade_in(50)
-
-                # Final trim with Fade Out to prevent sudden clicks or unnatural cuts
-                max_allowed_ms = available_duration
-                if len(tts_audio) > max_allowed_ms:
-                    fade_duration = min(150, max_allowed_ms)
-                    tts_audio = tts_audio[:max_allowed_ms].fade_out(fade_duration)
+            # NO trimming - let the audio play fully to avoid dropping words
+            # If it slightly overlaps with next segment, pydub overlay will mix them
 
             mixed_audio = mixed_audio.overlay(tts_audio, position=start_ms)
             overlay_count += 1
