@@ -67,7 +67,7 @@
     /* CSS cho Grid View */
     .jobs-grid-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: var(--space-md);
         margin-top: 10px;
     }
@@ -426,8 +426,8 @@
 <!-- Scripts xử lý phân trang & chuyển đổi View Mode -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Items per page: grid (4 cols) = 14, list (3 cols) = 9
-        const ITEMS_PER_PAGE_GRID = 14;
+        // Items per page: grid (4 cols) = 12, list (3 cols) = 9
+        const ITEMS_PER_PAGE_GRID = 12;
         const ITEMS_PER_PAGE_LIST = 9;
         let currentPage = 1;
         let activeView = localStorage.getItem("dashboard-view-mode") || "list"; // list hoặc grid
