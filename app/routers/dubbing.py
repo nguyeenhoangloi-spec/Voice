@@ -473,11 +473,11 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
         ]
 
     else:
-        # Edge TTS voices
+        # Edge TTS voices + ElevenLabs voices
         voices = [
             {
                 "id": "north_female",
-                "name": "Nữ miền Bắc (Hoài An)",
+                "name": "Nữ miền Bắc (Hoài An - Edge)",
                 "gender": "Nữ",
                 "region": "Miền Bắc",
                 "voice": "vi-VN-HoaiMyNeural",
@@ -485,7 +485,7 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             },
             {
                 "id": "north_male",
-                "name": "Nam miền Bắc (Gia Huy)",
+                "name": "Nam miền Bắc (Gia Huy - Edge)",
                 "gender": "Nam",
                 "region": "Miền Bắc",
                 "voice": "vi-VN-NamMinhNeural",
@@ -493,7 +493,7 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             },
             {
                 "id": "south_female",
-                "name": "Nữ miền Nam (Thảo Chi)",
+                "name": "Nữ miền Nam (Thảo Chi - Edge)",
                 "gender": "Nữ",
                 "region": "Miền Nam",
                 "voice": "vi-VN-HoaiMyNeural",
@@ -501,11 +501,67 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             },
             {
                 "id": "south_male",
-                "name": "Nam miền Nam (Minh Quân)",
+                "name": "Nam miền Nam (Minh Quân - Edge)",
                 "gender": "Nam",
                 "region": "Miền Nam",
                 "voice": "vi-VN-NamMinhNeural",
                 "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
+            },
+            {
+                "id": "charlie",
+                "name": "Charlie (ElevenLabs - Cao cấp)",
+                "gender": "Nam",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "charlie",
+                "desc": "Giọng nam cao cấp. Tông giọng ấm áp, tự nhiên, thích hợp kể chuyện, thuyết minh."
+            },
+            {
+                "id": "george",
+                "name": "George (ElevenLabs - Cao cấp)",
+                "gender": "Nam",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "george",
+                "desc": "Giọng nam chuyên nghiệp, rõ ràng, phù hợp bài giảng doanh nghiệp, thuyết trình."
+            },
+            {
+                "id": "callum",
+                "name": "Callum (ElevenLabs - Cao cấp)",
+                "gender": "Nam",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "callum",
+                "desc": "Giọng nam năng động, trẻ trung, lý tưởng cho vlog giải trí, mạng xã hội."
+            },
+            {
+                "id": "will",
+                "name": "Will (ElevenLabs - Cao cấp)",
+                "gender": "Nam",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "will",
+                "desc": "Giọng nam mạnh mẽ, tự tin, phù hợp cho video truyền động lực hoặc hướng dẫn."
+            },
+            {
+                "id": "charlotte",
+                "name": "Charlotte (ElevenLabs - Cao cấp)",
+                "gender": "Nữ",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "charlotte",
+                "desc": "Giọng nữ ngọt ngào, ấm áp, thích hợp cho các cuộc hội thoại tự nhiên."
+            },
+            {
+                "id": "alice",
+                "name": "Alice (ElevenLabs - Cao cấp)",
+                "gender": "Nữ",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "alice",
+                "desc": "Giọng nữ nhẹ nhàng, êm dịu, rất tốt cho video thiền, kể chuyện, podcast."
+            },
+            {
+                "id": "matilda",
+                "name": "Matilda (ElevenLabs - Cao cấp)",
+                "gender": "Nữ",
+                "region": "Bản quốc tế (Mỹ)",
+                "voice": "matilda",
+                "desc": "Giọng nữ giàu cảm xúc, sinh động, phù hợp để tạo kịch tính cho phim."
             }
         ]
                 
@@ -535,20 +591,22 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
     if not file_path.exists() or file_path.stat().st_size == 0:
         # Bản đồ giọng đọc mẫu tổng quát
         voices_map = {
-            "banmai": ("banmai", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Bắc Ban Mai của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
-            "lannhi": ("lannhi", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Nam Lan Nhi của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
-            "myan": ("myan", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Trung Mỹ An của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
-            "leminh": ("leminh", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Bắc Lê Minh của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
-            "giahuy": ("giahuy", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Nam Gia Huy của hệ thống Voice AI. Rất hân hạnh được phục vụ bạn."),
-            "linhsan": ("linhsan", "Xin chào! Đây là bản nghe thử giọng đọc báo chuyên nghiệp Linh San của hệ thống Voice AI."),
-            "thuminh": ("thuminh", "Xin chào! Đây là bản nghe thử giọng đọc truyền cảm Thu Minh của hệ thống Voice AI."),
-            "north_female": ("vi-VN-HoaiMyNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Bắc Hoài An của hệ thống Voice AI."),
-            "north_male": ("vi-VN-NamMinhNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Bắc Gia Huy của hệ thống Voice AI."),
-            "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nữ miền Nam Thảo Chi của hệ thống Voice AI."),
-            "south_male": ("vi-VN-NamMinhNeural", "Xin chào! Đây là bản nghe thử giọng đọc trí tuệ nhân tạo Nam miền Nam Minh Quân của hệ thống Voice AI.")
+            # Edge TTS (dài ~10-12s để nghe rõ)
+            "north_female": ("vi-VN-HoaiMyNeural", "Xin chào! Tôi là giọng đọc trí tuệ nhân tạo Hoài An, mang chất âm miền Bắc trong trẻo, chuyên nghiệp và đầy tự nhiên. Tôi rất phù hợp để thuyết minh bài giảng, review phim hoặc lồng tiếng các nội dung giáo dục. Hãy cùng tôi tạo nên những video thật cuốn hút nhé!"),
+            "north_male": ("vi-VN-NamMinhNeural", "Chào bạn! Tôi là Gia Huy, giọng đọc Nam miền Bắc của hệ thống Voice AI. Với tông giọng trầm ấm, rõ ràng và mạch lạc, tôi rất thích hợp cho các nội dung tin tức, phóng sự hoặc đọc tài liệu kỹ thuật. Rất hân hạnh được đồng hành cùng dự án của bạn."),
+            "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Mình là Thảo Chi, giọng đọc Nữ miền Nam vô cùng ngọt ngào, dịu dàng và truyền cảm. Mình rất thích hợp để lồng tiếng cho các video tâm sự, đọc truyện đêm muộn hoặc review ẩm thực. Hãy nhấn nút bên dưới để sử dụng giọng của mình nha!"),
+            "south_male": ("vi-VN-NamMinhNeural", "Chào mọi người! Mình là Minh Quân, giọng đọc Nam miền Nam đầy năng động, trẻ trung và lưu loát. Giọng của mình rất phù hợp cho các video quảng cáo sản phẩm, chia sẻ kinh nghiệm hoặc vlog đời sống. Chúc các bạn có những trải nghiệm tuyệt vời cùng Voice AI."),
+            # ElevenLabs (tiếng Anh dài ~10s để nghe rõ)
+            "charlie": ("charlie", "Hello there! This is a preview of Charlie, a premium AI voice from ElevenLabs. I am characterized by a warm, deep, and conversational tone, perfect for storytelling and video narration. I look forward to working with you."),
+            "george": ("george", "Hello! This is George, a professional AI voice from ElevenLabs. I offer a clear, authoritative, and articulate delivery, ideal for corporate videos, presentations, and documentary narrations."),
+            "callum": ("callum", "Hey there! I am Callum, an energetic and friendly AI voice from ElevenLabs. My tone is casual and engaging, which makes me a great fit for modern vlogs and social media content."),
+            "will": ("will", "Hello! This is Will, a strong and confident AI voice from ElevenLabs. I deliver words with power and precision, suitable for motivational videos, sports coverage, and tutorials."),
+            "charlotte": ("charlotte", "Hello! I am Charlotte, a sweet and natural AI voice from ElevenLabs. I speak with clarity and warmth, making me a great fit for conversational videos and explanations."),
+            "alice": ("alice", "Hello! This is Alice, a gentle and soft AI voice from ElevenLabs. My style is peaceful and soothing, which is perfect for meditation, audiobooks, and narrative content."),
+            "matilda": ("matilda", "Hi! I am Matilda, an expressive and emotional AI voice from ElevenLabs. I can bring deep narrative and storytelling elements to life in your video projects.")
         }
         
-        voice_code, sample_text = voices_map.get(voice_id, (voice_id, "Xin chào! Đây là bản nghe thử giọng đọc của hệ thống Voice AI."))
+        voice_code, sample_text = voices_map.get(voice_id, (voice_id, "Xin chào! Đây là bản nghe thử giọng đọc của hệ thống Voice AI. Chúc bạn một ngày tốt lành."))
         
         try:
             generate_tts_audio(
@@ -564,7 +622,7 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
                 import concurrent.futures
                 
                 # Map sang giọng Edge tương ứng
-                if voice_id in ["leminh", "giahuy", "north_male", "south_male"]:
+                if voice_id in ["leminh", "giahuy", "north_male", "south_male", "charlie", "george", "callum", "will"]:
                     edge_voice = "vi-VN-NamMinhNeural"
                 else:
                     edge_voice = "vi-VN-HoaiMyNeural"
