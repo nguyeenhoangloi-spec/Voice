@@ -412,37 +412,21 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
     """Render danh sách mẫu giọng AI hệ thống (Tải nhanh, không bị blocking)"""
     voices = [
         {
-            "id": "north_female",
-            "name": "Nữ miền Bắc (Hoài An - Edge)",
+            "id": "hoaimy",
+            "name": "Microsoft Edge Nữ (Hoài My - Neural)",
             "gender": "Nữ",
-            "region": "Miền Bắc",
+            "region": "Toàn quốc",
             "voice": "vi-VN-HoaiMyNeural",
-            "desc": "Giọng đọc trong trẻo, chuyên nghiệp, phù hợp với bài giảng, review phim."
+            "desc": "Giọng nữ đọc trong trẻo, tự nhiên, cực kỳ phù hợp thuyết minh phim, bài giảng hoặc sách nói."
         },
         {
-            "id": "north_male",
-            "name": "Nam miền Bắc (Gia Huy - Edge)",
+            "id": "namminh",
+            "name": "Microsoft Edge Nam (Nam Minh - Neural)",
             "gender": "Nam",
-            "region": "Miền Bắc",
+            "region": "Toàn quốc",
             "voice": "vi-VN-NamMinhNeural",
-            "desc": "Giọng đọc trầm ấm, truyền cảm, thích hợp làm tin tức, tài liệu."
-        },
-        {
-            "id": "south_female",
-            "name": "Nữ miền Nam (Thảo Chi - Edge)",
-            "gender": "Nữ",
-            "region": "Miền Nam",
-            "voice": "vi-VN-HoaiMyNeural",
-            "desc": "Giọng nói miền Nam vô cùng ngọt ngào, dịu dàng, phù hợp truyện đọc, tâm sự."
-        },
-        {
-            "id": "south_male",
-            "name": "Nam miền Nam (Minh Quân - Edge)",
-            "gender": "Nam",
-            "region": "Miền Nam",
-            "voice": "vi-VN-NamMinhNeural",
-            "desc": "Giọng đọc lưu loát, năng động, thích hợp quảng cáo, chia sẻ kinh nghiệm."
-        },
+            "desc": "Giọng nam đọc trầm ấm, rõ ràng, thích hợp làm tin tức, phóng sự và tài liệu kỹ thuật."
+        }
     ]
                  
     return templates.TemplateResponse(
@@ -457,7 +441,7 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
 
 
 @router.get("/voices/sample/{voice_id}.mp3")
-def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
+def get_voice_sample_audio(voice_id: str):
     """Sinh động (Lazy Loading) âm thanh mẫu của giọng AI và trả về dưới dạng file stream"""
     from app.config import settings
     from app.services.dubbing_engine import generate_tts_audio
@@ -472,10 +456,8 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
         # Bản đồ giọng đọc mẫu tổng quát
         voices_map = {
             # Edge TTS (dài ~10-12s để nghe rõ)
-            "north_female": ("vi-VN-HoaiMyNeural", "Xin chào! Tôi là giọng đọc trí tuệ nhân tạo Hoài An, mang chất âm miền Bắc trong trẻo, chuyên nghiệp và đầy tự nhiên. Tôi rất phù hợp để thuyết minh bài giảng, review phim hoặc lồng tiếng các nội dung giáo dục. Hãy cùng tôi tạo nên những video thật cuốn hút nhé!"),
-            "north_male": ("vi-VN-NamMinhNeural", "Chào bạn! Tôi là Gia Huy, giọng đọc Nam miền Bắc của hệ thống Voice AI. Với tông giọng trầm ấm, rõ ràng và mạch lạc, tôi rất thích hợp cho các nội dung tin tức, phóng sự hoặc đọc tài liệu kỹ thuật. Rất hân hạnh được đồng hành cùng dự án của bạn."),
-            "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Mình là Thảo Chi, giọng đọc Nữ miền Nam vô cùng ngọt ngào, dịu dàng và truyền cảm. Mình rất thích hợp để lồng tiếng cho các video tâm sự, đọc truyện đêm muộn hoặc review ẩm thực. Hãy nhấn nút bên dưới để sử dụng giọng của mình nha!"),
-            "south_male": ("vi-VN-NamMinhNeural", "Chào mọi người! Mình là Minh Quân, giọng đọc Nam miền Nam đầy năng động, trẻ trung và lưu loát. Giọng của mình rất phù hợp cho các video quảng cáo sản phẩm, chia sẻ kinh nghiệm hoặc vlog đời sống. Chúc các bạn có những trải nghiệm tuyệt vời cùng Voice AI."),
+            "hoaimy": ("vi-VN-HoaiMyNeural", "Xin chào! Tôi là giọng đọc trí tuệ nhân tạo Hoài My, mang chất âm tiếng Việt trong trẻo, chuyên nghiệp và đầy tự nhiên. Tôi rất phù hợp để thuyết minh bài giảng, review phim hoặc lồng tiếng các nội dung giáo dục. Hãy cùng tôi tạo nên những video thật cuốn hút nhé!"),
+            "namminh": ("vi-VN-NamMinhNeural", "Chào bạn! Tôi là Nam Minh, giọng đọc Nam của hệ thống Voice AI. Với tông giọng trầm ấm, rõ ràng và mạch lạc, tôi rất thích hợp cho các nội dung tin tức, phóng sự hoặc đọc tài liệu kỹ thuật. Rất hân hạnh được đồng hành cùng dự án của bạn."),
         }
         
         voice_code, sample_text = voices_map.get(voice_id, (voice_id, "Xin chào! Đây là bản nghe thử giọng đọc của hệ thống Voice AI. Chúc bạn một ngày tốt lành."))

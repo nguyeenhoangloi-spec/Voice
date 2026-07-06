@@ -288,7 +288,7 @@
         const voiceGenderSelect = document.getElementById("voice-gender");
         const voiceRegionSelect = document.getElementById("voice-region");
         const voiceRegionWrapper = document.getElementById("voice-region-wrapper");
-        const voiceProfileSelect = document.getElementById("voice-profile");
+                const voiceProfileSelect = document.getElementById("voice-profile");
         
         const voicesConfig = {
             edge: [
@@ -310,7 +310,7 @@
             });
         }
 
-        // Lắng nghe thay đổi TTS Engine để ẩn/hiện Vùng miền và reload voices
+        // Lắng nghe thay đổi TTS Engine để reload voices
         ttsEngineSelect.addEventListener("change", () => {
             initVoiceProfileDropdown();
             syncFromFilters();

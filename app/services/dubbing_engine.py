@@ -263,23 +263,46 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
                         rate: str = "+0%") -> str:
     """
-    Generate TTS audio using Microsoft Edge TTS (free).
+    Generate TTS audio using Microsoft Edge TTS (free) with retry logic.
     """
     # Edge TTS logic
     import edge_tts
     import asyncio
     import concurrent.futures
+    import time
 
     async def _gen():
         communicate = edge_tts.Communicate(text, voice, rate=rate)
         await communicate.save(output_path)
 
-    try:
-        loop = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            pool.submit(asyncio.run, _gen()).result()
-    except RuntimeError:
-        asyncio.run(_gen())
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Xóa file cũ nếu có để đảm bảo tạo file mới hoàn toàn
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    pass
+
+            try:
+                loop = asyncio.get_running_loop()
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    pool.submit(asyncio.run, _gen()).result()
+            except RuntimeError:
+                asyncio.run(_gen())
+                
+            # Đảm bảo file được tạo thành công và có dung lượng hợp lệ (> 100 bytes)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+                return output_path
+                
+            raise ValueError("Sinh file TTS rỗng hoặc không tồn tại.")
+        except Exception as e:
+            logger.warning(f"Lần thử {attempt}/{max_retries} sinh TTS thất bại cho text '{text[:20]}...': {e}")
+            if attempt < max_retries:
+                time.sleep(1.0 * attempt)  # Backoff: 1s, 2s
+            else:
+                raise e
 
     return output_path
 
@@ -308,8 +331,8 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
     """
     import concurrent.futures
 
-    # Cố định chạy song song tối đa 15 luồng cho Edge TTS
-    max_workers = 15
+    # Giới hạn tối đa 3 luồng chạy song song để tránh bị Microsoft từ chối WebSocket
+    max_workers = 3
 
     logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
 

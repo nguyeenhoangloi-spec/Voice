@@ -158,5 +158,44 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Prevention**: Khi tích hợp các thư viện bên thứ ba tự ý gọi shell/subprocess bên ngoài, luôn đảm bảo các biến môi trường và tên file nhị phân chạy trên môi trường Windows tương thích đầy đủ.
 - **Status**: Fixed
 
+---
+
+## [2026-07-06 23:10] - Pipeline step 11 failed: No module named 'deep_translator'
+
+- **Type**: Integration
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:172`
+- **Agent**: Voice
+- **Root Cause**: Pipeline lồng tiếng sử dụng thư viện `deep-translator` ở bước thứ 11 để thực hiện dịch thuật ngôn ngữ thoại sang tiếng Việt (Google Translate fallback). Do môi trường ảo Python thiếu thư viện này (chưa được khai báo trong `requirements.txt`), FastAPI ném ra lỗi `ModuleNotFoundError: No module named 'deep_translator'`.
+- **Error Message**: 
+  ```text
+  Pipeline step 8 failed: No module named 'deep_translator'
+  Pipeline failed for Job 6fa581e5-0d93-48b8-b986-17378aa910d0: No module named 'deep_translator'
+  ```
+- **Fix Applied**: Cài đặt thư viện `deep-translator` và cập nhật vào `requirements.txt`.
+- **Prevention**: Đảm bảo kiểm tra toàn bộ imports và khai báo đầy đủ các dependencies cần thiết trong `requirements.txt`.
+- **Status**: Fixed
+
+---
+
+## [2026-07-06 23:20] - Edge TTS NoAudioReceived error due to concurrent connection rate-limiting
+
+- **Type**: Runtime
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:312`
+- **Agent**: Voice
+- **Root Cause**: Khi sinh giọng đọc tiếng Việt bằng Edge TTS, hệ thống chạy song song tới 15 luồng (`max_workers = 15`). Điều này làm kích hoạt cơ chế giới hạn tần suất (rate-limiting/concurrency limit) của Microsoft Edge TTS API, khiến WebSocket bị ngắt kết nối và trả về lỗi `NoAudioReceived` cho rất nhiều phân đoạn, dẫn đến các phân đoạn đó không có tiếng lồng tiếng, chỉ nghe thấy âm thanh gốc ở video kết xuất.
+- **Error Message**: 
+  ```text
+  edge_tts.exceptions.NoAudioReceived: No audio was received. Please verify that your parameters are correct.
+  ```
+- **Fix Applied**: 
+  1. Giảm số lượng workers chạy song song trong `generate_all_tts_segments` từ `15` xuống `3` luồng để tránh bị Microsoft block.
+  2. Bổ sung cơ chế tự động thử lại (Retry) tối đa 3 lần với khoảng nghỉ tăng dần (exponential backoff) trong hàm `generate_tts_audio` để đảm bảo sinh thành công tệp âm thanh.
+- **Prevention**: Luôn giới hạn số lượng luồng đồng thời ở mức an toàn (< 5 luồng) đối với các API miễn phí của bên thứ ba, đồng thời luôn tích hợp cơ chế Retry để tránh mất mát dữ liệu do lỗi mạng tạm thời.
+- **Status**: Fixed
+
+
+
 
 

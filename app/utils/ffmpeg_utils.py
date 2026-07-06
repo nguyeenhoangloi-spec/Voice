@@ -190,6 +190,8 @@ def inject_ffmpeg_to_path():
             if not os.path.exists(target_ffprobe):
                 shutil.copy2(ffprobe_path, target_ffprobe)
                 logger.info(f"Created standard copy of ffprobe binary at: {target_ffprobe}")
+        except FileNotFoundError:
+            pass  # Chấp nhận không có ffprobe và dùng ffmpeg fallback
         except Exception as ff_err:
             logger.warning(f"Failed to copy ffprobe to standard name: {ff_err}")
         

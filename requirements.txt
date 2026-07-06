@@ -38,3 +38,7 @@ edge-tts==7.2.8
 
 # Voice Recognition (ASR)
 openai-whisper
+
+# Translation
+deep-translator
+
