@@ -50,6 +50,13 @@ def get_ffmpeg_path() -> str:
     if _ffmpeg_path and os.path.isfile(_ffmpeg_path):
         return _ffmpeg_path
 
+    # 0. Check project binaries folder first
+    project_binaries_ffmpeg = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "binaries", "ffmpeg.exe" if os.name == 'nt' else "ffmpeg"))
+    if os.path.isfile(project_binaries_ffmpeg) and _test_binary(project_binaries_ffmpeg):
+        _ffmpeg_path = project_binaries_ffmpeg
+        logger.info(f"FFmpeg from project binaries: {project_binaries_ffmpeg}")
+        return _ffmpeg_path
+
     # 1. Try imageio-ffmpeg (most reliable on Windows)
     try:
         import imageio_ffmpeg
@@ -88,6 +95,13 @@ def get_ffprobe_path() -> str:
     """Get the absolute path to a WORKING ffprobe executable"""
     global _ffprobe_path
     if _ffprobe_path and os.path.isfile(_ffprobe_path):
+        return _ffprobe_path
+
+    # 0. Check project binaries folder first
+    project_binaries_ffprobe = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "binaries", "ffprobe.exe" if os.name == 'nt' else "ffprobe"))
+    if os.path.isfile(project_binaries_ffprobe) and _test_binary(project_binaries_ffprobe):
+        _ffprobe_path = project_binaries_ffprobe
+        logger.info(f"FFprobe from project binaries: {project_binaries_ffprobe}")
         return _ffprobe_path
 
     # 1. Try to derive from imageio-ffmpeg's ffmpeg path
@@ -185,9 +199,9 @@ def inject_ffmpeg_to_path():
         # Tương tự, tạo bản copy tiêu chuẩn cho ffprobe.exe
         try:
             ffprobe_path = get_ffprobe_path()
-            ffprobe_dir = os.path.dirname(ffprobe_path)
-            target_ffprobe = os.path.join(ffprobe_dir, "ffprobe.exe" if os.name == 'nt' else "ffprobe")
-            if not os.path.exists(target_ffprobe):
+            # Sao chép ffprobe.exe sang cùng thư mục với ffmpeg để đưa vào PATH đồng thời
+            target_ffprobe = os.path.join(ffmpeg_dir, "ffprobe.exe" if os.name == 'nt' else "ffprobe")
+            if not os.path.exists(target_ffprobe) or os.path.normpath(ffprobe_path) != os.path.normpath(target_ffprobe):
                 shutil.copy2(ffprobe_path, target_ffprobe)
                 logger.info(f"Created standard copy of ffprobe binary at: {target_ffprobe}")
         except FileNotFoundError:
