@@ -641,12 +641,7 @@ def get_voice_sample_audio(voice_id: str, user=Depends(get_current_user)):
                 logger.info(f"Đã sinh thành công giọng mẫu fallback Edge TTS cho {voice_id}.")
             except Exception as edge_err:
                 logger.error(f"Lỗi khi sinh giọng mẫu fallback Edge TTS cho {voice_id}: {edge_err}")
-                try:
-                    # Tạo file rỗng nếu cả hai đều lỗi
-                    with open(file_path, "wb") as f:
-                        f.write(b"")
-                except Exception:
-                    pass
+                # Tuyệt đối không tạo file rỗng 0 bytes nữa để tránh kẹt trạng thái lỗi
                     
     return FileResponse(str(file_path), media_type="audio/mpeg")
 
@@ -678,3 +673,79 @@ def delete_job(job_id: str, user=Depends(get_current_user), db: Session = Depend
     db.delete(job)
     db.commit()
     return {"success": True, "message": "Đã xóa tác vụ thành công."}
+
+
+# Khởi chạy luồng chạy ngầm tiền sinh (Pre-generation) toàn bộ các file mẫu nghe thử nếu bị thiếu
+def pre_generate_all_samples():
+    """Hàm chạy ngầm tuần tự sinh trước toàn bộ các file mẫu nghe thử nếu bị thiếu"""
+    def _run():
+        import time
+        from app.config import settings
+        from app.services.dubbing_engine import generate_tts_audio
+        
+        # Đợi 3 giây cho server uvicorn khởi động ổn định
+        time.sleep(3)
+        
+        sample_dir = settings.STORAGE_DIR / "samples"
+        os.makedirs(sample_dir, exist_ok=True)
+        
+        voices_map = {
+            "north_female": ("vi-VN-HoaiMyNeural", "Xin chào! Tôi là giọng đọc trí tuệ nhân tạo Hoài An, mang chất âm miền Bắc trong trẻo, chuyên nghiệp và đầy tự nhiên. Tôi rất phù hợp để thuyết minh bài giảng, review phim hoặc lồng tiếng các nội dung giáo dục. Hãy cùng tôi tạo nên những video thật cuốn hút nhé!"),
+            "north_male": ("vi-VN-NamMinhNeural", "Chào bạn! Tôi là Gia Huy, giọng đọc Nam miền Bắc của hệ thống Voice AI. Với tông giọng trầm ấm, rõ ràng và mạch lạc, tôi rất thích hợp cho các nội dung tin tức, phóng sự hoặc đọc tài liệu kỹ thuật. Rất hân hạnh được đồng hành cùng dự án của bạn."),
+            "south_female": ("vi-VN-HoaiMyNeural", "Xin chào! Mình là Thảo Chi, giọng đọc Nữ miền Nam vô cùng ngọt ngào, dịu dàng và truyền cảm. Mình rất thích hợp để lồng tiếng cho các video tâm sự, đọc truyện đêm muộn hoặc review ẩm thực. Hãy nhấn nút bên dưới để sử dụng giọng của mình nha!"),
+            "south_male": ("vi-VN-NamMinhNeural", "Chào mọi người! Mình là Minh Quân, giọng đọc Nam miền Nam đầy năng động, trẻ trung và lưu loát. Giọng của mình rất phù hợp cho các video quảng cáo sản phẩm, chia sẻ kinh nghiệm hoặc vlog đời sống. Chúc các bạn có những trải nghiệm tuyệt vời cùng Voice AI."),
+            "charlie": ("charlie", "Hello there! This is a preview of Charlie, a premium AI voice from ElevenLabs. I am characterized by a warm, deep, and conversational tone, perfect for storytelling and video narration. I look forward to working with you."),
+            "george": ("george", "Hello! This is George, a professional AI voice from ElevenLabs. I offer a clear, authoritative, and articulate delivery, ideal for corporate videos, presentations, and documentary narrations."),
+            "callum": ("callum", "Hey there! I am Callum, an energetic and friendly AI voice from ElevenLabs. My tone is casual and engaging, which makes me a great fit for modern vlogs and social media content."),
+            "will": ("will", "Hello! This is Will, a strong and confident AI voice from ElevenLabs. I deliver words with power and precision, suitable for motivational videos, sports coverage, and tutorials."),
+            "charlotte": ("charlotte", "Hello! I am Charlotte, a sweet and natural AI voice from ElevenLabs. I speak with clarity and warmth, making me a great fit for conversational videos and explanations."),
+            "alice": ("alice", "Hello! This is Alice, a gentle and soft AI voice from ElevenLabs. My style is peaceful and soothing, which is perfect for meditation, audiobooks, and narrative content."),
+            "matilda": ("matilda", "Hi! I am Matilda, an expressive and emotional AI voice from ElevenLabs. I can bring deep narrative and storytelling elements to life in your video projects.")
+        }
+        
+        logger.info("[Voice Sample Pre-gen] Bắt đầu kiểm tra và sinh trước các file mẫu giọng đọc...")
+        for voice_id, (voice_code, sample_text) in voices_map.items():
+            file_path = sample_dir / f"{voice_id}.mp3"
+            
+            # Xóa nếu file bị lỗi 0 bytes
+            if file_path.exists() and file_path.stat().st_size == 0:
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+            
+            # Nếu chưa có file, sinh tuần tự
+            if not file_path.exists():
+                try:
+                    logger.info(f"[Voice Sample Pre-gen] Đang sinh file mẫu cho: {voice_id}...")
+                    generate_tts_audio(
+                        text=sample_text,
+                        output_path=str(file_path),
+                        voice=voice_code
+                    )
+                    # Delay 1 giây giữa các cuộc gọi để tránh quá tải/block IP
+                    time.sleep(1.0)
+                except Exception as e:
+                    logger.warning(f"[Voice Sample Pre-gen] Lỗi sinh mẫu cho {voice_id}: {e}. Cố gắng sinh fallback Edge TTS.")
+                    try:
+                        import edge_tts
+                        import asyncio
+                        
+                        if voice_id in ["north_male", "south_male", "charlie", "george", "callum", "will"]:
+                            edge_voice = "vi-VN-NamMinhNeural"
+                        else:
+                            edge_voice = "vi-VN-HoaiMyNeural"
+                            
+                        async def _gen_edge():
+                            communicate = edge_tts.Communicate(sample_text, edge_voice)
+                            await communicate.save(str(file_path))
+                            
+                        asyncio.run(_gen_edge())
+                        time.sleep(1.0)
+                    except Exception as edge_err:
+                        logger.error(f"[Voice Sample Pre-gen] Thất bại hoàn toàn khi sinh mẫu cho {voice_id}: {edge_err}")
+
+        logger.info("[Voice Sample Pre-gen] Hoàn thành việc chuẩn bị toàn bộ file mẫu nghe thử!")
+
+import threading
+threading.Thread(target=pre_generate_all_samples, daemon=True).start()
