@@ -404,13 +404,8 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     words = translation.split()
     word_count = len(words)
 
-    # If words exceed normal rate, bump speed up to +15% before compressing
-    if word_count > max_words_normal:
-        rate = "+15%"
-
-    # Only compress if words exceed the hard ceiling (4.5 w/s) - prevents cutting important words
-    if word_count > max_words_fast and max_words_fast > 0:
-        translation = _compress_translation(translation, max_words_fast)
+    # NOTE: No auto speed-up or compression — user wants natural reading pace
+    # Rate is only set by video_context (Bình thường / Nhanh / Chậm / Giảng dạy)
 
     ssml_content = translation.strip()
 
@@ -460,7 +455,7 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
         except Exception as e:
             logger.warning(f"Lần thử {attempt}/{max_retries} sinh TTS thất bại cho text '{text[:20]}...': {e}")
             if attempt < max_retries:
-                time.sleep(1.0 * attempt)  # Backoff: 1s, 2s
+                time.sleep(2.0 * attempt)  # Backoff: 2s, 4s (tránh rate-limit Microsoft)
             else:
                 raise e
 
@@ -513,8 +508,8 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
         effective_voice_map = voice_map or DEFAULT_SPEAKER_VOICE_MAP
         logger.info(f"Multi-speaker detected ({len(speakers)} speakers) → voice map: {effective_voice_map}")
 
-    # Giới hạn tối đa 3 luồng chạy song song để tránh bị Microsoft từ chối WebSocket
-    max_workers = 3
+    # Giới hạn tối đa 2 luồng song song để tránh bị Microsoft rate-limit WebSocket
+    max_workers = 2
     logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
 
     def process_single_segment(idx_seg_tuple):
