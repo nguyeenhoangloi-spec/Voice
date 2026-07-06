@@ -9,10 +9,10 @@
     <title>{{ page_title if page_title else "VoiceAI - AI Video Dubbing Platform" }}</title>
     
     <!-- CSS Stylesheets -->
-    <link rel="stylesheet" href="/static/css/variables.css?v=2.0.1">
-    <link rel="stylesheet" href="/static/css/main.css?v=2.0.1">
-    <link rel="stylesheet" href="/static/css/layout.css?v=2.0.1">
-    <link rel="stylesheet" href="/static/css/components.css?v=2.0.1">
+    <link rel="stylesheet" href="/static/css/variables.css?v=3.0.2">
+    <link rel="stylesheet" href="/static/css/main.css?v=3.0.2">
+    <link rel="stylesheet" href="/static/css/layout.css?v=3.0.2">
+    <link rel="stylesheet" href="/static/css/components.css?v=3.0.2">
     {% block extra_css %}{% endblock %}
 
     <!-- Theme Logic (Chạy ngay trước khi render để tránh flash màn hình trắng) -->
@@ -52,11 +52,11 @@
         </main>
     </div>
 
-    <!-- Lucide Icons CDN -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide Icons Local Static -->
+    <script src="/static/js/lucide.min.js?v=1.0"></script>
     
     <!-- Scripts -->
-    <script src="/static/js/main.js?v=2.0"></script>
+    <script src="/static/js/main.js?v=3.0.2"></script>
     <script>
         // Khởi tạo các icon của Lucide và giải phóng khóa kích thước sidebar ngay lập tức
         if (typeof lucide !== "undefined") {

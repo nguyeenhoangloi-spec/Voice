@@ -96,7 +96,11 @@ Sử dụng các lệnh sau để kích hoạt quy trình tác chiến chuyên s
 
 ## Hướng dẫn tùy chỉnh
 
-1.  **Quy tắc lập trình Andrej Karpathy (Andrej Karpathy Guidelines)**: Luôn tự động kích hoạt và tuân thủ nghiêm ngặt bộ quy tắc tại [**`karpathy-guidelines.md`**](file:///d:/Voice_AI/.agent/rules/karpathy-guidelines.md) để tránh over-engineering, scope creep, tự ý giả định ngầm và đảm bảo kiểm thử thực tế trước khi hoàn thành mọi task.
+1.  **Quy trình Superpowers (BẮT BUỘC)**: Agent PHẢI luôn tự động kích hoạt và tuân thủ nghiêm ngặt các kỹ năng của Superpowers có sẵn tại `.agent/skills/` trước và trong suốt quá trình xử lý yêu cầu:
+    *   **Trước khi code**: Sử dụng [**`using-superpowers.md`**](file:///d:/Voice_AI/.agent/skills/using-superpowers/SKILL.md) và [**`brainstorming.md`**](file:///d:/Voice_AI/.agent/skills/brainstorming/SKILL.md) để phân tích yêu cầu, đặt từ 3-5 câu hỏi làm rõ (Socratic Gate), tuyệt đối không tự ý code ngay khi chưa rõ ý định.
+    *   **Lập kế hoạch**: Sử dụng [**`writing-plans.md`**](file:///d:/Voice_AI/.agent/skills/writing-plans/SKILL.md) để đề xuất kế hoạch triển khai chi tiết (`implementation_plan.md`) trước khi chỉnh sửa file.
+    *   **Kiểm thử & Xác minh**: Sử dụng [**`test-driven-development.md`**](file:///d:/Voice_AI/.agent/skills/test-driven-development/SKILL.md) và [**`verification-before-completion.md`**](file:///d:/Voice_AI/.agent/skills/verification-before-completion/SKILL.md) để viết test và chạy kiểm thử thực tế lấy bằng chứng trước khi báo cáo hoàn thành.
+2.  **Quy tắc lập trình Andrej Karpathy (Andrej Karpathy Guidelines)**: Luôn tự động kích hoạt và tuân thủ nghiêm ngặt bộ quy tắc tại [**`karpathy-guidelines.md`**](file:///d:/Voice_AI/.agent/rules/karpathy-guidelines.md) để tránh over-engineering, scope creep, tự ý giả định ngầm và đảm bảo kiểm thử thực tế trước khi hoàn thành mọi task.
 
 ---
 *Được tạo bởi Antigravity IDE*

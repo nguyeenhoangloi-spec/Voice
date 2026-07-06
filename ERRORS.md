@@ -91,3 +91,15 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Prevention**: Thực hiện kiểm tra chất lượng tĩnh (linter) hoặc chạy test suite với engine thực tế để sớm phát hiện các biến/module chưa định nghĩa.
 - **Status**: Fixed
 
+---
+
+## [2026-07-06 22:30] - Giao diện Tác vụ gần đây không đổi View (List/Grid) nếu không tải lại trang
+
+- **Type**: Logic
+- **Severity**: Medium
+- **File**: `app/templates/user/dashboard.html:487`
+- **Agent**: Voice
+- **Root Cause**: CSS có các rule `.view-mode-grid` và `.view-mode-list` sử dụng `!important` nhắm vào `#container-list-view` và `#container-grid-view`. JavaScript chỉ thay đổi thuộc tính `style.display` của hai container này nhưng không cập nhật class view-mode trên phần tử cha `#dashboard-recent-section`, dẫn đến việc các thuộc tính CSS `!important` ghi đè hoàn toàn hiển thị của JS cho tới khi F5 reload (chạy inline script cập nhật class cha).
+- **Fix Applied**: Cập nhật hàm `setViewMode(mode)` trong file JavaScript để xoá và thêm các class `view-mode-list`/`view-mode-grid` trên phần tử cha `#dashboard-recent-section` tương ứng với chế độ xem được chọn.
+- **Prevention**: Khi kết hợp JS toggle và CSS có độ ưu tiên cao (`!important`), luôn cập nhật các class trạng thái trên phần tử cha/bọc thay vì chỉ gán kiểu inline.
+- **Status**: Fixed

@@ -117,6 +117,16 @@
         margin-top: 4px;
     }
 
+    /* CSS để triệt tiêu hoàn toàn hiện tượng Layout Shift (giật lag) khi tải trang */
+    .view-mode-grid #container-list-view { display: none !important; }
+    .view-mode-grid #container-grid-view { display: grid !important; }
+    .view-mode-list #container-list-view { display: block !important; }
+    .view-mode-list #container-grid-view { display: none !important; }
+
+    /* CSS ẩn các item thừa trong quá trình tải trang (init-loading) */
+    .init-loading.view-mode-list .job-item-row:nth-child(n+10) { display: none !important; }
+    .init-loading.view-mode-grid .job-item-card:nth-child(n+13) { display: none !important; }
+
     /* CSS cho Toggle View Buttons */
     .view-toggle-group {
         display: inline-flex;
@@ -272,20 +282,43 @@
 </div>
 
 <!-- Recent Jobs Section -->
-<div class="card glass hover-glow dashboard-card-section" style="padding: 24px !important; display: flex; flex-direction: column; gap: 20px; background: var(--glass-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
+<div class="card glass hover-glow dashboard-card-section init-loading" id="dashboard-recent-section" style="padding: 24px !important; display: flex; flex-direction: column; gap: 20px; background: var(--glass-bg); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);">
+    <!-- Inline Script chạy tức thời để gán class view mode chống giật lag layout (FOUC) trước khi render -->
+    <script>
+        (function() {
+            var activeView = localStorage.getItem("dashboard-view-mode") || "list";
+            var section = document.getElementById("dashboard-recent-section");
+            if (activeView === "grid") {
+                section.classList.add("view-mode-grid");
+            } else {
+                section.classList.add("view-mode-list");
+            }
+        })();
+    </script>
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 4px;">
         <h2 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Tác vụ gần đây</h2>
         
         <div style="display: flex; align-items: center; gap: 10px;">
             <!-- View Mode Switcher -->
             <div class="view-toggle-group">
-                <button class="view-toggle-btn active" id="btn-list-view" title="Xem dạng bảng danh sách">
+                <button class="view-toggle-btn" id="btn-list-view" title="Xem dạng bảng danh sách">
                     <i data-lucide="list" style="width: 16px; height: 16px;"></i>
                 </button>
                 <button class="view-toggle-btn" id="btn-grid-view" title="Xem dạng lưới hiện đại">
                     <i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>
                 </button>
             </div>
+            <!-- Inline Script chạy tức thời để gán active cho đúng nút view mode tránh lag nút -->
+            <script>
+                (function() {
+                    var activeView = localStorage.getItem("dashboard-view-mode") || "list";
+                    if (activeView === "grid") {
+                        document.getElementById("btn-grid-view").classList.add("active");
+                    } else {
+                        document.getElementById("btn-list-view").classList.add("active");
+                    }
+                })();
+            </script>
 
             <button class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px;" onclick="window.location.reload()">
                 <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 6px;"></i> Tải lại
@@ -456,6 +489,17 @@
             localStorage.setItem("dashboard-view-mode", mode);
             currentPage = 1; // Reset về trang 1 khi đổi view
 
+            const recentSection = document.getElementById("dashboard-recent-section");
+            if (recentSection) {
+                if (mode === "grid") {
+                    recentSection.classList.remove("view-mode-list");
+                    recentSection.classList.add("view-mode-grid");
+                } else {
+                    recentSection.classList.remove("view-mode-grid");
+                    recentSection.classList.add("view-mode-list");
+                }
+            }
+
             if (mode === "grid") {
                 btnListView.classList.remove("active");
                 btnGridView.classList.add("active");
@@ -474,6 +518,12 @@
             btnListView.addEventListener("click", () => setViewMode("list"));
             btnGridView.addEventListener("click", () => setViewMode("grid"));
             setViewMode(activeView);
+        }
+
+        // Giải phóng trạng thái init-loading để nhường quyền kiểm soát ẩn/hiện hoàn toàn cho JS phân trang
+        const recentSection = document.getElementById("dashboard-recent-section");
+        if (recentSection) {
+            recentSection.classList.remove("init-loading");
         }
 
         // 2. Hàm render trang hiện tại
