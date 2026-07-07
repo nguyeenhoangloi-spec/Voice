@@ -511,6 +511,19 @@ def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration
 
 def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral", video_topic: str = "") -> list:
     """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
+    import sys
+    if "pytest" not in sys.modules:
+        import os
+        from pathlib import Path
+        from dotenv import load_dotenv
+        # Ép buộc load lại file .env mới nhất trên đĩa cứng vào os.environ để tránh cache biến môi trường
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        load_dotenv(base_dir / ".env", override=True)
+
+        from app.config import settings
+        # Cập nhật lại giá trị GEMINI_API_KEY trong settings đối tượng
+        settings.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+
     from app.config import settings
 
     # Nếu tất cả các segment đều đã có sẵn bản dịch tiếng Việt, bypass dịch thuật để tiết kiệm API và tăng độ chính xác
@@ -589,7 +602,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                             "parts": [{"text": prompt}]
                         }]
                     }
-                    res_http = requests.post(url, headers=headers, json=payload, timeout=30.0)
+                    res_http = requests.post(url, headers=headers, json=payload, timeout=90.0)
                     res_http.raise_for_status()
                     res_data = res_http.json()
                     res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -614,9 +627,9 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 break  # parse failed - no point retrying
             except Exception as e:
                 err_str = str(e)
-                if "503" in err_str or "UNAVAILABLE" in err_str:
+                if "503" in err_str or "UNAVAILABLE" in err_str or "timeout" in err_str.lower() or "connection" in err_str.lower():
                     if gemini_attempt < 3:
-                        logger.warning(f"Gemini 503 (lần {gemini_attempt}/3) - thử lại sau 5 giây...")
+                        logger.warning(f"Lỗi kết nối/timeout Gemini (lần {gemini_attempt}/3): {e} - thử lại sau 5 giây...")
                         _time.sleep(5)
                         continue
                 logger.warning(f"Lỗi khi dịch bằng Gemini API: {e}. Tiến hành fallback sang Google Translate.")
