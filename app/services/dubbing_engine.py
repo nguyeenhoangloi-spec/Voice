@@ -491,7 +491,7 @@ def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration
 
 
 
-def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral") -> list:
+def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral", video_topic: str = "") -> list:
     """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
     from app.config import settings
 
@@ -499,7 +499,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
     api_key = settings.GEMINI_API_KEY.strip()
     if api_key:
         import time as _time
-        logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}...")
+        logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}, chủ đề: {video_topic}...")
         for gemini_attempt in range(1, 4):  # retry up to 3 times for 503
             try:
                 from google import genai
@@ -510,16 +510,13 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 client = genai.Client(api_key=api_key)
 
                 # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
-                # Vietnamese natural speech rate: ~3.5 syllables/second, each word ~1.7 syllables avg
-                # Allow up to 3.6 words per second to avoid drop words (we can stretch tempo using ffmpeg up to 1.25x)
                 prompt = (
                     "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
-                    f"Video topic/context: {video_context}\n\n"
+                    f"Video topic/work details: {video_topic} (Timing rate constraint: {video_context})\n\n"
                     "YOUR TASK: Translate English video transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
                     "STRICT RULES:\n"
-                    "1. PROPER NOUNS: Keep names of people, brands, products, places UNCHANGED.\n"
-                    "   - 'John said' → 'John nói' (NOT 'Giăng nói')\n"
-                    "   - 'iPhone 16' → 'iPhone 16' (never translate product/brand names)\n"
+                    "1. PROPER NOUNS & CHARACTER NAMES: For general foreign names/brands, keep them unchanged (e.g. 'iPhone 16' -> 'iPhone 16').\n"
+                    "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese (e.g. 'Nobita' -> 'Nô-bi-ta', 'Shizuka' -> 'Xi-du-ka', 'Jaian' -> 'Chai-en', 'Suneo' -> 'Xu-ne-o', 'Doraemon' -> 'Đô-rê-mon', 'Conan' -> 'Cô-nan', 'Harry Potter' -> 'Ha-ri Pót-tơ', 'Hermione' -> 'Hơ-mai-ơ-ni') so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English if they would sound wrong when read by a Vietnamese voice.\n"
                     "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
                     "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
                     "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"

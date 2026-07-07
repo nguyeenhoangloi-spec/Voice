@@ -99,3 +99,29 @@ def test_create_job_and_fetch_status(logged_in_client):
     assert data["job_id"] == job_id
     assert len(data["steps"]) == 20
     assert data["steps"][0]["name"] == "Kiểm tra liên kết"
+
+def test_translate_segments_with_video_topic():
+    from app.services.dubbing_engine import translate_segments
+    
+    segments = [{"start": 0.0, "end": 2.0, "text": "Nobita and Shizuka went to Suneo's house."}]
+
+    # Case 1: Google Translator Fallback (khi không có API key)
+    with patch("app.config.settings.GEMINI_API_KEY", ""):
+        with patch("deep_translator.GoogleTranslator.translate") as mock_trans:
+            mock_trans.return_value = "Nobita và Shizuka đi đến nhà Suneo."
+            res = translate_segments(segments, target_lang="vi", video_context="neutral", video_topic="Doraemon")
+            assert res[0]["translation"] == "Nobita và Shizuka đi đến nhà Suneo."
+
+    # Case 2: Dịch với Gemini API (giả lập kết quả trả về có phiên âm Việt hóa)
+    with patch("app.config.settings.GEMINI_API_KEY", "mocked_gemini_key"):
+        with patch("google.genai.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+            
+            mock_response = MagicMock()
+            mock_response.text = '["Nô-bi-ta và Xi-du-ka đi đến nhà Xu-ne-o."]'
+            mock_client.models.generate_content.return_value = mock_response
+            
+            res = translate_segments(segments, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
+            assert res[0]["translation"] == "Nô-bi-ta và Xi-du-ka đi đến nhà Xu-ne-o."
+

@@ -20,6 +20,7 @@ class JobCreateRequest(BaseModel):
     generate_subtitles: bool
     translation_mode: Optional[str] = "natural"
     video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
+    video_topic: Optional[str] = ""            # e.g. "Doraemon cartoon", "Harry Potter movie"
     whisper_model: Optional[str] = "base"      # base | small | medium
     asr_method: Optional[str] = "whisper"      # whisper | softsub | ocr
 

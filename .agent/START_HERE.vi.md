@@ -60,11 +60,36 @@ Trước khi bắt đầu, tôi cần làm rõ một vài điểm:
 - `ARCHITECTURE.md` - Tài liệu kiến trúc hệ thống.
 - `SKILLS.md` - Danh mục 550+ kỹ năng.
 
-### Lệnh tắt (Slash Commands):
-- `/create` - Tạo tính năng mới.
-- `/brainstorm` - Thiết kế ý tưởng trước khi code.
-- `/debug` - Gỡ lỗi có hệ thống.
-- `/test` - Tạo và chạy kiểm thử.
+### 🚀 Các Lệnh Siêu Năng Lực (Hay Nhất & Khuyên Dùng):
+
+Đây là những lệnh mạnh mẽ nhất giúp Agent phân tích kỹ lưỡng, tối ưu hệ thống và giải quyết các tác vụ phức tạp trước khi sửa code:
+
+*   **`/plan`** - **[Cực hay - Khuyên dùng]** Bật chế độ Lập kế hoạch (Planning Mode). Agent sẽ phân tích hệ thống, tạo tệp `implementation_plan.md` chi tiết và chỉ viết code sau khi được bạn phê duyệt.
+*   **`/goal`** - **[Tự động chạy ngầm]** Thiết lập một mục tiêu chạy ngầm dài hạn (ví dụ: chạy qua đêm). Agent sẽ tự động chạy, kiểm thử, gỡ lỗi liên tục cho đến khi hoàn thành mục tiêu mà không dừng lại.
+*   **`/grill-me`** - **[Phản biện thiết kế]** Agent đóng vai trò Lead Architect để phỏng vấn ngược lại bạn, chỉ ra điểm yếu logic và cùng bạn tối ưu hóa giải pháp trước khi code.
+*   **`/orchestrate`** - **[Hội đồng chuyên gia]** Triệu tập một nhóm specialist agents cùng phối hợp song song để xử lý các tác vụ cực kỳ phức tạp.
+*   **`/debug`** - **[Sửa lỗi chuyên sâu]** Tự động phân tích log lỗi, tìm nguyên nhân gốc rễ và sửa lỗi theo quy trình chuẩn.
+*   **`/learn`** - **[Tích lũy kinh nghiệm]** Lưu lại bài học kinh nghiệm hoặc cấu hình phức tạp vào bộ nhớ của Agent để không bao giờ phải cấu hình lại từ đầu ở các phiên sau.
+
+### 📋 Các Lệnh Hỗ Trợ Phát Triển Khác (Sắp xếp theo độ hữu dụng):
+
+*   **Phát triển & Tối ưu:**
+    *   `/create` - Khởi tạo tính năng hoặc dự án mới từ đầu.
+    *   `/enhance` - Nâng cấp giao diện hoặc tinh chỉnh các logic nhỏ của tính năng hiện tại.
+    *   `/performance` - Tối ưu hiệu năng, tốc độ tải trang & độ mượt của ứng dụng.
+    *   `/realtime` - Tích hợp các tính năng thời gian thực (Socket.io, WebRTC, SSE).
+*   **Kiểm thử & Bàn giao:**
+    *   `/test` - Tự động viết và chạy kiểm thử (TDD).
+    *   `/audit` - Quét toàn bộ hệ thống về chất lượng, an toàn và bảo mật trước khi bàn giao.
+    *   `/deploy` - Hỗ trợ triển khai ứng dụng lên server hoặc các nền tảng đám mây.
+*   **Tài liệu & Học tập:**
+    *   `/explain` - Giải thích chi tiết mã nguồn hoặc cấu trúc dự án.
+    *   `/document` - Tự động viết tài liệu hướng dẫn kỹ thuật chất lượng cao.
+    *   `/update-docs` - Đồng bộ tài liệu hướng dẫn khi code thay đổi.
+    *   `/visually` - Trực quan hóa logic hoặc luồng đi của code.
+    *   `/log-error` - Ghi nhận lỗi phát sinh để tự động cải thiện.
+    *   `/onboard` - Tự động tạo tài liệu hướng dẫn thiết lập nhanh cho thành viên mới.
+    *   `/compliance` - Kiểm tra tính tuân thủ pháp lý và an toàn dữ liệu (GDPR, HIPAA).
 
 ---
 

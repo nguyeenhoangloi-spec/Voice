@@ -343,8 +343,14 @@ def run_dubbing_pipeline(job_id: str):
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     video_context = voice_config.get("video_context", "neutral")
+                    video_topic = voice_config.get("video_topic", "")
                     
-                    segments_data = translate_segments(segments_data, target_lang="vi", video_context=video_context)
+                    segments_data = translate_segments(
+                        segments_data, 
+                        target_lang="vi", 
+                        video_context=video_context,
+                        video_topic=video_topic
+                    )
 
                     # Update segments in DB with translations
                     db_segments = db.query(TranscriptSegment).filter(

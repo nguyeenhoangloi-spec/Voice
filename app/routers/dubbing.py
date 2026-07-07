@@ -163,6 +163,7 @@ def api_create_job(
         "generate_subtitles": req.generate_subtitles,
         "translation_mode": req.translation_mode,
         "video_context": req.video_context or "neutral",
+        "video_topic": req.video_topic or "",
         "whisper_model": req.whisper_model or "base",
         "asr_method": req.asr_method or "whisper"
     }

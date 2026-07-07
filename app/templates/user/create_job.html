@@ -231,6 +231,12 @@
                 </div>
             </div>
 
+            <!-- Trường Chủ đề/Tác phẩm Video bổ sung cho Gemini ASR/Translation -->
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="video-topic" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Chủ đề / Tác phẩm của Video (Để AI dịch &amp; phiên âm chuẩn)</label>
+                <input type="text" id="video-topic" class="form-control" placeholder="Ví dụ: Phim hoạt hình Doraemon, Phim rạp Conan, Review phim Harry Potter, Tin tức Apple..." title="Giúp AI nhận diện đúng nhân vật và tự động viết phiên âm tiếng Việt dễ đọc cho bộ đọc AI.">
+            </div>
+
             <div class="info-badge-premium" style="background: rgba(56,189,248,0.03); border-color: rgba(56,189,248,0.12);">
                 <i data-lucide="users" style="width: 16px; height: 16px; flex-shrink:0; color: var(--color-primary);"></i>
                 <span>Phân vai nhân vật: Hệ thống sẽ tự động phát hiện số lượng người nói và xen kẽ giọng Nam / Nữ phù hợp.</span>
@@ -719,6 +725,7 @@
                         bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
                         video_context: document.getElementById("video-context").value,
+                        video_topic: document.getElementById("video-topic").value.trim(),
                         whisper_model: document.getElementById("whisper-model").value,
                         asr_method: document.getElementById("asr-method").value
                     })

@@ -60,11 +60,36 @@ Before I start, let me ask:
 - `ARCHITECTURE.md` - System architecture
 - `SKILLS.md` - Complete skills inventory (550+)
 
-### Workflows:
-- `/create` - Create new features
-- `/brainstorm` - Design before coding
-- `/debug` - Systematic debugging
-- `/test` - Generate and run tests
+### 🚀 Superpower Commands (Best & Highly Recommended):
+
+These are the most powerful commands that help the Agent perform deep analysis, optimize systems, and solve complex tasks before writing code:
+
+*   **`/plan`** - **[Amazing - Recommended]** Enable Planning Mode. The Agent will analyze the system, create a detailed `implementation_plan.md` file, and only write code after your approval.
+*   **`/goal`** - **[Background Auto-run]** Set a long-term background goal (e.g., run overnight). The Agent will automatically run, test, and debug continuously until the goal is fully achieved.
+*   **`/grill-me`** - **[Design Challenge]** The Agent acts as a Lead Architect to interview you, pinpoint logic weaknesses, and help you optimize design solutions before coding.
+*   **`/orchestrate`** - **[Expert Assembly]** Summon a group of specialist agents to work in parallel on highly complex tasks.
+*   **`/debug`** - **[Deep Debugging]** Automatically analyze error logs, identify root causes, and fix issues following standard protocols.
+*   **`/learn`** - **[Continuous Learning]** Save newly acquired knowledge or complex setup configurations to the Agent's memory to avoid repeating them in future sessions.
+
+### 📋 Other Development Support Commands (Sorted by Utility):
+
+*   **Development & Optimization:**
+    *   `/create` - Scaffold new features or projects from scratch.
+    *   `/enhance` - Perform micro-improvements or fine-tune existing UI/logic.
+    *   `/performance` - Optimize loading speed, Core Web Vitals, and application runtime.
+    *   `/realtime` - Integrate real-time features (Socket.io, WebRTC, SSE).
+*   **Testing & Delivery:**
+    *   `/test` - Write and run automated tests (TDD).
+    *   `/audit` - Scan the entire workspace for quality, security, and compliance before delivery.
+    *   `/deploy` - Deploy the application to cloud platforms or servers.
+*   **Documentation & Knowledge:**
+    *   `/explain` - Explain specific code blocks, algorithms, or project structure.
+    *   `/document` - Automatically write professional technical documentation.
+    *   `/update-docs` - Synchronize documentation files with recent codebase changes.
+    *   `/visually` - Visualize logic flow, database schemas, or system architecture.
+    *   `/log-error` - Log recent errors to prevent repetitive issues.
+    *   `/onboard` - Generate onboarding and setup guides for new team members.
+    *   `/compliance` - Audit the codebase for regulatory compliance (GDPR, HIPAA).
 
 ---
 
