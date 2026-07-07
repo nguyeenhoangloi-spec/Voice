@@ -287,11 +287,11 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                     "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
                     "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
                     "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
-                    "4. COMPLETENESS: Translate the full meaning. Never drop important information.\n"
+                    "4. CONCISENESS (CRITICAL): If the target word count is tight for the duration, rephrase the translation to be as short as possible while retaining the core meaning (drop filler words, use shorter synonyms).\n"
                     "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
-                    "6. TIMING: ~word count shown per segment. Approximate it but never sacrifice meaning.\n"
+                    "6. TIMING: Strictly follow the target word count per segment. Keep it within the limit so it fits the duration.\n"
                     "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
-                    "   Example: [\"c\u00e2u m\u1ed9t\", \"c\u00e2u hai\"]\n\n"
+                    "   Example: [\"câu một\", \"câu hai\"]\n\n"
                     "Segments:\n"
                 )
                 for idx, seg in enumerate(segments):
@@ -299,18 +299,20 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                     orig_text = seg.get("text", "").strip()
                     orig_words = len(orig_text.split()) if orig_text else 0
 
-                    # Target word count for Vietnamese (25% longer than English)
-                    max_words = max(1, int(orig_words * 1.25))
-                    max_words = max(max_words, max(1, int(duration * 2.8)))
-                    max_words = min(max_words, max(1, int(duration * 3.8)))
+                    # Target word count for Vietnamese (normally 20% longer than English)
+                    max_words = max(1, int(orig_words * 1.20))
+                    # Lower bound: comfortable pace ~2.6 words/sec
+                    max_words = max(max_words, max(1, int(duration * 2.6)))
+                    # Upper bound: strict limit of ~3.2 words/sec to force conciseness
+                    max_words = min(max_words, max(1, int(duration * 3.2)))
 
                     # Include previous segment as context clue
                     prev_text = segments[idx - 1].get("text", "").strip() if idx > 0 else ""
 
                     if prev_text:
-                        prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                        prompt += f"[{idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
                     else:
-                        prompt += f"[{idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
+                        prompt += f"[{idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
@@ -404,24 +406,39 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 
     # Adjust base rate from video context
     rate_map = {
-        "fast": "+10%",
-        "neutral": "+0%",
-        "slow": "-5%",
-        "teaching": "-8%",
+        "fast": 10,
+        "neutral": 0,
+        "slow": -5,
+        "teaching": -8,
     }
-    rate = rate_map.get(video_context.lower(), "+0%")
+    base_rate_pct = rate_map.get(video_context.lower(), 0)
 
     words = translation.split()
     word_count = len(words)
 
-    # NOTE: No auto speed-up or compression — user wants natural reading pace
-    # Rate is only set by video_context (Bình thường / Nhanh / Chậm / Giảng dạy)
+    # Dynamic timing calculation (Vietnamese natural pace is ~2.8 words/sec)
+    wps = word_count / duration if duration > 0 else 2.8
+    
+    # If words exceed the natural speed threshold, calculate additional speed-up needed
+    extra_speed_pct = 0
+    if wps > 2.8:
+        # Each 0.1 w/s above threshold adds 1% speed
+        extra_speed_pct = int((wps - 2.8) * 10)
+        # Limit the extra speed to prevent it from sounding cartoonish (max +30% total)
+        extra_speed_pct = min(extra_speed_pct, 30)
+
+    final_rate_pct = base_rate_pct + extra_speed_pct
+    
+    # Format rate for Edge TTS (e.g. "+15%", "-5%", "+0%")
+    rate_str = f"+{final_rate_pct}%" if final_rate_pct >= 0 else f"{final_rate_pct}%"
+
+    logger.info(f"Segment info: {word_count} words in {duration:.1f}s (wps: {wps:.2f}) → Speed rate: {rate_str}")
 
     ssml_content = translation.strip()
 
     return {
         "text": ssml_content,
-        "rate": rate
+        "rate": rate_str
     }
 
 
