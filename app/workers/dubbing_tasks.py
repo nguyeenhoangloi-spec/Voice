@@ -253,15 +253,51 @@ def run_dubbing_pipeline(job_id: str):
                     subprocess.run(cmd_silence, capture_output=True)
                     step_record.log_message = "Tach loi thoai hoan tat (vocal track isolated)."
 
-                # ===================== STEP 8: Speech recognition (ASR) =====================
+                # ===================== STEP 8: Speech recognition (ASR / Subtitle / OCR) =====================
                 elif step_num == 8:
-                    from app.services.dubbing_engine import transcribe_audio
+                    from app.services.dubbing_engine import transcribe_audio, download_youtube_subtitles, ocr_video_subtitles
                     voice_config = job.voice_config or {}
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     whisper_model = voice_config.get("whisper_model", "base")
+                    asr_method = voice_config.get("asr_method", "whisper")
                     
-                    segments_data = transcribe_audio(extracted_audio, whisper_model=whisper_model)
+                    segments_data = []
+                    method_used = asr_method
+                    
+                    # ─── PHƯƠNG ÁN 1: Tải phụ đề có sẵn (YouTube Softsub) ───
+                    if asr_method == "softsub":
+                        if job.source_type == "link" and job.source_url:
+                            try:
+                                logger.info(f"Trying to download YouTube subtitles for Job {job_id}...")
+                                segments_data = download_youtube_subtitles(job.source_url, job_id)
+                                if not segments_data:
+                                    raise ValueError("Không tìm thấy dữ liệu phụ đề tiếng Anh.")
+                                logger.info(f"Loaded {len(segments_data)} segments from YouTube subtitles.")
+                            except Exception as e:
+                                logger.warning(f"Failed to load YouTube subtitles: {e}. Fallback to Whisper ASR...")
+                                method_used = "whisper"
+                        else:
+                            logger.warning("Softsub only works with links. Fallback to Whisper ASR...")
+                            method_used = "whisper"
+
+                    # ─── PHƯƠNG ÁN 2: Nhận diện chữ trên màn hình (Video OCR) ───
+                    if asr_method == "ocr" or method_used == "ocr":
+                        try:
+                            logger.info(f"Running Video OCR for Job {job_id}...")
+                            segments_data = ocr_video_subtitles(source_path)
+                            if not segments_data:
+                                raise ValueError("OCR không phát hiện được chữ phụ đề trên khung hình.")
+                            logger.info(f"Loaded {len(segments_data)} segments via Video OCR.")
+                        except Exception as e:
+                            logger.warning(f"Video OCR failed: {e}. Fallback to Whisper ASR...")
+                            method_used = "whisper"
+
+                    # ─── PHƯƠNG ÁN 3: Nhận diện giọng nói mặc định (Whisper ASR) ───
+                    if method_used == "whisper" or not segments_data:
+                        logger.info(f"Running Whisper ASR (model: {whisper_model}) for Job {job_id}...")
+                        segments_data = transcribe_audio(extracted_audio, whisper_model=whisper_model)
+                        method_used = "whisper"
 
                     # Save segments to database
                     for idx, seg in enumerate(segments_data):
@@ -278,7 +314,13 @@ def run_dubbing_pipeline(job_id: str):
                         db.add(new_seg)
 
                     unique_speakers = set(s.get("speaker", "Speaker 1") for s in segments_data)
-                    step_record.log_message = f"Nhan dang {len(segments_data)} doan hoi thoai (Whisper ASR, word_timestamps). Tim thay {len(unique_speakers)} nguoi noi."
+                    method_labels = {
+                        "whisper": "Whisper ASR",
+                        "softsub": "YouTube Subtitles",
+                        "ocr": "Video OCR"
+                    }
+                    step_record.log_message = f"Lấy lời thoại thành công bằng {method_labels.get(method_used, method_used)} ({len(segments_data)} đoạn). Tìm thấy {len(unique_speakers)} người nói."
+
 
                 # ===================== STEP 9: Speaker diarization =====================
                 elif step_num == 9:

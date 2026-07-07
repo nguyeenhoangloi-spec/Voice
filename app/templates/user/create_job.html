@@ -2,12 +2,38 @@
 
 {% block content %}
 <style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.35) !important;
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.06), var(--shadow-glow);
+        transform: translateY(-2px);
+    }
+
     /* Nâng cấp hiệu ứng cho vùng kéo thả */
     .drop-zone-premium {
         border: 2px dashed rgba(56, 189, 248, 0.25) !important;
-        background: rgba(255, 255, 255, 0.01) !important;
+        background: rgba(56, 189, 248, 0.01) !important;
         border-radius: var(--radius-lg);
-        padding: 32px 20px;
+        padding: 36px 20px;
         text-align: center;
         cursor: pointer;
         transition: all var(--transition-normal) !important;
@@ -19,9 +45,8 @@
     
     .drop-zone-premium:hover, .drop-zone-premium.drag-over {
         border-color: var(--color-primary) !important;
-        background: rgba(56, 189, 248, 0.03) !important;
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-soft), 0 0 25px rgba(56, 189, 248, 0.05);
+        background: rgba(56, 189, 248, 0.04) !important;
+        transform: scale(0.995);
     }
     
     /* Thiết kế thẻ bước tự động */
@@ -29,111 +54,174 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
         border-radius: var(--radius-full);
         background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
         color: white;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
-        box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }
     
     /* Transition mượt mà cho form control */
     .form-control {
-        transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: rgba(0, 0, 0, 0.2) !important;
+        color: var(--text-primary) !important;
+        border-radius: var(--radius-md) !important;
+        padding: 10px 14px !important;
+        transition: all var(--transition-fast) !important;
     }
+    
+    :root[data-theme="light"] .form-control {
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
+    }
+
     .form-control:focus {
         border-color: var(--color-primary) !important;
-        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15) !important;
-        background-color: rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+        background-color: rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    .shiny-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none !important;
+        background: #334155 !important;
+    }
+
+    /* Info Badge dynamic description */
+    .info-badge-premium {
+        padding: 10px 14px;
+        background: rgba(56,189,248,0.05);
+        border: 1px dashed rgba(56,189,248,0.2);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        color: var(--color-primary);
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        transition: all var(--transition-normal);
     }
 </style>
 
-<div class="page-header">
+<div class="page-header" style="margin-bottom: var(--space-md);">
     <div>
-        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Tạo tác vụ lồng tiếng mới</h1>
-        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Nhập URL hoặc tải tệp đa phương tiện của bạn lên để bắt đầu lồng tiếng tự động bằng AI.</p>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Lồng tiếng tự động AI</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Trải nghiệm công nghệ dịch thuật và lồng giọng đa phương tiện thông minh thế hệ mới.</p>
     </div>
 </div>
 
 <div class="grid-split" style="grid-template-columns: 1.4fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
     <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
         
-        <!-- Nhập nguồn (Link dán hoặc File Upload) -->
-        <div class="card glass hover-glow" style="padding: var(--space-lg); gap: var(--space-md);">
+        <!-- Nhập nguồn (Thẻ Bento 1) -->
+        <div class="bento-card">
             <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                 <span class="step-number-badge">1</span> Nhập nguồn nội dung
             </h2>
             
             <div style="display: flex; gap: var(--space-xs); width: 100%;">
                 <div style="position: relative; flex: 1;">
-                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp..." style="padding-right: 110px;">
-                    <button id="btn-paste" class="btn btn-secondary hover-scale" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px; border-radius: var(--radius-sm);" type="button" title="Đọc nội dung clipboard">
+                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp..." style="padding-right: 110px; width: 100%;">
+                    <button id="btn-paste" class="btn btn-secondary hover-scale" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05);" type="button">
                         <i data-lucide="clipboard" style="width: 14px; height: 14px; margin-right: 2px;"></i> Dán
                     </button>
                 </div>
                 <button id="btn-check" class="btn btn-primary hover-scale" style="padding: 0 24px;">Kiểm tra</button>
             </div>
             
-            <div style="text-align: center; margin: var(--space-2xs) 0; color: var(--text-tertiary); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Hoặc kéo thả tệp tin</div>
+            <div style="text-align: center; margin: var(--space-2xs) 0; color: var(--text-tertiary); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.8;">Hoặc kéo thả file trực tiếp</div>
             
             <div id="drop-zone" class="drop-zone-premium">
-                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--color-primary); margin-bottom: var(--space-xs); opacity: 0.85;"></i>
+                <i data-lucide="upload-cloud" style="width: 44px; height: 44px; color: var(--color-primary); margin-bottom: var(--space-xs); opacity: 0.85;"></i>
                 <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Kéo và thả tệp video/audio tại đây</h4>
-                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0; max-width: 320px; line-height: 1.4;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px 0; max-width: 340px; line-height: 1.4;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
                 <button type="button" class="btn btn-secondary hover-scale" style="font-size: 12px; padding: 6px 14px;">Chọn tệp từ máy tính</button>
                 <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
             </div>
         </div>
 
-        <!-- Cấu hình lồng tiếng (Voice settings) -->
-        <div class="card glass hover-glow" style="padding: var(--space-lg); gap: var(--space-md);">
+        <!-- Cấu hình lồng tiếng (Thẻ Bento 2) -->
+        <div class="bento-card">
             <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                 <span class="step-number-badge">2</span> Cấu hình lồng tiếng
             </h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
-                    <label for="tts-engine" class="form-label">Công nghệ lồng tiếng (TTS Engine)</label>
+                    <label for="tts-engine" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Công nghệ lồng tiếng (TTS)</label>
                     <select id="tts-engine" class="form-control">
-                        <option value="edge" selected>Microsoft Edge TTS (Miễn phí, ổn định lâu dài)</option>
+                        <option value="edge" selected>Microsoft Edge TTS (Miễn phí)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="whisper-model" class="form-label">Độ chính xác nhận dạng (Whisper ASR)</label>
+                    <label for="asr-method" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Phương thức lấy lời thoại</label>
+                    <select id="asr-method" class="form-control" onchange="toggleAsrMethod(this.value)">
+                        <option value="whisper" selected>Nhận diện giọng nói (ASR)</option>
+                        <option value="softsub">Tải phụ đề có sẵn (YouTube CC)</option>
+                        <option value="ocr">Quét chữ trên màn hình (OCR)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="whisper-model-group">
+                    <label for="whisper-model" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Độ chính xác nhận dạng</label>
                     <select id="whisper-model" class="form-control">
-                        <option value="base" selected>Base (Nhanh, độ chính xác trung bình)</option>
-                        <option value="small">Small (Cân bằng - Độ chính xác tốt)</option>
-                        <option value="medium">Medium (Chậm - Độ chính xác cao)</option>
+                        <option value="base" selected>Base (Nhanh - Vừa)</option>
+                        <option value="small">Small (Cân bằng - Tốt)</option>
+                        <option value="medium">Medium (Chậm - Cao)</option>
                     </select>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="voice-profile" class="form-label">Giọng đọc chính</label>
-                <select id="voice-profile" class="form-control">
-                    <option value="auto" selected>-- Tự động chọn --</option>
-                </select>
-                <div style="margin-top: 6px; padding: 8px 12px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); border-radius: var(--radius-sm); font-size: 12px; color: var(--color-primary); display: flex; align-items: flex-start; gap: 6px;">
-                    <span style="flex-shrink:0;">&#9432;</span>
-                    <span>Nếu video có nhiều người nói, hệ thống sẽ tự động xen kẽ giọng nam/nữ phù hợp cho từng nhân vật.</span>
-                </div>
+            <!-- Dynamic Asr Mode Explanation Card -->
+            <div id="asr-explanation" class="info-badge-premium">
+                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; color: var(--color-primary);"></i>
+                <span id="asr-explanation-text">Sử dụng AI Whisper nhận diện giọng nói gốc trong video thành văn bản. Khuyên dùng khi video không có phụ đề gốc.</span>
             </div>
-            <!-- Hidden gender selector for backend compatibility -->
-            <select id="voice-gender" class="form-control" style="display:none;">
-                <option value="male">Giọng Nam</option>
-                <option value="female" selected>Giọng Nữ</option>
-            </select>
-            <select id="voice-region" class="form-control" style="display:none;">
-                <option value="north" selected>Miền Bắc</option>
-                <option value="south">Miền Nam</option>
-            </select>
-
-
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
-                    <label for="video-context" class="form-label">Nhịp độ video</label>
+                    <label for="voice-profile" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Giọng đọc chính (Lồng tiếng)</label>
+                    <select id="voice-profile" class="form-control">
+                        <option value="auto" selected>-- Tự động chọn --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video-context" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Nhịp độ lồng tiếng</label>
                     <select id="video-context" class="form-control" title="Ảnh hưởng tốc độ đọc SSML">
                         <option value="neutral" selected>Bình thường</option>
                         <option value="fast">Nhanh / Hào hứng</option>
@@ -143,60 +231,76 @@
                 </div>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-xs); border-top: 1px solid var(--border-color); padding-top: var(--space-md);">
-                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
-                    <input type="checkbox" id="keep-bg-music" checked style="width: 18px; height: 18px; accent-color: var(--color-primary);">
-                    Giữ lại nhạc nền &amp; hiệu ứng âm thanh (Audio Separation)
-                </label>
+            <div class="info-badge-premium" style="background: rgba(56,189,248,0.03); border-color: rgba(56,189,248,0.12);">
+                <i data-lucide="users" style="width: 16px; height: 16px; flex-shrink:0; color: var(--color-primary);"></i>
+                <span>Phân vai nhân vật: Hệ thống sẽ tự động phát hiện số lượng người nói và xen kẽ giọng Nam / Nữ phù hợp.</span>
+            </div>
 
+            <!-- Hidden gender selectors for backend compatibility -->
+            <select id="voice-gender" class="form-control" style="display:none;">
+                <option value="male">Giọng Nam</option>
+                <option value="female" selected>Giọng Nữ</option>
+            </select>
+            <select id="voice-region" class="form-control" style="display:none;">
+                <option value="north" selected>Miền Bắc</option>
+                <option value="south">Miền Nam</option>
+            </select>
+
+            <!-- Cấu hình Nâng cao (Thẻ bento con) -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-xs); border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-md);">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="keep-bg-music" checked style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                    Giữ lại nhạc nền &amp; hiệu ứng âm thanh (Audio separation)
+                </label>
+                
                 <!-- Slider âm lượng giọng gốc -->
-                <div id="bg-volume-section" style="padding: var(--space-sm); background: rgba(0, 0, 0, 0.15); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div id="bg-volume-section" style="padding: var(--space-sm); background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
-                        <span style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">🔊 Âm lượng giọng gốc</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">🔊 Âm lượng âm thanh gốc</span>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span id="bg-volume-label" style="font-size: 13px; font-weight: 700; color: var(--color-primary);">Nhỏ (-18dB)</span>
-                            <button type="button" onclick="resetBgVolume()" title="Về mặc định (-18dB)" class="btn btn-secondary hover-scale" style="font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm);">
-                                ↺ Mặc định
+                            <span id="bg-volume-label" style="font-size: 12px; font-weight: 800; color: var(--color-primary);">Nhỏ (-18dB)</span>
+                            <button type="button" onclick="resetBgVolume()" title="Về mặc định (-18dB)" class="btn btn-secondary hover-scale" style="font-size: 10px; padding: 3px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.03);">
+                                ↺ Reset
                             </button>
                         </div>
                     </div>
                     <input type="range" id="bg-volume" min="-40" max="0" value="-18" step="2" style="width: 100%; accent-color: var(--color-primary); cursor: pointer;" oninput="updateBgVolumeLabel(this.value)">
                     <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
                         <span>Tắt hoàn toàn (-40dB)</span>
-                        <span>Âm lượng gốc (0dB)</span>
+                        <span>Đầy đủ (0dB)</span>
                     </div>
                 </div>
 
                 <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
-                    <input type="checkbox" id="generate-subtitles" checked style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+                    <input type="checkbox" id="generate-subtitles" checked style="width: 17px; height: 17px; accent-color: var(--color-primary);">
                     Tự động tạo phụ đề tiếng Việt (SRT &amp; VTT)
                 </label>
             </div>
             
-            <button id="btn-submit" class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
+            <button id="btn-submit" class="shiny-btn btn" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
                 🚀 Bắt đầu lồng tiếng
             </button>
         </div>
     </div>
 
-    <!-- Cột bên phải: Preview thông tin -->
-    <div id="preview-panel" class="card glass" style="opacity: 0.65; pointer-events: none; transition: all var(--transition-normal); padding: var(--space-lg); gap: var(--space-md); position: sticky; top: var(--space-md);">
-        <h3 style="font-size: 18px; font-weight: 800; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin: 0; color: var(--text-primary);">Xem trước nội dung</h3>
+    <!-- Cột bên phải: Preview thông tin (Bento Card 3) -->
+    <div id="preview-panel" class="bento-card" style="opacity: 0.5; pointer-events: none; position: sticky; top: var(--space-md);">
+        <h3 style="font-size: 18px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: var(--space-xs); margin: 0; color: var(--text-primary);">Xem trước nội dung</h3>
         
         <div id="preview-empty" style="text-align: center; padding: var(--space-xl) 0; color: var(--text-tertiary); display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);">
-            <i data-lucide="video-off" style="width: 48px; height: 48px; opacity: 0.7;"></i>
-            <p style="font-size: 14px; margin: 0; line-height: 1.4;">Chưa có nội dung xem trước.<br>Hãy điền URL hoặc tải file để kiểm tra.</p>
+            <i data-lucide="video-off" style="width: 44px; height: 44px; opacity: 0.6;"></i>
+            <p style="font-size: 13px; margin: 0; line-height: 1.5; color: var(--text-secondary);">Chưa có nội dung xem trước.<br>Hãy điền URL hoặc tải file để kiểm tra.</p>
         </div>
 
         <div id="preview-content" class="hidden" style="display: flex; flex-direction: column; gap: var(--space-sm);">
-            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-lg); overflow: hidden; background-color: #070a13; aspect-ratio: 16/9; border: 1px solid var(--border-color);" class="flex-center">
+            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-md); overflow: hidden; background-color: #070a13; aspect-ratio: 16/9; border: 1px solid rgba(255,255,255,0.1);" class="flex-center">
                 <img id="preview-thumb" src="" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
-                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 700; font-family: monospace;">00:00</div>
+                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.15); color: white; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 700; font-family: monospace;">00:00</div>
             </div>
             
-            <h4 id="preview-title" style="font-size: 16px; font-weight: 800; line-height: 1.4; color: var(--text-primary); margin: 4px 0 0 0;">Tiêu đề video</h4>
+            <h4 id="preview-title" style="font-size: 15px; font-weight: 800; line-height: 1.4; color: var(--text-primary); margin: 4px 0 0 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">Tiêu đề video</h4>
             
-            <div style="font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-color); padding-top: var(--space-xs); margin-top: var(--space-2xs);">
+            <div style="font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-xs); margin-top: var(--space-2xs);">
                 <div style="display: flex; justify-content: space-between;"><span>Nguồn:</span> <span id="preview-source" style="font-weight: 700; color: var(--color-primary); text-transform: uppercase;">YouTube</span></div>
                 <div id="preview-author-div" style="display: flex; justify-content: space-between;"><span>Tác giả:</span> <span id="preview-author" style="font-weight: 700; color: var(--text-primary);">Uploader</span></div>
             </div>
@@ -206,8 +310,11 @@
 
 <!-- Modal xác nhận bắt đầu lồng tiếng -->
 <div id="confirm-modal" class="modal-container">
-    <div class="modal-content glass" style="max-width: 500px; padding: var(--space-xl); gap: var(--space-md); border-color: var(--color-primary); box-shadow: 0 0 35px rgba(56, 189, 248, 0.15);">
-        <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Xác nhận tạo tác vụ lồng tiếng</h3>
+    <div class="modal-content glass" style="max-width: 480px; padding: var(--space-xl); gap: var(--space-md); border-color: var(--color-primary); box-shadow: 0 0 35px rgba(56, 189, 248, 0.15); border-radius: var(--radius-lg);">
+        <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="shield-question" style="width: 24px; height: 24px; color: var(--color-primary);"></i>
+            Xác nhận tạo tác vụ
+        </h3>
         <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;">
             Bạn đang chuẩn bị gửi yêu cầu lồng tiếng. Hệ thống sẽ kích hoạt quy trình xử lý tự động bao gồm các bước: tải dữ liệu, trích xuất nhạc nền, dịch thuật lời thoại và ghép luồng âm thanh mới.
         </p>
@@ -612,7 +719,8 @@
                         bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
                         video_context: document.getElementById("video-context").value,
-                        whisper_model: document.getElementById("whisper-model").value
+                        whisper_model: document.getElementById("whisper-model").value,
+                        asr_method: document.getElementById("asr-method").value
                     })
 
                 });
@@ -632,6 +740,23 @@
             }
         });
     });
+
+    // Toggle Asr Method to hide/show Whisper settings and update explanations
+    function toggleAsrMethod(val) {
+        const group = document.getElementById("whisper-model-group");
+        const expText = document.getElementById("asr-explanation-text");
+        
+        if (val === "whisper") {
+            group.style.display = "block";
+            expText.textContent = "Sử dụng AI Whisper nhận diện giọng nói gốc trong video thành văn bản. Khuyên dùng khi video không có phụ đề gốc.";
+        } else if (val === "softsub") {
+            group.style.display = "none";
+            expText.textContent = "Tải trực tiếp phụ đề tiếng Anh có sẵn của video YouTube. Khớp thời lượng 100%, tốc độ xử lý nhanh và độ chính xác tuyệt đối.";
+        } else if (val === "ocr") {
+            group.style.display = "none";
+            expText.textContent = "Sử dụng mô hình EasyOCR quét và nhận diện chữ phụ đề hiển thị trực tiếp trên khung hình video. Khuyên dùng cho video chèn cứng sub.";
+        }
+    }
 
     // Update bg volume label realtime
     function updateBgVolumeLabel(val) {

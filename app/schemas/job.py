@@ -21,6 +21,8 @@ class JobCreateRequest(BaseModel):
     translation_mode: Optional[str] = "natural"
     video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
     whisper_model: Optional[str] = "base"      # base | small | medium
+    asr_method: Optional[str] = "whisper"      # whisper | softsub | ocr
+
 
 
 class TimelineSegmentEdit(BaseModel):

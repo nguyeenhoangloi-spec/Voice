@@ -140,6 +140,243 @@ def extract_audio_from_video(video_path: str, audio_path: str) -> str:
     return audio_path
 
 
+def parse_vtt_time(time_str: str) -> float:
+    """Parse WebVTT timestamp (HH:MM:SS.mmm or MM:SS.mmm) into seconds"""
+    try:
+        time_str = time_str.strip()
+        parts = time_str.split(':')
+        if len(parts) == 2:
+            m, s = parts
+            h = 0.0
+        else:
+            h, m, s = parts
+        return float(h) * 3600 + float(m) * 60 + float(s)
+    except Exception:
+        return 0.0
+
+
+def download_youtube_subtitles(url: str, job_id: str) -> list:
+    """
+    Download English subtitles from YouTube URL using yt-dlp.
+    Returns list of segments with start, end, text, speaker.
+    """
+    import subprocess
+    import glob
+    import re
+    from app.utils.ffmpeg_utils import inject_ffmpeg_to_path
+    inject_ffmpeg_to_path()
+
+    temp_sub_prefix = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "storage", "temp", f"sub_{job_id}")
+    os.makedirs(os.path.dirname(temp_sub_prefix), exist_ok=True)
+
+    logger.info(f"Downloading YouTube subtitles for: {url}")
+    # Run yt-dlp to download English subtitles (either manual or auto-translated)
+    cmd = [
+        "yt-dlp",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs", "en",
+        "--skip-download",
+        "-o", temp_sub_prefix,
+        url
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    logger.info(f"yt-dlp sub download stdout: {result.stdout[:500]}")
+    
+    # Find downloaded subtitle file
+    sub_files = glob.glob(temp_sub_prefix + "*")
+    vtt_file = None
+    for f in sub_files:
+        if f.endswith(".vtt"):
+            vtt_file = f
+            break
+            
+    if not vtt_file or not os.path.exists(vtt_file):
+        logger.warning(f"No subtitle file downloaded. yt-dlp stderr: {result.stderr[:500]}")
+        raise ValueError("Video này không có phụ đề tiếng Anh có sẵn.")
+
+    logger.info(f"Found downloaded subtitle: {vtt_file}")
+    
+    # Parse WebVTT file
+    segments = []
+    with open(vtt_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Regex to find timestamp blocks: 00:00:01.000 --> 00:00:04.000
+    pattern = re.compile(
+        r"(\d{2}:\d{2}:\d{2}\.\d{3}|\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3}|\d{2}:\d{2}\.\d{3})\s*\n(.*?)(?=\n\s*\n|\n\d|\Z)", 
+        re.DOTALL
+    )
+
+    matches = pattern.findall(content)
+    logger.info(f"Parsed {len(matches)} subtitle matches raw.")
+
+    seg_idx = 0
+    for start_str, end_str, text_block in matches:
+        start_time = parse_vtt_time(start_str)
+        end_time = parse_vtt_time(end_str)
+        
+        # Clean text: remove HTML tags, formatting cues, and extra whitespace
+        text = re.sub(r"<[^>]*>", "", text_block)
+        text = "\n".join([line.strip() for line in text.split("\n") if line.strip()])
+        # Remove duplicates/redundancies often found in auto-captions
+        lines = text.split("\n")
+        unique_lines = []
+        for line in lines:
+            if not unique_lines or unique_lines[-1] != line:
+                unique_lines.append(line)
+        text = " ".join(unique_lines).strip()
+        
+        if not text:
+            continue
+            
+        segments.append({
+            "start": start_time,
+            "end": end_time,
+            "text": text,
+            "speaker": "Speaker 1"
+        })
+        seg_idx += 1
+
+    # Cleanup temp sub files
+    for f in sub_files:
+        try:
+            os.remove(f)
+        except Exception:
+            pass
+
+    logger.info(f"Successfully loaded {len(segments)} segments from YouTube subtitles.")
+    return segments
+
+
+def ocr_video_subtitles(video_path: str) -> list:
+    """
+    Scan video frames using OpenCV and EasyOCR to extract hardcoded subtitles.
+    Optimized to scan 1 frame per 0.5s.
+    """
+    import cv2
+    import easyocr
+    import numpy as np
+    from difflib import SequenceMatcher
+
+    logger.info(f"Starting Video OCR on: {video_path}")
+    reader = easyocr.Reader(['en'], gpu=True) # Will automatically fallback to CPU if no GPU available
+    
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Không thể mở file video: {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    # OCR settings
+    # Subtitles are usually at the bottom (bottom 25% of height)
+    crop_y_start = int(height * 0.75)
+    
+    # We sample every 0.5 seconds (fps / 2)
+    sample_interval = max(1, int(fps / 2))
+    logger.info(f"Video FPS: {fps}, Total frames: {total_frames}, Sample interval: {sample_interval} frames")
+
+    raw_frames = []
+    frame_idx = 0
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        if frame_idx % sample_interval == 0:
+            timestamp = frame_idx / fps
+            
+            # Crop the subtitle region
+            cropped = frame[crop_y_start:height, 0:width]
+            
+            # Convert to grayscale for better OCR
+            gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+            
+            # Perform OCR
+            # detail=0 returns only text list
+            results = reader.readtext(gray, detail=0)
+            text = " ".join(results).strip()
+            
+            # Clean text (remove noise characters)
+            text = re.sub(r"[^a-zA-Z0-9\s.,!?'\"\-\(\)]", "", text)
+            text = " ".join(text.split()).strip()
+            
+            raw_frames.append({
+                "time": timestamp,
+                "text": text
+            })
+            
+        frame_idx += 1
+
+    cap.release()
+    logger.info(f"Finished OCR scanning. Processing {len(raw_frames)} raw frame text results...")
+
+    # Group continuous identical text into segments
+    segments = []
+    current_seg = None
+    
+    def similarity(s1, s2):
+        return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+
+    for item in raw_frames:
+        time = item["time"]
+        text = item["text"]
+        
+        if not text:
+            # Silence gap: close current segment if it exists
+            if current_seg:
+                # Minimum duration filter: discard very short clips (< 0.5s) unless it has text
+                if current_seg["end"] - current_seg["start"] >= 0.5:
+                    segments.append(current_seg)
+                current_seg = None
+            continue
+            
+        if current_seg is None:
+            current_seg = {
+                "start": time,
+                "end": time + 0.5,
+                "text": text,
+                "speaker": "Speaker 1"
+            }
+        else:
+            # Check if this frame text is highly similar to current segment text
+            if similarity(current_seg["text"], text) > 0.65:
+                # Extend current segment end time
+                current_seg["end"] = time + 0.5
+                # Update text to the longer version or keep it
+                if len(text) > len(current_seg["text"]):
+                    current_seg["text"] = text
+            else:
+                # Text changed: save old segment and start new one
+                if current_seg["end"] - current_seg["start"] >= 0.5:
+                    segments.append(current_seg)
+                current_seg = {
+                    "start": time,
+                    "end": time + 0.5,
+                    "text": text,
+                    "speaker": "Speaker 1"
+                }
+
+    if current_seg and (current_seg["end"] - current_seg["start"] >= 0.5):
+        segments.append(current_seg)
+
+    # Final post-processing filter to clean duplicates or tiny overlapping windows
+    cleaned_segments = []
+    for s in segments:
+        text = s["text"].strip()
+        # Remove single character garbage OCR noise
+        if len(text) <= 2 and not text.isalnum():
+            continue
+        cleaned_segments.append(s)
+
+    logger.info(f"OCR generated {len(cleaned_segments)} processed subtitle segments.")
+    return cleaned_segments
+
+
 def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     """
     Transcribe audio using OpenAI Whisper (local model).
