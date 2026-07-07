@@ -671,8 +671,92 @@ def _merge_adjacent_segments(segments: list, max_gap_ms: int = 250, max_duration
     logger.info(f"Gộp phân đoạn thoại thông minh (gap<{max_gap_ms}ms, max_dur<{max_duration}s): Giảm từ {len(segments)} xuống {len(merged)} phân đoạn.")
     return merged
 
+def _prescan_video_context(segments: list, api_key: str) -> dict:
+    """Pre-scan: Analyze transcript to auto-detect video type, character names,
+    and Vietnamese phonetic mappings before translation begins.
+    Returns a dict with video_type, characters, and tone info."""
+    import requests
+    import json
+
+    # Sample up to 50 segments for analysis (enough to identify characters)
+    sample_texts = []
+    for seg in segments[:50]:
+        text = seg.get("text", "").strip()
+        if text:
+            sample_texts.append(text)
+
+    if not sample_texts:
+        return {"video_type": "unknown", "characters": [], "tone": "neutral"}
+
+    sample_transcript = "\n".join(sample_texts)
+
+    prompt = (
+        "You are an expert video content analyst. Analyze this transcript and return a JSON object.\n\n"
+        "TRANSCRIPT:\n"
+        f"{sample_transcript}\n\n"
+        "Return ONLY a JSON object (no markdown) with this structure:\n"
+        "{\n"
+        '  "video_type": "anime/cartoon/movie/drama/education/tech/music/other",\n'
+        '  "title_guess": "name of the show/movie if you can identify it, otherwise empty string",\n'
+        '  "source_language": "zh/ja/en/ko/fr/etc",\n'
+        '  "characters": [\n'
+        '    {"original": "大雄", "aliases": ["Nobita", "のび太"], "vietnamese": "Nô Bi Ta"},\n'
+        '    {"original": "静香", "aliases": ["Shizuka", "しずか"], "vietnamese": "Xu Ka"}\n'
+        "  ],\n"
+        '  "tone": "casual/formal/excited/childish/serious"\n'
+        "}\n\n"
+        "IMPORTANT RULES:\n"
+        "1. For anime/cartoon/movie characters with well-known Vietnamese names, use the standard Vietnamese phonetic.\n"
+        "2. Use SPACES between syllables so TTS reads smoothly (e.g., 'Nô Bi Ta' not 'Nôbita').\n"
+        "3. Include ALL character name variants you find (Chinese, Japanese, English, common typos/OCR errors).\n"
+        "4. If you recognize the show, list ALL main characters even if some don't appear in this sample.\n"
+        "5. For real people or brands, keep original names unchanged.\n"
+        "6. Return empty characters array if no fictional characters are found.\n"
+    )
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        res = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=30.0)
+        res.raise_for_status()
+        res_data = res.json()
+        res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        # Parse JSON from response
+        json_match = re.search(r'\{.*\}', res_text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            chars = result.get("characters", [])
+            logger.info(
+                f"Pre-scan: video_type={result.get('video_type', '?')}, "
+                f"title={result.get('title_guess', '?')}, "
+                f"characters={len(chars)}, tone={result.get('tone', '?')}"
+            )
+            return result
+    except Exception as e:
+        logger.warning(f"Pre-scan thất bại: {e}. Sẽ dịch không có context nhân vật.")
+
+    return {"video_type": "unknown", "characters": [], "tone": "neutral"}
 
 
+def _build_character_map_prompt(prescan: dict) -> str:
+    """Build a character name reference block from pre-scan results
+    to inject into translation prompt."""
+    characters = prescan.get("characters", [])
+    if not characters:
+        return ""
+
+    lines = ["\nCHARACTER NAME REFERENCE (You MUST follow these exact Vietnamese names):"]
+    for char in characters:
+        original = char.get("original", "")
+        vietnamese = char.get("vietnamese", "")
+        aliases = char.get("aliases", [])
+        if original and vietnamese:
+            alias_str = " / ".join([original] + aliases) if aliases else original
+            lines.append(f"  - {alias_str} → '{vietnamese}'")
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral", video_topic: str = "") -> list:
@@ -703,11 +787,21 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         import time as _time
         logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}, chủ đề: {video_topic}...")
 
+        # === PRE-SCAN: Tự động nhận dạng video và trích xuất nhân vật ===
+        prescan = _prescan_video_context(segments, api_key)
+        character_map_block = _build_character_map_prompt(prescan)
+        detected_tone = prescan.get("tone", "neutral")
+        detected_type = prescan.get("video_type", "unknown")
+        detected_title = prescan.get("title_guess", "")
+
         # Chia nhỏ segments thành các batch để tránh timeout do prompt quá dài
         BATCH_SIZE = 15
         all_translated = True
         batches = [segments[i:i + BATCH_SIZE] for i in range(0, len(segments), BATCH_SIZE)]
         logger.info(f"Chia {len(segments)} segments thành {len(batches)} batch (mỗi batch tối đa {BATCH_SIZE} câu).")
+
+        # Cross-batch context: lưu câu dịch cuối mỗi batch để truyền sang batch sau
+        previous_translations = []
 
         for batch_idx, batch in enumerate(batches):
             batch_start_global = batch_idx * BATCH_SIZE
@@ -722,44 +816,50 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
 
                     client = genai.Client(api_key=api_key)
 
-                    # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
+                    # === PROMPT CẢI TIẾN: Faithfulness + Natural + Dynamic Character Map ===
                     prompt = (
                         "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
-                        f"Video topic/work details: {video_topic} (Timing rate constraint: {video_context})\n\n"
-                        "YOUR TASK: Translate the source video transcript segments (which may be in English, Chinese, Japanese, Korean, French, or any other language) into natural spoken Vietnamese for voice dubbing.\n\n"
-                        "STRICT RULES:\n"
-                        "1. PROPER NOUNS & CHARACTER NAMES: For general foreign names/brands, keep them unchanged (e.g. 'iPhone 16' -> 'iPhone 16').\n"
-                        "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English/foreign languages if they would sound wrong when read by a Vietnamese voice. Use spaces instead of hyphens to separate syllables so that the TTS reads them smoothly.\n"
-                        "   Specifically, map names across languages and handle common OCR/ASR typos from audio/subtitles (e.g., Doraemon characters):\n"
-                        "   - 'Nobita' / '大雄' (or typos '大修', '大熊') / 'のび太' -> translate as 'Nô Bi Ta'\n"
-                        "   - 'Shizuka' / '静香' (or typos '静乡', '净香') / 'しずか' -> translate as 'Xu Ka'\n"
-                        "   - 'Suneo' / '小夫' (or typos '强夫', '小福') / 'スネ夫' -> translate as 'Xê Kô'\n"
-                        "   - 'Jaian' / '胖虎' (or typos '庞虎', '胖胡') / 'ジャイアン' -> translate as 'Chai En'\n"
-                        "   - 'Doraemon' / '哆啦A梦' (or '阿蒙') / 'ドラえもん' -> translate as 'Đô Rê Mon'\n"
-                        "   - 'Conan' / '柯南' / 'コナン' -> translate as 'Cô Nan'\n"
-                        "   - 'Harry Potter' / '哈利波特' -> translate as 'Ha Ri Pót Tơ'\n"
-                        "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
-                        "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
-                        "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
-                        "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
-                        "4. CONCISENESS (CRITICAL): If the target word count is tight for the duration, rephrase the translation to be as short as possible while retaining the core meaning (drop filler words, use shorter synonyms).\n"
-                        "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
-                        "6. TIMING: Strictly follow the target word count per segment. Keep it within the limit so it fits the duration.\n"
-                        "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
-                        f"   Example: [\"câu một\", \"câu hai\"]\n\n"
-                        f"Segments (batch {batch_idx + 1}/{len(batches)}):\n"
+                        f"Video type: {detected_type} | Title: {detected_title or video_topic} | Tone: {detected_tone}\n\n"
+                        "YOUR TASK: Translate the source transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
+                        "PRIORITY RULES (in order of importance):\n"
+                        "1. FAITHFULNESS (HIGHEST): Your translation MUST faithfully convey the EXACT meaning of the original. "
+                        "Do NOT add information that doesn't exist in the source. Do NOT remove or skip any meaning. "
+                        "Do NOT hallucinate or invent content. Every translated sentence must map directly to the source.\n\n"
+                        "2. NATURAL SPOKEN VIETNAMESE: Adapt sentence structure to sound natural when spoken aloud in Vietnamese (văn nói). "
+                        "Avoid literal word-by-word translation that sounds robotic. Mirror the speaker's emotional tone "
+                        f"(detected tone: {detected_tone}) from the original.\n\n"
+                        "3. CHARACTER NAMES: If a CHARACTER NAME REFERENCE block is provided below, you MUST use EXACTLY "
+                        "those Vietnamese names — no exceptions. For names NOT in the reference, keep the original name. "
+                        "For real people and brands, always keep original names unchanged.\n\n"
+                        "4. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n\n"
+                        "5. CONCISENESS (secondary): Only shorten if the translation is significantly longer than the duration allows. "
+                        "Never sacrifice meaning for brevity. Target word count is a soft guide, not a hard limit.\n\n"
+                        "6. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown, no explanation.\n"
+                        f"   Example: [\"câu một\", \"câu hai\"]\n"
                     )
+
+                    # Inject dynamic character map from pre-scan
+                    if character_map_block:
+                        prompt += character_map_block
+
+                    # Cross-batch context: inject previous translations for continuity
+                    if previous_translations:
+                        prompt += "\n[PREVIOUS BATCH TRANSLATIONS for context continuity — maintain consistent style and names]:\n"
+                        for pt in previous_translations[-5:]:
+                            prompt += f"  \"{pt['original']}\" → \"{pt['translation']}\"\n"
+                        prompt += "\n"
+
+                    prompt += f"\nSegments (batch {batch_idx + 1}/{len(batches)}):\n"
+
                     for local_idx, seg in enumerate(batch):
                         global_idx = batch_start_global + local_idx
                         duration = seg.get("end", 0.0) - seg.get("start", 0.0)
                         orig_text = seg.get("text", "").strip()
                         orig_words = len(orig_text.split()) if orig_text else 0
 
-                        # Target word count for Vietnamese (normally 20% longer than English)
+                        # Target word count (soft guide)
                         max_words = max(1, int(orig_words * 1.20))
-                        # Lower bound: comfortable pace ~2.6 words/sec
                         max_words = max(max_words, max(1, int(duration * 2.6)))
-                        # Upper bound: strict limit of ~3.2 words/sec to force conciseness
                         max_words = min(max_words, max(1, int(duration * 3.2)))
 
                         # Include previous segment as context clue
@@ -771,12 +871,11 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                             prev_text = ""
 
                         if prev_text:
-                            prompt += f"[{local_idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                            prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
                         else:
-                            prompt += f"[{local_idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
+                            prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
                     if api_key.startswith("AQ."):
-                        # Dùng REST API trực tiếp cho các key mới bắt đầu bằng 'AQ.' để tránh lỗi SDK nhận nhầm thành OAuth Token
                         import requests
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                         headers = {"Content-Type": "application/json"}
@@ -803,6 +902,12 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                         if len(translated_list) == len(batch):
                             for local_idx, trans in enumerate(translated_list):
                                 batch[local_idx]["translation"] = trans
+                            # Lưu context cho batch tiếp theo
+                            for seg in batch:
+                                previous_translations.append({
+                                    "original": seg.get("text", ""),
+                                    "translation": seg.get("translation", "")
+                                })
                             logger.info(f"Batch {batch_idx + 1}/{len(batches)}: Dịch thành công {len(batch)} câu bằng Gemini API.")
                             batch_success = True
                             break  # success, move to next batch
@@ -830,6 +935,11 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                         except Exception as e:
                             logger.warning(f"Google Translate fallback failed: {e}")
                             seg["translation"] = seg["text"]
+                    # Vẫn lưu context cho batch tiếp theo dù fallback
+                    previous_translations.append({
+                        "original": seg.get("text", ""),
+                        "translation": seg.get("translation", "")
+                    })
                 logger.info(f"Batch {batch_idx + 1}: Đã fallback {len(batch)} câu sang Google Translate.")
 
         if all_translated:
