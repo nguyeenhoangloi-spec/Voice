@@ -125,3 +125,48 @@ def test_translate_segments_with_video_topic():
             res = translate_segments(segments, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
             assert res[0]["translation"] == "Nô-bi-ta và Xi-du-ka đi đến nhà Xu-ne-o."
 
+@patch("os.path.getsize")
+@patch("os.remove")
+@patch("subprocess.run")
+@patch("os.path.exists")
+def test_merge_tts_with_video_burn_subtitles(mock_exists, mock_run, mock_remove, mock_getsize):
+    # Only return True for the subtitle and source files in this test case
+    mock_exists.side_effect = lambda path: path in ["dummy_sub.srt", "dummy_audio.wav", "dummy_video.mp4"]
+    mock_getsize.return_value = 1000
+    
+    # Mock subprocess.run return value to have returncode = 0
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_run.return_value = mock_result
+    
+    from app.services.dubbing_engine import merge_tts_with_video
+    
+    with patch("pydub.AudioSegment.from_file") as mock_from_file, \
+         patch("pydub.AudioSegment.silent") as mock_silent:
+        
+        mock_audio = MagicMock()
+        mock_audio.__len__.return_value = 1000
+        mock_from_file.return_value = mock_audio
+        mock_silent.return_value = mock_audio
+        
+        merge_tts_with_video(
+            video_path="dummy_video.mp4",
+            segments=[{"start": 0.0, "end": 2.0, "text": "Hello", "audio_path": "dummy_audio.wav"}],
+            bg_music_path="dummy_bg.wav",
+            output_video_path="dummy_out.mp4",
+            output_audio_path="dummy_out.mp3",
+            keep_bg_music=False,
+            burn_subtitles=True,
+            srt_path="dummy_sub.srt"
+        )
+        
+        called_args = [call[0][0] for call in mock_run.call_args_list]
+        ffmpeg_cmd = next(cmd for cmd in called_args if "dummy_out.mp4" in cmd)
+        
+        assert "-vf" in ffmpeg_cmd
+        vf_arg = ffmpeg_cmd[ffmpeg_cmd.index("-vf") + 1]
+        assert "drawbox" in vf_arg
+        assert "subtitles" in vf_arg
+        assert "dummy_sub.srt" in vf_arg
+
+

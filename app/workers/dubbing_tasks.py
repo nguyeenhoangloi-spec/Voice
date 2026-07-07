@@ -457,6 +457,7 @@ def run_dubbing_pipeline(job_id: str):
                     # Ensure source video exists (may have been deleted on previous run's cleanup)
                     _ensure_source_video(job, source_path)
 
+                    burn_sub = voice_config.get("burn_subtitles", False)
                     merge_tts_with_video(
                         video_path=source_path,
                         segments=segments_data,
@@ -464,7 +465,9 @@ def run_dubbing_pipeline(job_id: str):
                         output_video_path=final_video,
                         output_audio_path=final_audio,
                         keep_bg_music=keep_bg,
-                        bg_volume_db=bg_volume_db
+                        bg_volume_db=bg_volume_db,
+                        burn_subtitles=burn_sub,
+                        srt_path=srt_path
                     )
                     step_record.log_message = f"Ket xuat video long tieng thanh cong ({os.path.getsize(final_video) // 1024} KB)."
 

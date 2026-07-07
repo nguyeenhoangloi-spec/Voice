@@ -281,6 +281,11 @@
                     <input type="checkbox" id="generate-subtitles" checked style="width: 17px; height: 17px; accent-color: var(--color-primary);">
                     Tự động tạo phụ đề tiếng Việt (SRT &amp; VTT)
                 </label>
+                
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary); margin-top: 8px;" title="Vẽ một dải đen mờ dưới đáy để che phụ đề tiếng Anh cũ, rồi ghi đè phụ đề tiếng Việt mới lên.">
+                    <input type="checkbox" id="burn-subtitles" style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                    Che phụ đề cũ &amp; Vẽ cứng phụ đề mới vào video (Hardsub)
+                </label>
             </div>
             
             <button id="btn-submit" class="shiny-btn btn" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
@@ -724,6 +729,7 @@
                         keep_bg_music: document.getElementById("keep-bg-music").checked,
                         bg_volume_db: parseInt(document.getElementById("bg-volume").value),
                         generate_subtitles: document.getElementById("generate-subtitles").checked,
+                        burn_subtitles: document.getElementById("burn-subtitles").checked,
                         video_context: document.getElementById("video-context").value,
                         video_topic: document.getElementById("video-topic").value.trim(),
                         whisper_model: document.getElementById("whisper-model").value,
@@ -746,6 +752,13 @@
                 showToast("Lỗi kết nối khi gửi tác vụ.", "danger");
             }
         });
+    });
+
+    // Đồng bộ checkbox burn_subtitles và generate_subtitles
+    document.getElementById("burn-subtitles").addEventListener("change", function() {
+        if (this.checked) {
+            document.getElementById("generate-subtitles").checked = true;
+        }
     });
 
     // Toggle Asr Method to hide/show Whisper settings and update explanations

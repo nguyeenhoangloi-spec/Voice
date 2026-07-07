@@ -161,6 +161,7 @@ def api_create_job(
         "keep_bg_music": req.keep_bg_music,
         "bg_volume_db": req.bg_volume_db if req.bg_volume_db is not None else -18,
         "generate_subtitles": req.generate_subtitles,
+        "burn_subtitles": req.burn_subtitles or False,
         "translation_mode": req.translation_mode,
         "video_context": req.video_context or "neutral",
         "video_topic": req.video_topic or "",

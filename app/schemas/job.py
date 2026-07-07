@@ -1,3 +1,4 @@
+
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
@@ -18,6 +19,7 @@ class JobCreateRequest(BaseModel):
     keep_bg_music: bool
     bg_volume_db: Optional[int] = -18  # Volume of original audio: 0 (full) to -40 (nearly silent)
     generate_subtitles: bool
+    burn_subtitles: Optional[bool] = False     # Opaque box blur old subs + burn-in new subs
     translation_mode: Optional[str] = "natural"
     video_context: Optional[str] = "neutral"  # neutral | fast | slow | teaching
     video_topic: Optional[str] = ""            # e.g. "Doraemon cartoon", "Harry Potter movie"

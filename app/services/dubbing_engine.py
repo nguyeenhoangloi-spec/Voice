@@ -870,7 +870,9 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
 def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                           output_video_path: str, output_audio_path: str,
                           keep_bg_music: bool = True,
-                          bg_volume_db: int = -18) -> tuple:
+                          bg_volume_db: int = -18,
+                          burn_subtitles: bool = False,
+                          srt_path: str = "") -> tuple:
     """
     Merge all TTS audio segments into a single audio track,
     then combine with the original video (replacing original audio).
@@ -966,18 +968,43 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     logger.info(f"Mixed audio track created: {temp_audio}")
 
     # Combine video + new audio using ffmpeg
-    cmd_video = [
-        ffmpeg, "-y",
-        "-i", video_path,        # Original video (for video stream)
-        "-i", temp_audio,        # New dubbed audio
-        "-c:v", "copy",          # Copy video stream as-is (fast, no re-encode)
-        "-c:a", "aac",           # Encode audio as AAC
-        "-b:a", "192k",
-        "-map", "0:v:0",         # Use video from first input
-        "-map", "1:a:0",         # Use audio from second input
-        "-shortest",
-        output_video_path
-    ]
+    if burn_subtitles and srt_path and os.path.exists(srt_path):
+        # We need to re-encode the video stream to apply filters
+        # FFmpeg filter: drawbox to blur old subs at the bottom 10% area,
+        # then subtitles filter to burn-in the new SRT.
+        # Note: on Windows, backslashes in path must be escaped for subtitles filter.
+        escaped_srt_path = srt_path.replace("\\", "/").replace(":", "\\:")
+        vf_filter = f"drawbox=y=ih-ih/10:w=iw:h=ih/10:color=black@0.7:t=fill,subtitles='{escaped_srt_path}'"
+        
+        cmd_video = [
+            ffmpeg, "-y",
+            "-i", video_path,
+            "-i", temp_audio,
+            "-vf", vf_filter,
+            "-c:v", "libx264",     # Re-encode video stream
+            "-preset", "fast",
+            "-crf", "22",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            output_video_path
+        ]
+        logger.info(f"Re-encoding video with subtitle burn-in and drawbox mask: {vf_filter}")
+    else:
+        cmd_video = [
+            ffmpeg, "-y",
+            "-i", video_path,        # Original video (for video stream)
+            "-i", temp_audio,        # New dubbed audio
+            "-c:v", "copy",          # Copy video stream as-is (fast, no re-encode)
+            "-c:a", "aac",           # Encode audio as AAC
+            "-b:a", "192k",
+            "-map", "0:v:0",         # Use video from first input
+            "-map", "1:a:0",         # Use audio from second input
+            "-shortest",
+            output_video_path
+        ]
     result = subprocess.run(cmd_video, capture_output=True, text=True)
     if result.returncode != 0:
         logger.error(f"ffmpeg merge failed: {result.stderr[:500]}")
