@@ -9,6 +9,7 @@ import os
 import asyncio
 import subprocess
 import time
+import re
 
 import json
 import logging
@@ -267,19 +268,138 @@ def download_youtube_subtitles(url: str, job_id: str) -> list:
     return segments
 
 
+def _frames_differ(prev_gray, curr_gray, threshold=15.0):
+    """Compare two grayscale subtitle crops using Mean Absolute Difference.
+    Returns True if the subtitle text has likely changed between frames."""
+    import cv2
+    import numpy as np
+    if prev_gray is None:
+        return True
+    if prev_gray.shape != curr_gray.shape:
+        return True
+    diff = cv2.absdiff(prev_gray, curr_gray)
+    mean_diff = np.mean(diff)
+    return mean_diff > threshold
+
+
+def _preprocess_for_ocr(gray_crop):
+    """Enhance image for better OCR accuracy.
+    Pipeline: CLAHE contrast -> Sharpen edges -> Upscale 2x."""
+    import cv2
+    import numpy as np
+
+    # 1. CLAHE - Adaptive local contrast enhancement
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray_crop)
+
+    # 2. Sharpen - Enhance text edges
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+    sharpened = cv2.filter2D(enhanced, -1, kernel)
+
+    # 3. Upscale 2x - Better recognition for small text
+    h, w = sharpened.shape[:2]
+    upscaled = cv2.resize(sharpened, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
+
+    return upscaled
+
+
+def _refine_with_gemini_vision(segments: list, keyframes: dict, api_key: str):
+    """Layer 2: Use Gemini Vision API to refine OCR text and translate in one step.
+    keyframes: dict mapping segment index -> base64-encoded JPEG image of the subtitle region.
+    Only processes segments that don't already have a translation."""
+    import requests
+    import json
+    import base64
+
+    # Filter segments needing refinement (no translation yet)
+    pending = [(i, seg) for i, seg in enumerate(segments) if not seg.get("translation")]
+    if not pending:
+        logger.info("Gemini Vision: Tất cả segments đã có bản dịch, bỏ qua tinh chỉnh.")
+        return segments
+
+    BATCH_SIZE = 10
+    batches = [pending[i:i + BATCH_SIZE] for i in range(0, len(pending), BATCH_SIZE)]
+    logger.info(f"Gemini Vision: Tinh chỉnh {len(pending)} segments trong {len(batches)} batch...")
+
+    for batch_idx, batch in enumerate(batches):
+        try:
+            parts = []
+            # Build multi-part prompt with images
+            instruction = (
+                "Bạn là chuyên gia OCR và dịch thuật phụ đề video. "
+                "Dưới đây là các ảnh chụp vùng phụ đề trên video. "
+                "Với mỗi ảnh, hãy: (1) Đọc chính xác chữ trên ảnh, (2) Dịch sang tiếng Việt tự nhiên cho lồng tiếng.\n"
+                "Lưu ý đặc biệt về tên nhân vật hoạt hình: "
+                "Nobita/大雄 -> 'Nô Bi Ta', Shizuka/静香 -> 'Xu Ka', Suneo/小夫 -> 'Xê Kô', "
+                "Jaian/胖虎 -> 'Chai En', Doraemon/哆啦A梦 -> 'Đô Rê Mon', Conan/柯南 -> 'Cô Nan'.\n\n"
+                f"Trả về CHÍNH XÁC một mảng JSON gồm {len(batch)} phần tử, mỗi phần tử là object có 2 trường:\n"
+                '- "text": chữ gốc đọc được trên ảnh (đã sửa lỗi OCR)\n'
+                '- "translation": bản dịch tiếng Việt\n'
+                'Ví dụ: [{"text": "大雄来了", "translation": "Nô Bi Ta đến rồi"}]\n'
+                "Không markdown, chỉ JSON thuần."
+            )
+            parts.append({"text": instruction})
+
+            for idx_in_batch, (seg_idx, seg) in enumerate(batch):
+                ocr_text = seg.get("text", "")
+                parts.append({"text": f"\n--- Ảnh {idx_in_batch + 1} (OCR thô: \"{ocr_text}\") ---"})
+                if seg_idx in keyframes:
+                    parts.append({
+                        "inline_data": {
+                            "mime_type": "image/jpeg",
+                            "data": keyframes[seg_idx]
+                        }
+                    })
+                else:
+                    parts.append({"text": f"[Không có ảnh, chỉ dựa vào OCR thô: \"{ocr_text}\"]"})
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            payload = {"contents": [{"parts": parts}]}
+            res = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=60.0)
+            res.raise_for_status()
+            res_data = res.json()
+            res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            # Parse JSON array from response
+            json_match = re.search(r'\[.*\]', res_text, re.DOTALL)
+            if json_match:
+                refined_list = json.loads(json_match.group(0))
+                if len(refined_list) == len(batch):
+                    for idx_in_batch, (seg_idx, seg) in enumerate(batch):
+                        item = refined_list[idx_in_batch]
+                        if isinstance(item, dict):
+                            if item.get("text"):
+                                seg["text"] = item["text"]
+                            if item.get("translation"):
+                                seg["translation"] = item["translation"]
+                        elif isinstance(item, str):
+                            seg["translation"] = item
+                    logger.info(f"Gemini Vision batch {batch_idx + 1}/{len(batches)}: Tinh chỉnh thành công {len(batch)} segments.")
+                    continue
+            logger.warning(f"Gemini Vision batch {batch_idx + 1}: Không parse được JSON, giữ nguyên kết quả EasyOCR.")
+        except Exception as e:
+            logger.warning(f"Gemini Vision batch {batch_idx + 1} lỗi: {e}. Giữ nguyên kết quả EasyOCR.")
+
+    return segments
+
+
 def ocr_video_subtitles(video_path: str) -> list:
     """
     Scan video frames using OpenCV and EasyOCR to extract hardcoded subtitles.
-    Optimized to scan 1 frame per 0.5s.
+    Optimized with:
+    - Smart Frame Detection: skip frames where subtitle region hasn't changed
+    - Image Preprocessing: CLAHE + Sharpen + Upscale 2x for better accuracy
+    - Gemini Vision refinement: optional 2nd layer to correct OCR errors and translate
     """
     import cv2
     import easyocr
     import numpy as np
+    import base64
     from difflib import SequenceMatcher
 
-    logger.info(f"Starting Video OCR on: {video_path}")
-    reader = easyocr.Reader(['en'], gpu=True) # Will automatically fallback to CPU if no GPU available
-    
+    logger.info(f"Starting Video OCR (Smart Mode) on: {video_path}")
+    reader = easyocr.Reader(['vi', 'ch_sim', 'ja', 'en'], gpu=True)
+
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Không thể mở file video: {video_path}")
@@ -288,93 +408,115 @@ def ocr_video_subtitles(video_path: str) -> list:
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    
-    # OCR settings
-    # Subtitles are usually at the bottom (bottom 25% of height)
+    duration_sec = total_frames / fps if fps > 0 else 0
+
+    # OCR settings - subtitle region is bottom 25%
     crop_y_start = int(height * 0.75)
-    
-    # We sample every 0.5 seconds (fps / 2)
-    sample_interval = max(1, int(fps / 2))
-    logger.info(f"Video FPS: {fps}, Total frames: {total_frames}, Sample interval: {sample_interval} frames")
+
+    # Sample every 1.0 second instead of 0.5s for speed
+    sample_interval = max(1, int(fps))
+    logger.info(f"Video: {duration_sec:.0f}s, FPS: {fps:.0f}, Total frames: {total_frames}, Sample interval: {sample_interval} frames")
 
     raw_frames = []
+    keyframe_images = {}  # segment_index -> base64 JPEG for Gemini Vision
     frame_idx = 0
-    
+    prev_gray_crop = None
+    frames_skipped = 0
+    frames_ocred = 0
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-            
+
         if frame_idx % sample_interval == 0:
             timestamp = frame_idx / fps
-            
+
             # Crop the subtitle region
             cropped = frame[crop_y_start:height, 0:width]
-            
-            # Convert to grayscale for better OCR
             gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-            
-            # Perform OCR
-            # detail=0 returns only text list
-            results = reader.readtext(gray, detail=0)
+
+            # Smart Frame Detection: skip if subtitle region hasn't changed
+            if not _frames_differ(prev_gray_crop, gray):
+                frames_skipped += 1
+                # Still extend the timestamp for the current raw_frames entry
+                if raw_frames and raw_frames[-1]["text"]:
+                    raw_frames[-1]["time_end"] = timestamp + 1.0
+                frame_idx += 1
+                prev_gray_crop = gray
+                continue
+
+            prev_gray_crop = gray
+
+            # Image Preprocessing Pipeline
+            preprocessed = _preprocess_for_ocr(gray)
+
+            # Perform OCR on preprocessed image
+            results = reader.readtext(preprocessed, detail=0)
             text = " ".join(results).strip()
-            
-            # Clean text (remove noise characters)
-            text = re.sub(r"[^a-zA-Z0-9\s.,!?'\"\-\(\)]", "", text)
+
+            # Clean text (keep Unicode characters)
+            text = re.sub(r"[^\w\s.,!?'\"\-\(\)]", "", text)
             text = " ".join(text.split()).strip()
-            
+
+            frames_ocred += 1
+
+            # Save keyframe image (original color crop) for Gemini Vision refinement
+            if text:
+                _, buffer = cv2.imencode('.jpg', cropped, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                keyframe_b64 = base64.b64encode(buffer).decode('utf-8')
+                keyframe_images[len(raw_frames)] = keyframe_b64
+
             raw_frames.append({
                 "time": timestamp,
+                "time_end": timestamp + 1.0,
                 "text": text
             })
-            
+
         frame_idx += 1
 
     cap.release()
-    logger.info(f"Finished OCR scanning. Processing {len(raw_frames)} raw frame text results...")
+    total_sampled = frames_skipped + frames_ocred
+    skip_pct = (frames_skipped / total_sampled * 100) if total_sampled > 0 else 0
+    logger.info(f"Smart OCR: {frames_ocred} frames quét, {frames_skipped} frames bỏ qua ({skip_pct:.0f}% tiết kiệm). Tổng: {len(raw_frames)} kết quả.")
 
     # Group continuous identical text into segments
     segments = []
     current_seg = None
-    
+
     def similarity(s1, s2):
         return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
 
     for item in raw_frames:
-        time = item["time"]
+        time_start = item["time"]
+        time_end = item.get("time_end", time_start + 1.0)
         text = item["text"]
-        
+
         if not text:
-            # Silence gap: close current segment if it exists
             if current_seg:
-                # Minimum duration filter: discard very short clips (< 0.5s) unless it has text
                 if current_seg["end"] - current_seg["start"] >= 0.5:
                     segments.append(current_seg)
                 current_seg = None
             continue
-            
+
         if current_seg is None:
             current_seg = {
-                "start": time,
-                "end": time + 0.5,
+                "start": time_start,
+                "end": time_end,
                 "text": text,
                 "speaker": "Speaker 1"
             }
         else:
-            # Check if this frame text is highly similar to current segment text
             if similarity(current_seg["text"], text) > 0.65:
-                # Extend current segment end time
-                current_seg["end"] = time + 0.5
-                # Update text to the longer version or keep it
+                current_seg["end"] = time_end
                 if len(text) > len(current_seg["text"]):
                     current_seg["text"] = text
             else:
-                # Text changed: save old segment and start new one
                 if current_seg["end"] - current_seg["start"] >= 0.5:
                     segments.append(current_seg)
                 current_seg = {
-                    "start": time,
-                    "end": time + 0.5,
+                    "start": time_start,
+                    "end": time_end,
                     "text": text,
                     "speaker": "Speaker 1"
                 }
@@ -382,14 +524,38 @@ def ocr_video_subtitles(video_path: str) -> list:
     if current_seg and (current_seg["end"] - current_seg["start"] >= 0.5):
         segments.append(current_seg)
 
-    # Final post-processing filter to clean duplicates or tiny overlapping windows
+    # Final post-processing: remove noise
     cleaned_segments = []
     for s in segments:
         text = s["text"].strip()
-        # Remove single character garbage OCR noise
         if len(text) <= 2 and not text.isalnum():
             continue
         cleaned_segments.append(s)
+
+    # Auto-detect Vietnamese and assign translation to bypass translation step
+    vietnamese_accents = re.compile(r'[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆĐÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]')
+    for s in cleaned_segments:
+        s_text = s.get("text", "")
+        if vietnamese_accents.search(s_text):
+            s["translation"] = s_text
+
+    # Layer 2: Gemini Vision refinement (if API key available)
+    from app.config import settings
+    api_key = settings.GEMINI_API_KEY.strip() if hasattr(settings, 'GEMINI_API_KEY') else ""
+    if api_key and keyframe_images:
+        # Map raw_frame indices to segment indices for keyframe lookup
+        seg_keyframes = {}
+        for seg_idx, seg in enumerate(cleaned_segments):
+            # Find the closest raw_frame keyframe for this segment
+            for raw_idx, b64_img in keyframe_images.items():
+                if raw_idx < len(raw_frames):
+                    raw_time = raw_frames[raw_idx]["time"]
+                    if seg["start"] <= raw_time <= seg["end"]:
+                        seg_keyframes[seg_idx] = b64_img
+                        break
+        if seg_keyframes:
+            logger.info(f"Gemini Vision: Tinh chỉnh {len(seg_keyframes)} segments có keyframe...")
+            _refine_with_gemini_vision(cleaned_segments, seg_keyframes, api_key)
 
     logger.info(f"OCR generated {len(cleaned_segments)} processed subtitle segments.")
     return cleaned_segments
@@ -536,104 +702,141 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
     if api_key:
         import time as _time
         logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}, chủ đề: {video_topic}...")
-        for gemini_attempt in range(1, 4):  # retry up to 3 times for 503
-            try:
-                from google import genai
-                from google.genai import types
-                import json
-                import re
 
-                client = genai.Client(api_key=api_key)
+        # Chia nhỏ segments thành các batch để tránh timeout do prompt quá dài
+        BATCH_SIZE = 15
+        all_translated = True
+        batches = [segments[i:i + BATCH_SIZE] for i in range(0, len(segments), BATCH_SIZE)]
+        logger.info(f"Chia {len(segments)} segments thành {len(batches)} batch (mỗi batch tối đa {BATCH_SIZE} câu).")
 
-                # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
-                prompt = (
-                    "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
-                    f"Video topic/work details: {video_topic} (Timing rate constraint: {video_context})\n\n"
-                    "YOUR TASK: Translate the source video transcript segments (which may be in English, Chinese, Japanese, Korean, French, or any other language) into natural spoken Vietnamese for voice dubbing.\n\n"
-                    "STRICT RULES:\n"
-                    "1. PROPER NOUNS & CHARACTER NAMES: For general foreign names/brands, keep them unchanged (e.g. 'iPhone 16' -> 'iPhone 16').\n"
-                    "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English/foreign languages if they would sound wrong when read by a Vietnamese voice. Use spaces instead of hyphens to separate syllables so that the TTS reads them smoothly.\n"
-                    "   Specifically, map names across languages and handle common OCR/ASR typos from audio/subtitles (e.g., Doraemon characters):\n"
-                    "   - 'Nobita' / '大雄' (or typos '大修', '大熊') / 'のび太' -> translate as 'Nô Bi Ta'\n"
-                    "   - 'Shizuka' / '静香' (or typos '静乡', '净香') / 'しずか' -> translate as 'Xu Ka'\n"
-                    "   - 'Suneo' / '小夫' (or typos '强夫', '小福') / 'スネ夫' -> translate as 'Xê Kô'\n"
-                    "   - 'Jaian' / '胖虎' (or typos '庞虎', '胖胡') / 'ジャイアン' -> translate as 'Chai En'\n"
-                    "   - 'Doraemon' / '哆啦A梦' (or '阿蒙') / 'ドラえもん' -> translate as 'Đô Rê Mon'\n"
-                    "   - 'Conan' / '柯南' / 'コナン' -> translate as 'Cô Nan'\n"
-                    "   - 'Harry Potter' / '哈利波特' -> translate as 'Ha Ri Pót Tơ'\n"
-                    "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
-                    "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
-                    "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
-                    "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
-                    "4. CONCISENESS (CRITICAL): If the target word count is tight for the duration, rephrase the translation to be as short as possible while retaining the core meaning (drop filler words, use shorter synonyms).\n"
-                    "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
-                    "6. TIMING: Strictly follow the target word count per segment. Keep it within the limit so it fits the duration.\n"
-                    "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
-                    "   Example: [\"câu một\", \"câu hai\"]\n\n"
-                    "Segments:\n"
-                )
-                for idx, seg in enumerate(segments):
-                    duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                    orig_text = seg.get("text", "").strip()
-                    orig_words = len(orig_text.split()) if orig_text else 0
+        for batch_idx, batch in enumerate(batches):
+            batch_start_global = batch_idx * BATCH_SIZE
+            logger.info(f"Đang dịch batch {batch_idx + 1}/{len(batches)} ({len(batch)} câu, segment {batch_start_global}-{batch_start_global + len(batch) - 1})...")
 
-                    # Target word count for Vietnamese (normally 20% longer than English)
-                    max_words = max(1, int(orig_words * 1.20))
-                    # Lower bound: comfortable pace ~2.6 words/sec
-                    max_words = max(max_words, max(1, int(duration * 2.6)))
-                    # Upper bound: strict limit of ~3.2 words/sec to force conciseness
-                    max_words = min(max_words, max(1, int(duration * 3.2)))
+            batch_success = False
+            for gemini_attempt in range(1, 4):  # retry up to 3 times per batch
+                try:
+                    from google import genai
+                    from google.genai import types
+                    import json
 
-                    # Include previous segment as context clue
-                    prev_text = segments[idx - 1].get("text", "").strip() if idx > 0 else ""
+                    client = genai.Client(api_key=api_key)
 
-                    if prev_text:
-                        prompt += f"[{idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
-                    else:
-                        prompt += f"[{idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
-
-                if api_key.startswith("AQ."):
-                    # Dùng REST API trực tiếp cho các key mới bắt đầu bằng 'AQ.' để tránh lỗi SDK nhận nhầm thành OAuth Token
-                    import requests
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-                    headers = {"Content-Type": "application/json"}
-                    payload = {
-                        "contents": [{
-                            "parts": [{"text": prompt}]
-                        }]
-                    }
-                    res_http = requests.post(url, headers=headers, json=payload, timeout=90.0)
-                    res_http.raise_for_status()
-                    res_data = res_http.json()
-                    res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                else:
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=prompt,
+                    # Tạo prompt dịch theo ngữ cảnh và tối ưu độ dài theo thời lượng nói
+                    prompt = (
+                        "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
+                        f"Video topic/work details: {video_topic} (Timing rate constraint: {video_context})\n\n"
+                        "YOUR TASK: Translate the source video transcript segments (which may be in English, Chinese, Japanese, Korean, French, or any other language) into natural spoken Vietnamese for voice dubbing.\n\n"
+                        "STRICT RULES:\n"
+                        "1. PROPER NOUNS & CHARACTER NAMES: For general foreign names/brands, keep them unchanged (e.g. 'iPhone 16' -> 'iPhone 16').\n"
+                        "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English/foreign languages if they would sound wrong when read by a Vietnamese voice. Use spaces instead of hyphens to separate syllables so that the TTS reads them smoothly.\n"
+                        "   Specifically, map names across languages and handle common OCR/ASR typos from audio/subtitles (e.g., Doraemon characters):\n"
+                        "   - 'Nobita' / '大雄' (or typos '大修', '大熊') / 'のび太' -> translate as 'Nô Bi Ta'\n"
+                        "   - 'Shizuka' / '静香' (or typos '静乡', '净香') / 'しずか' -> translate as 'Xu Ka'\n"
+                        "   - 'Suneo' / '小夫' (or typos '强夫', '小福') / 'スネ夫' -> translate as 'Xê Kô'\n"
+                        "   - 'Jaian' / '胖虎' (or typos '庞虎', '胖胡') / 'ジャイアン' -> translate as 'Chai En'\n"
+                        "   - 'Doraemon' / '哆啦A梦' (or '阿蒙') / 'ドラえもん' -> translate as 'Đô Rê Mon'\n"
+                        "   - 'Conan' / '柯南' / 'コナン' -> translate as 'Cô Nan'\n"
+                        "   - 'Harry Potter' / '哈利波特' -> translate as 'Ha Ri Pót Tơ'\n"
+                        "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
+                        "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
+                        "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
+                        "   - Mirror the speaker's tone (casual, excited, serious) from the original.\n"
+                        "4. CONCISENESS (CRITICAL): If the target word count is tight for the duration, rephrase the translation to be as short as possible while retaining the core meaning (drop filler words, use shorter synonyms).\n"
+                        "5. CONTEXT: [PREV] shows the previous line for context only. Translate only [CURR].\n"
+                        "6. TIMING: Strictly follow the target word count per segment. Keep it within the limit so it fits the duration.\n"
+                        "7. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown.\n"
+                        f"   Example: [\"câu một\", \"câu hai\"]\n\n"
+                        f"Segments (batch {batch_idx + 1}/{len(batches)}):\n"
                     )
-                    res_text = response.text.strip()
+                    for local_idx, seg in enumerate(batch):
+                        global_idx = batch_start_global + local_idx
+                        duration = seg.get("end", 0.0) - seg.get("start", 0.0)
+                        orig_text = seg.get("text", "").strip()
+                        orig_words = len(orig_text.split()) if orig_text else 0
 
-                # Tìm mảng JSON trong phản hồi của Gemini
-                json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
-                if json_match:
-                    translated_list = json.loads(json_match.group(0))
-                    if len(translated_list) == len(segments):
+                        # Target word count for Vietnamese (normally 20% longer than English)
+                        max_words = max(1, int(orig_words * 1.20))
+                        # Lower bound: comfortable pace ~2.6 words/sec
+                        max_words = max(max_words, max(1, int(duration * 2.6)))
+                        # Upper bound: strict limit of ~3.2 words/sec to force conciseness
+                        max_words = min(max_words, max(1, int(duration * 3.2)))
 
-                        for idx, trans in enumerate(translated_list):
-                            segments[idx]["translation"] = trans
-                        logger.info(f"Đã dịch thành công {len(segments)} câu bằng Gemini API.")
-                        return segments
-                logger.warning("Không thể parse kết quả JSON của Gemini. Tiến hành fallback sang Google Translate.")
-                break  # parse failed - no point retrying
-            except Exception as e:
-                err_str = str(e)
-                if "503" in err_str or "UNAVAILABLE" in err_str or "timeout" in err_str.lower() or "connection" in err_str.lower():
-                    if gemini_attempt < 3:
-                        logger.warning(f"Lỗi kết nối/timeout Gemini (lần {gemini_attempt}/3): {e} - thử lại sau 5 giây...")
-                        _time.sleep(5)
-                        continue
-                logger.warning(f"Lỗi khi dịch bằng Gemini API: {e}. Tiến hành fallback sang Google Translate.")
-                break
+                        # Include previous segment as context clue
+                        if local_idx > 0:
+                            prev_text = batch[local_idx - 1].get("text", "").strip()
+                        elif global_idx > 0:
+                            prev_text = segments[global_idx - 1].get("text", "").strip()
+                        else:
+                            prev_text = ""
+
+                        if prev_text:
+                            prompt += f"[{local_idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                        else:
+                            prompt += f"[{local_idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
+
+                    if api_key.startswith("AQ."):
+                        # Dùng REST API trực tiếp cho các key mới bắt đầu bằng 'AQ.' để tránh lỗi SDK nhận nhầm thành OAuth Token
+                        import requests
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                        headers = {"Content-Type": "application/json"}
+                        payload = {
+                            "contents": [{
+                                "parts": [{"text": prompt}]
+                            }]
+                        }
+                        res_http = requests.post(url, headers=headers, json=payload, timeout=60.0)
+                        res_http.raise_for_status()
+                        res_data = res_http.json()
+                        res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    else:
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
+                        )
+                        res_text = response.text.strip()
+
+                    # Tìm mảng JSON trong phản hồi của Gemini
+                    json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
+                    if json_match:
+                        translated_list = json.loads(json_match.group(0))
+                        if len(translated_list) == len(batch):
+                            for local_idx, trans in enumerate(translated_list):
+                                batch[local_idx]["translation"] = trans
+                            logger.info(f"Batch {batch_idx + 1}/{len(batches)}: Dịch thành công {len(batch)} câu bằng Gemini API.")
+                            batch_success = True
+                            break  # success, move to next batch
+                    logger.warning(f"Batch {batch_idx + 1}: Không thể parse kết quả JSON của Gemini (got {len(translated_list) if json_match else 0} vs expected {len(batch)}). Batch này sẽ fallback.")
+                    break  # parse failed - no point retrying this batch
+                except Exception as e:
+                    err_str = str(e)
+                    if "503" in err_str or "UNAVAILABLE" in err_str or "timeout" in err_str.lower() or "connection" in err_str.lower():
+                        if gemini_attempt < 3:
+                            logger.warning(f"Batch {batch_idx + 1} - Lỗi kết nối/timeout Gemini (lần {gemini_attempt}/3): {e} - thử lại sau 5 giây...")
+                            _time.sleep(5)
+                            continue
+                    logger.warning(f"Batch {batch_idx + 1} - Lỗi Gemini API: {e}. Batch này sẽ fallback sang Google Translate.")
+                    break
+
+            if not batch_success:
+                all_translated = False
+                # Fallback từng câu trong batch thất bại sang Google Translate
+                from deep_translator import GoogleTranslator
+                translator = GoogleTranslator(source="auto", target=target_lang)
+                for seg in batch:
+                    if not seg.get("translation"):
+                        try:
+                            seg["translation"] = translator.translate(seg["text"])
+                        except Exception as e:
+                            logger.warning(f"Google Translate fallback failed: {e}")
+                            seg["translation"] = seg["text"]
+                logger.info(f"Batch {batch_idx + 1}: Đã fallback {len(batch)} câu sang Google Translate.")
+
+        if all_translated:
+            logger.info(f"Đã dịch thành công toàn bộ {len(segments)} câu bằng Gemini API.")
+        else:
+            logger.info(f"Hoàn tất dịch {len(segments)} câu (một số batch dùng Gemini, một số fallback Google Translate).")
+        return segments
 
     # Fallback sang Google Translate
     from deep_translator import GoogleTranslator

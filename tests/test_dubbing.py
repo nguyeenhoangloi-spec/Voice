@@ -193,3 +193,70 @@ def test_merge_tts_with_video_burn_subtitles(mock_exists, mock_run, mock_remove,
         assert "dummy_sub.srt" in vf_arg
 
 
+@patch("app.config.settings")
+@patch("cv2.VideoCapture")
+@patch("easyocr.Reader")
+def test_ocr_video_subtitles_multilingual(mock_reader_cls, mock_video_capture, mock_settings):
+    from app.services.dubbing_engine import ocr_video_subtitles
+    
+    # Disable Gemini Vision layer for unit test
+    mock_settings.GEMINI_API_KEY = ""
+    
+    # Mock VideoCapture
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    
+    def get_property(prop):
+        if prop == 5: # cv2.CAP_PROP_FPS
+            return 1.0
+        elif prop == 7: # cv2.CAP_PROP_FRAME_COUNT
+            return 10.0
+        elif prop == 3: # cv2.CAP_PROP_FRAME_WIDTH
+            return 1920
+        elif prop == 4: # cv2.CAP_PROP_FRAME_HEIGHT
+            return 1080
+        return 1.0
+        
+    mock_cap.get.side_effect = get_property
+    
+    # Create distinct frames so _frames_differ detects changes
+    import numpy as np
+    frame_black = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    frame_white = np.ones((1080, 1920, 3), dtype=np.uint8) * 255
+    frame_gray = np.ones((1080, 1920, 3), dtype=np.uint8) * 128
+    
+    # FPS=1 -> sample_interval=1 -> every frame is sampled
+    # Frame 0: black -> OCR "Chào Nô Bi Ta" (Vietnamese, gets translation auto)
+    # Frame 1: white (different pixels) -> OCR empty
+    # Frame 2: gray (different pixels) -> OCR "静香" (Chinese, no auto translation)
+    mock_cap.read.side_effect = [
+        (True, frame_black),  # frame 0
+        (True, frame_white),  # frame 1
+        (True, frame_gray),   # frame 2
+        (False, None)         # EOF
+    ]
+    mock_video_capture.return_value = mock_cap
+    
+    # Mock EasyOCR Reader
+    mock_reader = MagicMock()
+    mock_reader.readtext.side_effect = [
+        ["Chào", "Nô", "Bi", "Ta"],  # frame 0
+        [],                           # frame 1
+        ["静香"]                      # frame 2
+    ]
+    mock_reader_cls.return_value = mock_reader
+    
+    res = ocr_video_subtitles("dummy_video.mp4")
+    
+    # Verify easyocr.Reader is initialized with multilingual support
+    mock_reader_cls.assert_called_with(['vi', 'ch_sim', 'ja', 'en'], gpu=True)
+    
+    # Verify OCR outputs
+    assert len(res) >= 2
+    # Segment 1: Vietnamese text -> auto-assigned translation
+    assert res[0]["text"] == "Chào Nô Bi Ta"
+    assert res[0]["translation"] == "Chào Nô Bi Ta"
+    
+    # Segment 2: Chinese/Japanese -> preserved Unicode, no auto translation
+    assert res[1]["text"] == "静香"
+    assert "translation" not in res[1]
