@@ -109,7 +109,7 @@ def test_translate_segments_with_video_topic():
     with patch("app.config.settings.GEMINI_API_KEY", ""):
         with patch("deep_translator.GoogleTranslator.translate") as mock_trans:
             mock_trans.return_value = "Nobita và Shizuka đi đến nhà Suneo."
-            res = translate_segments(segments, target_lang="vi", video_context="neutral", video_topic="Doraemon")
+            res = translate_segments([dict(s) for s in segments], target_lang="vi", video_context="neutral", video_topic="Doraemon")
             assert res[0]["translation"] == "Nobita và Shizuka đi đến nhà Suneo."
 
     # Case 2: Dịch với Gemini API (giả lập kết quả trả về có phiên âm Việt hóa)
@@ -119,11 +119,34 @@ def test_translate_segments_with_video_topic():
             mock_client_cls.return_value = mock_client
             
             mock_response = MagicMock()
-            mock_response.text = '["Nô-bi-ta và Xi-du-ka đi đến nhà Xu-ne-o."]'
+            mock_response.text = '["Nô Bi Ta và Xu Ka đi đến nhà Xê Kô."]'
             mock_client.models.generate_content.return_value = mock_response
             
-            res = translate_segments(segments, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
-            assert res[0]["translation"] == "Nô-bi-ta và Xi-du-ka đi đến nhà Xu-ne-o."
+            res = translate_segments([dict(s) for s in segments], target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
+            assert res[0]["translation"] == "Nô Bi Ta và Xu Ka đi đến nhà Xê Kô."
+
+            # Case 3: Test sửa lỗi chính tả đồng âm tiếng Trung (typo correction)
+            segments_cn = [{"start": 30.0, "end": 30.72, "text": "我说大修"}]
+            mock_response_cn = MagicMock()
+            mock_response_cn.text = '["Tôi nói Nô Bi Ta."]'
+            mock_client.models.generate_content.return_value = mock_response_cn
+            
+            res_cn = translate_segments(segments_cn, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
+            assert res_cn[0]["translation"] == "Tôi nói Nô Bi Ta."
+
+            # Case 4: Test dịch từ tiếng Nhật gốc (Doraemon original names)
+            segments_jp = [{"start": 0.0, "end": 2.0, "text": "のび太としずかはスネ夫の家に行きました。"}]
+            mock_response_jp = MagicMock()
+            mock_response_jp.text = '["Nô Bi Ta và Xu Ka đi đến nhà Xê Kô."]'
+            mock_client.models.generate_content.return_value = mock_response_jp
+            
+            res_jp = translate_segments(segments_jp, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
+            assert res_jp[0]["translation"] == "Nô Bi Ta và Xu Ka đi đến nhà Xê Kô."
+
+            # Case 5: Test bypass dịch thuật khi đã có sẵn bản dịch tiếng Việt
+            segments_vi = [{"start": 0.0, "end": 2.0, "text": "Chào Nô Bi Ta", "translation": "Chào Nô Bi Ta"}]
+            res_vi = translate_segments(segments_vi, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
+            assert res_vi[0]["translation"] == "Chào Nô Bi Ta"
 
 @patch("os.path.getsize")
 @patch("os.remove")

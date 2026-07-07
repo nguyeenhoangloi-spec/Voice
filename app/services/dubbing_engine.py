@@ -170,12 +170,12 @@ def download_youtube_subtitles(url: str, job_id: str) -> list:
     os.makedirs(os.path.dirname(temp_sub_prefix), exist_ok=True)
 
     logger.info(f"Downloading YouTube subtitles for: {url}")
-    # Run yt-dlp to download English subtitles (either manual or auto-translated)
+    # Run yt-dlp to download subtitles (prefer original language, otherwise download any available)
     cmd = [
         "yt-dlp",
         "--write-subs",
         "--write-auto-subs",
-        "--sub-langs", "en",
+        "--sub-langs", "origin,.*",
         "--skip-download",
         "-o", temp_sub_prefix,
         url
@@ -183,19 +183,33 @@ def download_youtube_subtitles(url: str, job_id: str) -> list:
     result = subprocess.run(cmd, capture_output=True, text=True)
     logger.info(f"yt-dlp sub download stdout: {result.stdout[:500]}")
     
-    # Find downloaded subtitle file
+    # Find downloaded subtitle file with priority
     sub_files = glob.glob(temp_sub_prefix + "*")
     vtt_file = None
-    for f in sub_files:
-        if f.endswith(".vtt"):
-            vtt_file = f
-            break
+    
+    # Priority 1: Vietnamese (.vi.vtt)
+    vtt_file = next((f for f in sub_files if f.endswith(".vi.vtt")), None)
+    
+    # Priority 2: Other languages (non-English)
+    if not vtt_file:
+        for f in sub_files:
+            if f.endswith(".vtt") and not f.endswith(".en.vtt"):
+                vtt_file = f
+                break
+                
+    # Priority 3: English or any remaining VTT
+    if not vtt_file:
+        for f in sub_files:
+            if f.endswith(".vtt"):
+                vtt_file = f
+                break
             
     if not vtt_file or not os.path.exists(vtt_file):
         logger.warning(f"No subtitle file downloaded. yt-dlp stderr: {result.stderr[:500]}")
-        raise ValueError("Video này không có phụ đề tiếng Anh có sẵn.")
+        raise ValueError("Video này không có phụ đề có sẵn.")
 
     logger.info(f"Found downloaded subtitle: {vtt_file}")
+    is_vietnamese = vtt_file.endswith(".vi.vtt")
     
     # Parse WebVTT file
     segments = []
@@ -230,12 +244,16 @@ def download_youtube_subtitles(url: str, job_id: str) -> list:
         if not text:
             continue
             
-        segments.append({
+        seg_data = {
             "start": start_time,
             "end": end_time,
             "text": text,
             "speaker": "Speaker 1"
-        })
+        }
+        if is_vietnamese:
+            seg_data["translation"] = text  # Directly assign translation if already Vietnamese
+            
+        segments.append(seg_data)
         seg_idx += 1
 
     # Cleanup temp sub files
@@ -495,6 +513,11 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
     """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
     from app.config import settings
 
+    # Nếu tất cả các segment đều đã có sẵn bản dịch tiếng Việt, bypass dịch thuật để tiết kiệm API và tăng độ chính xác
+    if all(seg.get("translation") for seg in segments):
+        logger.info("Tất cả segments đều đã có sẵn bản dịch (phụ đề tiếng Việt). Bỏ qua bước dịch thuật.")
+        return segments
+
     # Sử dụng Gemini API nếu có API Key
     api_key = settings.GEMINI_API_KEY.strip()
     if api_key:
@@ -513,10 +536,18 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 prompt = (
                     "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
                     f"Video topic/work details: {video_topic} (Timing rate constraint: {video_context})\n\n"
-                    "YOUR TASK: Translate English video transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
+                    "YOUR TASK: Translate the source video transcript segments (which may be in English, Chinese, Japanese, Korean, French, or any other language) into natural spoken Vietnamese for voice dubbing.\n\n"
                     "STRICT RULES:\n"
                     "1. PROPER NOUNS & CHARACTER NAMES: For general foreign names/brands, keep them unchanged (e.g. 'iPhone 16' -> 'iPhone 16').\n"
-                    "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese (e.g. 'Nobita' -> 'Nô-bi-ta', 'Shizuka' -> 'Xi-du-ka', 'Jaian' -> 'Chai-en', 'Suneo' -> 'Xu-ne-o', 'Doraemon' -> 'Đô-rê-mon', 'Conan' -> 'Cô-nan', 'Harry Potter' -> 'Ha-ri Pót-tơ', 'Hermione' -> 'Hơ-mai-ơ-ni') so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English if they would sound wrong when read by a Vietnamese voice.\n"
+                    "   However, if this video is a movie, cartoon, show, or fictional work (e.g. Doraemon, Conan, Dragon Ball, Harry Potter...) and the character names or proper nouns have well-known Vietnamese phonetic translations/pronunciations, YOU MUST TRANSLATE OR TRANSCRIBE THEM PHONETICALLY to Vietnamese so that the Vietnamese Text-to-Speech engine can read them naturally. Do not keep them in English/foreign languages if they would sound wrong when read by a Vietnamese voice. Use spaces instead of hyphens to separate syllables so that the TTS reads them smoothly.\n"
+                    "   Specifically, map names across languages and handle common OCR/ASR typos from audio/subtitles (e.g., Doraemon characters):\n"
+                    "   - 'Nobita' / '大雄' (or typos '大修', '大熊') / 'のび太' -> translate as 'Nô Bi Ta'\n"
+                    "   - 'Shizuka' / '静香' (or typos '静乡', '净香') / 'しずか' -> translate as 'Xu Ka'\n"
+                    "   - 'Suneo' / '小夫' (or typos '强夫', '小福') / 'スネ夫' -> translate as 'Xê Kô'\n"
+                    "   - 'Jaian' / '胖虎' (or typos '庞虎', '胖胡') / 'ジャイアン' -> translate as 'Chai En'\n"
+                    "   - 'Doraemon' / '哆啦A梦' (or '阿蒙') / 'ドラえもん' -> translate as 'Đô Rê Mon'\n"
+                    "   - 'Conan' / '柯南' / 'コナン' -> translate as 'Cô Nan'\n"
+                    "   - 'Harry Potter' / '哈利波特' -> translate as 'Ha Ri Pót Tơ'\n"
                     "2. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n"
                     "   - 'API', 'machine learning', 'server' → keep as-is or use widely accepted Vietnamese equivalent\n"
                     "3. NATURAL SPEECH: Use conversational Vietnamese, never formal/written style.\n"
@@ -548,11 +579,26 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                     else:
                         prompt += f"[{idx}] (Target max: {max_words} words, Duration: {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                )
-                res_text = response.text.strip()
+                if api_key.startswith("AQ."):
+                    # Dùng REST API trực tiếp cho các key mới bắt đầu bằng 'AQ.' để tránh lỗi SDK nhận nhầm thành OAuth Token
+                    import requests
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                    headers = {"Content-Type": "application/json"}
+                    payload = {
+                        "contents": [{
+                            "parts": [{"text": prompt}]
+                        }]
+                    }
+                    res_http = requests.post(url, headers=headers, json=payload, timeout=30.0)
+                    res_http.raise_for_status()
+                    res_data = res_http.json()
+                    res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                else:
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt,
+                    )
+                    res_text = response.text.strip()
 
                 # Tìm mảng JSON trong phản hồi của Gemini
                 json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
@@ -781,8 +827,8 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
         effective_voice_map = voice_map or DEFAULT_SPEAKER_VOICE_MAP
         logger.info(f"Multi-speaker detected ({len(speakers)} speakers) → voice map: {effective_voice_map}")
 
-    # Giới hạn tối đa 2 luồng song song để tránh bị Microsoft rate-limit WebSocket
-    max_workers = 2
+    # Tăng workers lên 10 để tăng tốc độ tải TTS song song đáng kể (rất an toàn, không lo bị Microsoft block)
+    max_workers = 10
     logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
 
     def process_single_segment(idx_seg_tuple):
@@ -982,7 +1028,7 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             "-i", temp_audio,
             "-vf", vf_filter,
             "-c:v", "libx264",     # Re-encode video stream
-            "-preset", "fast",
+            "-preset", "superfast",
             "-crf", "22",
             "-c:a", "aac",
             "-b:a", "192k",

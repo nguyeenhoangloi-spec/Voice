@@ -19,3 +19,4 @@ if __name__ == "__main__":
         port=settings.PORT,
         reload=settings.APP_MODE == "development"
     )
+# Reload trigger: 2026-07-07 21:39
