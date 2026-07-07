@@ -1,0 +1,452 @@
+1
+00:00:00,000 --> 00:00:03,299
+Ngôi nhà biến thành robot
+
+2
+00:00:30,000 --> 00:00:30,719
+Tôi đã nói đại tu
+
+3
+00:00:31,280 --> 00:00:34,920
+Bạn đang cố gắng hết sức để đánh bại ở đâu? Tôi không nghĩ tôi sẽ đưa bạn đến đó.
+
+4
+00:00:34,920 --> 00:00:36,539
+Vì tôi muốn học
+
+5
+00:00:37,420 --> 00:00:40,200
+Nếu muốn học thì tại sao bạn không học ở nhà?
+
+6
+00:00:40,820 --> 00:00:44,299
+Tất nhiên, sẽ rất vui khi được học cùng với người bạn cùng bị thương ở đầu.
+
+7
+00:00:45,119 --> 00:00:47,000
+Bố mẹ ơi, con đi ra ngoài
+
+8
+00:00:47,479 --> 00:00:48,219
+Hãy cẩn thận trên đường
+
+9
+00:00:48,960 --> 00:00:51,320
+Cũng nhớ đừng tặng fan Tianma
+
+10
+00:00:52,340 --> 00:00:52,740
+Tôi biết
+
+11
+00:00:54,039 --> 00:00:58,859
+Mình xuất thân từ thế này, học, học, vui quá
+
+12
+00:01:00,320 --> 00:01:02,060
+Tôi đột nhiên có những ngày tồi tệ
+
+13
+00:01:02,640 --> 00:01:05,959
+Đại tu, bạn trông rất hạnh phúc. Bạn đang đi đâu?
+
+14
+00:01:05,959 --> 00:01:09,879
+Tôi sắp đi du học. Vậy là bạn nghiêm túc lắm à?
+
+15
+00:01:09,879 --> 00:01:13,299
+Bạn đã sẵn sàng, tôi sẽ nhớ việc học ở nhà tuyệt vời của bạn
+
+16
+00:01:13,900 --> 00:01:17,420
+Hôm nay có cuộc họp ở thị trấn nên hiện tại tôi không có người lớn nào ở nhà
+
+17
+00:01:17,420 --> 00:01:19,459
+Bạn có thể nhớ và nhớ đọc
+
+18
+00:01:20,400 --> 00:01:21,280
+KHÔNG
+
+19
+00:01:23,480 --> 00:01:28,400
+Trong nhà có rất nhiều phòng nên bạn có thể sử dụng tùy thích
+
+20
+00:01:28,400 --> 00:01:29,290
+Tôi đã nói không
+
+21
+00:01:32,180 --> 00:01:35,980
+Bố là loại người không ngoan ngoãn nhận ý tốt.
+
+22
+00:01:35,980 --> 00:01:39,340
+Thôi nào, loại người đó đang ở trước mặt tôi bây giờ
+
+23
+00:01:42,560 --> 00:01:43,379
+Đại tu
+
+24
+00:01:45,640 --> 00:01:49,420
+Đó là một chiếc hộp gương. Đại tu vẫn chưa đến. Để tôi đón anh ấy.
+
+25
+00:01:49,420 --> 00:01:51,879
+Nhưng đại tu đã rời đi sớm
+
+26
+00:01:51,879 --> 00:01:55,799
+Lần này cô đến chỗ bạn để đánh cá bắt nạt.
+
+27
+00:01:57,739 --> 00:02:01,099
+Đây không phải là giọng nói của Đại tu sao? Tại sao cô ấy lại giúp đỡ gia đình tôi?
+
+28
+00:02:10,319 --> 00:02:13,340
+Bạn buộc phải giúp Tianjia và mẹ chồng cô dọn dẹp nhà cửa.
+
+29
+00:02:13,879 --> 00:02:17,840
+Tất cả những điều tôi muốn dừng lại đều đổ lỗi cho tôi.
+
+30
+00:02:19,680 --> 00:02:22,379
+Bạn không thể làm gì về điều này. Hãy để tôi giúp bạn.
+
+31
+00:02:22,379 --> 00:02:25,419
+Sau khi xong việc tôi sẽ cùng nhau học ở đây.
+
+32
+00:02:25,960 --> 00:02:28,639
+Đời này tôi sẽ đi lấy những thứ
+
+33
+00:02:29,120 --> 00:02:30,460
+Cuộc sống này thật nhẹ nhàng
+
+34
+00:02:31,120 --> 00:02:34,300
+Được rồi, chuyện nhà để nhà lo.
+
+35
+00:02:36,900 --> 00:02:39,240
+Nhà còn có lễ tân
+
+36
+00:02:41,180 --> 00:02:43,120
+Chỉ cần đặt đạo cụ ở đây
+
+37
+00:02:51,840 --> 00:02:53,439
+Chuyện gì đang xảy ra vậy
+
+38
+00:02:54,500 --> 00:02:57,939
+Bằng cách này, ngôi nhà này sẽ trở thành một robot. Trở thành một người máy.
+
+39
+00:02:58,599 --> 00:03:02,180
+Sợ gia đình mình, nếu trở thành người máy thì cứ quay đầu lại.
+
+40
+00:03:03,500 --> 00:03:06,180
+Tôi sợ nhà Hồ sẽ biến tôi thành người máy
+
+41
+00:03:07,939 --> 00:03:11,060
+Nhân tiện, tôi sợ nhà họ Hồ. Bạn dường như có chút bối rối trong cơ thể.
+
+42
+00:03:15,699 --> 00:03:20,280
+Nó thực sự, thực sự xấu hổ. Tôi sẽ dọn dẹp hiện trường cho bạn, vì vậy làm ơn.
+
+43
+00:03:38,759 --> 00:03:42,979
+Vì ngôi nhà trở thành robot nên mọi việc bạn làm đều được tự động hóa.
+
+44
+00:03:47,280 --> 00:03:49,280
+Tôi cũng muốn đưa nhà đi
+
+45
+00:03:53,419 --> 00:03:57,599
+Tôi còn phải dọn nhà nữa. Tôi còn phải dọn nhà nữa. Tôi còn phải dọn nhà nữa.
+
+46
+00:03:57,599 --> 00:04:00,560
+Tôi sợ tôi quá nghiêm túc trong việc chiến đấu
+
+47
+00:04:00,560 --> 00:04:03,199
+Có vẻ như nhà họ Hồ là một gia đình ngăn nắp.
+
+48
+00:04:05,080 --> 00:04:06,300
+tôi sẽ đồng ý
+
+49
+00:04:07,780 --> 00:04:09,219
+Tại sao lại là cửa tự động?
+
+50
+00:04:10,439 --> 00:04:13,319
+Tiếp theo tôi sẽ bảo bạn quay lại và vào nhanh.
+
+51
+00:04:21,100 --> 00:04:22,019
+tôi sẽ đến
+
+52
+00:04:33,379 --> 00:04:38,300
+Nó rất sạch và đẹp dành cho bạn. Bạn có mang cái nhỏ đi cùng nhau không? KHÔNG.
+
+53
+00:04:38,300 --> 00:04:41,240
+Trên thực tế, họ sợ nhà họ Hồ sẽ tự mình bắt con nhỏ.
+
+54
+00:04:41,720 --> 00:04:46,560
+Cô này mời bạn đi chơi. Gia đình chúng tôi sợ nhà họ Hồ sẽ tìm đến sự quan tâm của bạn.
+
+55
+00:04:47,959 --> 00:04:52,300
+Nhân tiện, tôi sợ nhà họ Hồ. Jingshang và tôi muốn học ở đây. Không có gì.
+
+56
+00:05:08,839 --> 00:05:11,839
+Bằng cách này, bạn có thể học tập suôn sẻ.
+
+57
+00:05:13,740 --> 00:05:18,259
+Dù thế nào đi nữa, hôm nay tôi phải lấy lại trò chơi của mình
+
+58
+00:05:20,899 --> 00:05:22,160
+Thực sự thoải mái
+
+59
+00:05:26,040 --> 00:05:29,579
+Nhưng tôi nghĩ nếu tôi muốn học thì ở nhà sẽ thoải mái hơn
+
+60
+00:05:29,579 --> 00:05:33,100
+Vì nhà mình có nhiều phòng, sofa cao cấp và mẫu mã cao cấp
+
+61
+00:05:41,879 --> 00:05:46,860
+Tôi cảm thấy tốt hơn một chút ở nhà của tôi. Tôi có một ít nước trái cây để uống.
+
+62
+00:05:46,860 --> 00:05:49,480
+Và đó là nước ép tươi chiên
+
+63
+00:05:51,680 --> 00:05:52,639
+thơm ngon
+
+64
+00:05:53,220 --> 00:05:56,240
+Nhìn ra khắp thế giới, có lẽ không có nhiều ngôi nhà tử tế như vậy.
+
+65
+00:05:57,680 --> 00:05:58,759
+bạn nói đúng
+
+66
+00:06:03,379 --> 00:06:05,199
+Sẽ không có vấn đề gì
+
+67
+00:06:06,439 --> 00:06:09,740
+Cảm ơn bạn rất nhiều. Bạn thật tốt với gia đình Hu.
+
+68
+00:06:09,740 --> 00:06:13,360
+Chỉ cần yêu và ăn bánh mới làm
+
+69
+00:06:13,360 --> 00:06:18,139
+Chào mừng
+
+70
+00:06:19,839 --> 00:06:22,439
+Nhảy vào đây để thêm chim trĩ ngày hôm nay
+
+71
+00:06:23,759 --> 00:06:26,300
+Xin lỗi, tôi đến đây để uống thuốc.
+
+72
+00:06:28,540 --> 00:06:32,079
+Tôi hy vọng có thể mua được bộ sách giáo khoa về cá mồi trắng này trên máy chủ. Lấy làm tiếc.
+
+73
+00:06:32,079 --> 00:06:35,379
+Bây giờ ngôi nhà này có thể trở nên đặc biệt, người lớn không có ở nhà
+
+74
+00:06:36,339 --> 00:06:38,819
+Cái quái gì vậy? Hóa ra ở nhà chỉ có trẻ con.
+
+75
+00:06:39,220 --> 00:06:43,759
+Tất cả những gì bạn cần làm là sinh ra những tù nhân này. Tôi vừa nói tôi sẽ không mua gà.
+
+76
+00:06:44,300 --> 00:06:46,040
+Tôi ở đây, làm sao tôi không mua được?
+
+77
+00:06:47,240 --> 00:06:48,540
+Tôi sẽ không mua nó nếu tôi bảo anh ta cắt nó đi.
+
+78
+00:06:55,240 --> 00:06:56,779
+Vì em dám đợi anh
+
+79
+00:07:02,699 --> 00:07:03,579
+bạn là gì
+
+80
+00:07:06,019 --> 00:07:08,540
+Anh giận em lắm đấy, nói dối đi.
+
+81
+00:07:15,420 --> 00:07:18,000
+Tất cả đều ồn ào, ồn ào, ồn ào, ồn ào, ồn ào, lớn quá
+
+82
+00:07:21,939 --> 00:07:23,060
+Trong nhà có ma
+
+83
+00:07:25,420 --> 00:07:27,139
+Mọi người ổn chứ?
+
+84
+00:07:27,699 --> 00:07:29,939
+Sợ họ Hồ, bạn thực sự vĩ đại và xuất sắc
+
+85
+00:07:29,939 --> 00:07:33,220
+Sau này tôi sẽ biết liệu tôi có nên cho những người tôi không quen biết vào hay không.
+
+86
+00:07:33,220 --> 00:07:36,439
+Nhưng bạn cũng bảo vệ chúng tôi khỏi anh ta bắt nạt tôi
+
+87
+00:07:36,439 --> 00:07:39,060
+Tôi sợ nhà họ Hồ, bạn thực sự đáng tin cậy.
+
+88
+00:07:39,060 --> 00:07:41,459
+Gia đình tôi sẽ không bao giờ có thể đạt được năng lực sản xuất như vậy.
+
+89
+00:07:43,259 --> 00:07:44,879
+Cảm ơn?
+
+90
+00:07:45,360 --> 00:07:46,480
+Bạn vẫn chấp nhận nó
+
+91
+00:07:52,060 --> 00:07:52,899
+Hoàn thành
+
+92
+00:07:53,420 --> 00:07:57,879
+Đọc xong một đoạn văn của Tô Niên, liền đi ra ngoài chơi. Tôi sẽ giúp hướng dẫn người đánh cược.
+
+93
+00:07:57,879 --> 00:07:58,759
+ĐƯỢC RỒI
+
+94
+00:07:59,600 --> 00:08:00,040
+Ngoài ra
+
+95
+00:08:04,399 --> 00:08:07,139
+Tôi đã đốt rất nhiều thứ của người khác ở đây
+
+96
+00:08:09,259 --> 00:08:10,300
+đây là trò chơi của tôi
+
+97
+00:08:13,899 --> 00:08:17,660
+Thật hiếm khi tôi may mắn như vậy nhưng lại không có ai ở đó cả
+
+98
+00:08:18,139 --> 00:08:19,660
+Hãy đến Harada Koban
+
+99
+00:08:22,439 --> 00:08:25,040
+Gấu Lớn, không phải tôi nên nhờ bạn giúp tôi mở nhà sao?
+
+100
+00:08:25,939 --> 00:08:29,459
+Đừng lo lắng. Gia đình bạn nói họ muốn mở nhà riêng.
+
+101
+00:08:35,299 --> 00:08:37,279
+những gì họ nói là đúng
+
+102
+00:08:50,000 --> 00:08:52,360
+Cảm giác này thật tuyệt
+
+103
+00:08:54,279 --> 00:08:56,039
+Bạn thực sự có khả năng
+
+104
+00:08:59,340 --> 00:09:02,399
+Nhân tiện, hãy lấy một ít đồ ăn nhẹ và ăn ngẫu nhiên
+
+105
+00:09:02,399 --> 00:09:14,980
+Nhưng vì gia đình này rất có khả năng
+
+106
+00:09:14,980 --> 00:09:17,440
+Sẽ không tốt hơn nếu chỉ giúp cải tạo ngôi nhà sao?
+
+107
+00:09:19,720 --> 00:09:21,440
+Bây giờ nó tiện lợi đến mức nào?
+
+108
+00:09:22,179 --> 00:09:24,440
+Khi bạn đi ngang qua ngôi nhà, bạn vẫn đi ngang qua ngôi nhà.
+
+109
+00:09:35,480 --> 00:09:38,659
+Bạn có muốn ăn không? Bạn có muốn ăn không? Bạn có muốn ăn không? Bạn có muốn quay lại mọi thứ không?
+
+110
+00:09:38,659 --> 00:09:41,279
+Vừa rồi tôi không đói
+
+111
+00:09:46,419 --> 00:09:47,679
+chúc vui vẻ
+
+112
+00:09:49,840 --> 00:09:53,539
+Bây giờ bạn vẫn đi à? Vừa rồi tôi không dám nói ngoại ngữ của bạn.
+
+113
+00:09:54,200 --> 00:09:56,159
+Sẽ thật đáng sợ nếu ngôi nhà quá nhỏ
+

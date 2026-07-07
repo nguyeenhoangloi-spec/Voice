@@ -714,27 +714,37 @@ def _prescan_video_context(segments: list, api_key: str) -> dict:
         "6. Return empty characters array if no fictional characters are found.\n"
     )
 
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        res = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=30.0)
-        res.raise_for_status()
-        res_data = res.json()
-        res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    import time as _time
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-        # Parse JSON from response
-        json_match = re.search(r'\{.*\}', res_text, re.DOTALL)
-        if json_match:
-            result = json.loads(json_match.group(0))
-            chars = result.get("characters", [])
-            logger.info(
-                f"Pre-scan: video_type={result.get('video_type', '?')}, "
-                f"title={result.get('title_guess', '?')}, "
-                f"characters={len(chars)}, tone={result.get('tone', '?')}"
-            )
-            return result
-    except Exception as e:
-        logger.warning(f"Pre-scan thất bại: {e}. Sẽ dịch không có context nhân vật.")
+    for attempt in range(1, 4):
+        try:
+            res = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=30.0)
+            res.raise_for_status()
+            res_data = res.json()
+            res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            # Parse JSON from response
+            json_match = re.search(r'\{.*\}', res_text, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group(0))
+                chars = result.get("characters", [])
+                logger.info(
+                    f"Pre-scan: video_type={result.get('video_type', '?')}, "
+                    f"title={result.get('title_guess', '?')}, "
+                    f"characters={len(chars)}, tone={result.get('tone', '?')}"
+                )
+                return result
+        except Exception as e:
+            err_str = str(e)
+            if ("429" in err_str or "Too Many Requests" in err_str) and attempt < 3:
+                wait = 30 * attempt
+                logger.warning(f"Pre-scan 429 rate limit (lần {attempt}/3) - chờ {wait}s rồi thử lại...")
+                _time.sleep(wait)
+                continue
+            logger.warning(f"Pre-scan thất bại: {e}. Sẽ dịch không có context nhân vật.")
+            break
 
     return {"video_type": "unknown", "characters": [], "tone": "neutral"}
 
@@ -793,6 +803,9 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         detected_tone = prescan.get("tone", "neutral")
         detected_type = prescan.get("video_type", "unknown")
         detected_title = prescan.get("title_guess", "")
+
+        # Rate limit: chờ 3s sau pre-scan để tránh 429 Too Many Requests
+        _time.sleep(3)
 
         # Chia nhỏ segments thành các batch để tránh timeout do prompt quá dài
         BATCH_SIZE = 15
@@ -910,16 +923,26 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                                 })
                             logger.info(f"Batch {batch_idx + 1}/{len(batches)}: Dịch thành công {len(batch)} câu bằng Gemini API.")
                             batch_success = True
+                            # Rate limit: chờ 5s giữa các batch để tránh 429
+                            if batch_idx < len(batches) - 1:
+                                _time.sleep(5)
                             break  # success, move to next batch
                     logger.warning(f"Batch {batch_idx + 1}: Không thể parse kết quả JSON của Gemini (got {len(translated_list) if json_match else 0} vs expected {len(batch)}). Batch này sẽ fallback.")
                     break  # parse failed - no point retrying this batch
                 except Exception as e:
                     err_str = str(e)
-                    if "503" in err_str or "UNAVAILABLE" in err_str or "timeout" in err_str.lower() or "connection" in err_str.lower():
-                        if gemini_attempt < 3:
-                            logger.warning(f"Batch {batch_idx + 1} - Lỗi kết nối/timeout Gemini (lần {gemini_attempt}/3): {e} - thử lại sau 5 giây...")
-                            _time.sleep(5)
-                            continue
+                    is_rate_limit = "429" in err_str or "Too Many Requests" in err_str
+                    is_retryable = (
+                        is_rate_limit or "503" in err_str or
+                        "UNAVAILABLE" in err_str or
+                        "timeout" in err_str.lower() or "connection" in err_str.lower()
+                    )
+                    if is_retryable and gemini_attempt < 3:
+                        # 429: chờ lâu hơn (30s, 60s). Lỗi khác: 10s, 20s
+                        wait_sec = 30 * gemini_attempt if is_rate_limit else 10 * gemini_attempt
+                        logger.warning(f"Batch {batch_idx + 1} - Lỗi Gemini (lần {gemini_attempt}/3): {e} - thử lại sau {wait_sec}s...")
+                        _time.sleep(wait_sec)
+                        continue
                     logger.warning(f"Batch {batch_idx + 1} - Lỗi Gemini API: {e}. Batch này sẽ fallback sang Google Translate.")
                     break
 
