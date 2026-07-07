@@ -1,108 +1,371 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="page-header">
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    /* Pill Tabs styles */
+    .pill-tabs {
+        display: flex;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 4px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: var(--space-md);
+        width: fit-content;
+    }
+
+    :root[data-theme="light"] .pill-tabs {
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .pill-tab-btn {
+        background: none;
+        border: none;
+        padding: 8px 16px;
+        border-radius: var(--radius-md);
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pill-tab-btn:hover:not(.active) {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .pill-tab-btn.active {
+        color: white;
+        background: var(--color-primary);
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+    }
+
+    /* Modern Table design */
+    .modern-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 6px;
+        text-align: left;
+        font-size: 13.5px;
+    }
+
+    .modern-table th {
+        padding: 10px 14px;
+        color: var(--text-tertiary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 11.5px;
+        letter-spacing: 0.5px;
+    }
+
+    .modern-table tbody tr {
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        transition: all var(--transition-normal);
+    }
+
+    :root[data-theme="light"] .modern-table tbody tr {
+        background: rgba(0, 0, 0, 0.005);
+    }
+
+    .modern-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.035);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+
+    .modern-table td {
+        padding: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .modern-table td:first-child {
+        border-left: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: var(--radius-md) 0 0 var(--radius-md);
+    }
+
+    .modern-table td:last-child {
+        border-right: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+
+    /* Dynamic status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: var(--radius-full);
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .status-badge.completed {
+        background: rgba(52, 211, 153, 0.08);
+        color: var(--color-success);
+        border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    .status-badge.failed {
+        background: rgba(248, 113, 113, 0.08);
+        color: var(--color-danger);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+    }
+
+    .status-badge.processing {
+        background: rgba(56, 189, 248, 0.08);
+        color: var(--color-primary);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* Pagination Button Styles */
+    .page-btn {
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        color: var(--text-secondary) !important;
+        min-width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        user-select: none;
+    }
+
+    .page-btn:hover:not(.disabled):not(.active) {
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: var(--text-primary) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .page-btn.active {
+        background: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+    }
+
+    .page-btn.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    /* Custom Confirm Modal styling */
+    .custom-modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(7, 10, 19, 0.6);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    .custom-modal-backdrop.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .custom-modal {
+        background: rgba(18, 24, 40, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 420px;
+        padding: var(--space-lg);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+        transform: scale(0.9);
+        transition: transform 0.25s ease;
+    }
+
+    .custom-modal-backdrop.show .custom-modal {
+        transform: scale(1);
+    }
+</style>
+
+<div class="page-header" style="margin-bottom: var(--space-md);">
     <div>
-        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Lịch sử tác vụ</h1>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Lịch sử tác vụ</h1>
         <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Xem và tải lại tất cả video đã lồng tiếng của bạn.</p>
     </div>
-    <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 12px 24px;">
-        <i data-lucide="plus" style="width: 18px; height: 18px;"></i> Tạo tác vụ mới
+    <a href="/dubbing/create" class="btn shiny-btn hover-scale" style="padding: 12px 24px;">
+        <i data-lucide="plus" style="width: 18px; height: 18px; margin-right: 2px;"></i> Tạo tác vụ mới
     </a>
 </div>
 
-<div class="card glass">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs); margin-bottom: var(--space-xs);">
-        <h2 style="font-size: 20px; font-weight: 700;">Danh sách tác vụ đã thực hiện</h2>
-        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="window.location.reload()">
-            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Tải lại
+<div class="bento-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: var(--space-xs); margin-bottom: var(--space-md);">
+        <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary);">Danh sách tác vụ đã thực hiện</h2>
+        <button class="btn btn-secondary hover-scale" style="padding: 6px 12px; font-size: 12px; border: 1px solid rgba(255,255,255,0.05);" onclick="window.location.reload()">
+            <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 2px;"></i> Tải lại
         </button>
     </div>
 
     {% if not jobs %}
-    <div style="text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
-        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📁</div>
-        <p style="font-size: 15px;">Bạn chưa thực hiện tác vụ lồng tiếng nào.</p>
-        <a href="/dubbing/create" class="btn btn-primary" style="margin-top: var(--space-sm); font-size: 13px; padding: 8px 16px;">Tạo tác vụ lồng tiếng</a>
+    <div style="text-align: center; padding: var(--space-xl) 0; color: var(--text-secondary);">
+        <div style="font-size: 48px; margin-bottom: var(--space-sm); opacity: 0.5;">📁</div>
+        <p style="font-size: 15px; font-weight: 600; color: var(--text-secondary);">Bạn chưa thực hiện tác vụ lồng tiếng nào.</p>
+        <a href="/dubbing/create" class="btn shiny-btn" style="margin-top: var(--space-md); font-size: 13px; padding: 10px 20px;">Bắt đầu ngay</a>
     </div>
     {% else %}
     
-    <!-- Tab Navigation bộ lọc trạng thái tác vụ -->
-    <div class="tabs-container" style="display: flex; gap: 8px; margin-bottom: var(--space-sm); border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap;">
-        <button class="tab-btn active" data-tab="all" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: white; background-color: var(--color-primary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="list" style="width: 16px; height: 16px;"></i> Tất cả <span class="tab-count" id="count-all" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px;">0</span>
+    <!-- Tab Navigation Pill Tabs -->
+    <div class="pill-tabs">
+        <button class="pill-tab-btn active" data-tab="all">
+            <i data-lucide="list" style="width: 15px; height: 15px;"></i> Tất cả <span class="tab-count" id="count-all" style="background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: var(--radius-full); font-size: 11px;">0</span>
         </button>
-        <button class="tab-btn" data-tab="processing" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="loader-2" class="icon-spin" style="width: 16px; height: 16px;"></i> Đang chạy <span class="tab-count" id="count-processing" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        <button class="pill-tab-btn" data-tab="processing">
+            <i data-lucide="loader-2" class="icon-spin" style="width: 15px; height: 15px;"></i> Đang chạy <span class="tab-count" id="count-processing" style="background: rgba(56, 189, 248, 0.1); padding: 1px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--color-primary);">0</span>
         </button>
-        <button class="tab-btn" data-tab="completed" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="check-circle-2" style="width: 16px; height: 16px;"></i> Hoàn thành <span class="tab-count" id="count-completed" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        <button class="pill-tab-btn" data-tab="completed">
+            <i data-lucide="check-circle-2" style="width: 15px; height: 15px;"></i> Hoàn thành <span class="tab-count" id="count-completed" style="background: rgba(52, 211, 153, 0.1); padding: 1px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--color-success);">0</span>
         </button>
-        <button class="tab-btn" data-tab="failed" style="background: none; border: none; padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all var(--transition-fast); display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="alert-circle" style="width: 16px; height: 16px;"></i> Thất bại <span class="tab-count" id="count-failed" style="background: rgba(128,128,128,0.15); padding: 2px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--text-secondary);">0</span>
+        <button class="pill-tab-btn" data-tab="failed">
+            <i data-lucide="alert-circle" style="width: 15px; height: 15px;"></i> Thất bại <span class="tab-count" id="count-failed" style="background: rgba(248, 113, 113, 0.1); padding: 1px 6px; border-radius: var(--radius-full); font-size: 11px; color: var(--color-danger);">0</span>
         </button>
     </div>
 
     <div class="table-responsive" style="overflow-x: auto; transition: opacity 0.2s ease;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+        <table class="modern-table">
             <thead>
-                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
-                    <th style="padding: var(--space-xs);">Mã Tác vụ</th>
-                    <th style="padding: var(--space-xs);">Nguồn nội dung</th>
-                    <th style="padding: var(--space-xs);">Thời lượng</th>
-                    <th style="padding: var(--space-xs);">Trạng thái</th>
-                    <th style="padding: var(--space-xs);">Tiến trình</th>
-                    <th style="padding: var(--space-xs);">Ngày tạo</th>
-                    <th style="padding: var(--space-xs); text-align: right;">Hành động</th>
+                <tr>
+                    <th>Mã Tác vụ</th>
+                    <th>Nguồn nội dung</th>
+                    <th>Thời lượng</th>
+                    <th>Trạng thái</th>
+                    <th>Tiến trình</th>
+                    <th>Ngày tạo</th>
+                    <th style="text-align: right;">Hành động</th>
                 </tr>
             </thead>
             <tbody>
                 {% for job in jobs %}
-                <tr id="job-row-{{ job.id }}" data-status="{{ job.status }}" style="border-bottom: 1px solid var(--border-color); transition: all 0.2s ease, transform 0.2s ease; opacity: 1;" class="table-row job-row">
-                    <td style="padding: var(--space-xs); font-family: monospace; font-weight: 600;">
-                        {{ job.id[:8] }}...
+                <tr id="job-row-{{ job.id }}" data-status="{{ job.status }}" class="job-row">
+                    <td style="font-family: monospace; font-weight: 700; color: var(--text-primary);">
+                        {{ job.id[:8] }}
                     </td>
-                    <td style="padding: var(--space-xs); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {% if job.source_type == 'link' %}
-                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
-                                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                            <a href="{{ job.source_url }}" target="_blank" style="color: var(--color-primary); display: inline-flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ job.source_url }}">
+                                {% if 'youtube.com' in job.source_url or 'youtu.be' in job.source_url %}
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#ef4444" style="flex-shrink: 0;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                {% else %}
+                                    <i data-lucide="link" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                                {% endif %}
                                 {{ job.source_url }}
                             </a>
                         {% else %}
-                            <span style="display: flex; align-items: center; gap: 4px;">
-                                <i data-lucide="file-video" style="width: 14px; height: 14px;"></i>
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary);">
+                                <i data-lucide="file-video" style="width: 14px; height: 14px; color: var(--color-accent); flex-shrink: 0;"></i>
                                 File tải lên
                             </span>
                         {% endif %}
                     </td>
-                    <td style="padding: var(--space-xs); color: var(--text-secondary);">
+                    <td style="color: var(--text-secondary); font-weight: 500;">
                         {{ (job.duration / 60)|int }}p {{ (job.duration % 60)|int }}s
                     </td>
-                    <td style="padding: var(--space-xs);">
-                        <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+                    <td>
+                        {% if job.status == 'completed' %}
+                            <span class="status-badge completed">
+                                <i data-lucide="check" style="width: 12px; height: 12px; stroke-width: 3;"></i> Hoàn thành
+                            </span>
+                        {% elif job.status == 'failed' %}
+                            <span class="status-badge failed">
+                                <i data-lucide="x" style="width: 12px; height: 12px; stroke-width: 3;"></i> Thất bại
+                            </span>
+                        {% else %}
+                            <span class="status-badge processing">
+                                <i data-lucide="loader-2" class="icon-spin" style="width: 12px; height: 12px;"></i> Đang chạy
+                            </span>
+                        {% endif %}
                     </td>
-                    <td style="padding: var(--space-xs); width: 150px;">
+                    <td style="width: 140px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="background-color: var(--border-color); border-radius: var(--radius-full); height: 6px; width: 80px; overflow: hidden;">
-                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-primary{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                            <div style="background-color: rgba(255,255,255,0.06); border-radius: var(--radius-full); height: 6px; width: 75px; overflow: hidden; border: 1px solid rgba(255,255,255,0.03);">
+                                <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-primary{% endif %}" style="--progress-width: {{ job.progress_percent }}%; transition: width 0.3s;"></div>
                             </div>
-                            <span style="font-size: 11px; font-weight: 600;">{{ job.progress_percent }}%</span>
+                            <span style="font-size: 11.5px; font-weight: 700; color: var(--text-primary);">{{ job.progress_percent }}%</span>
                         </div>
                     </td>
-                    <td style="padding: var(--space-xs); color: var(--text-secondary); font-size: 13px;">
+                    <td style="color: var(--text-secondary); font-size: 13px;">
                         {{ job.created_at.strftime('%H:%M %d/%m/%Y') }}
                     </td>
-                    <td style="padding: var(--space-xs); text-align: right; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+                    <td style="text-align: right; display: flex; justify-content: flex-end; gap: 6px; align-items: center;">
                         {% if job.status == 'completed' %}
-                            <a href="/storage/exports/{{ job.id }}_dubbed.mp4" download class="btn btn-primary" style="padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                <i data-lucide="download" style="width: 14px; height: 14px;"></i> Tải về
+                            <a href="/storage/exports/{{ job.id }}_dubbed.mp4" download class="btn shiny-btn" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                <i data-lucide="download" style="width: 13px; height: 13px;"></i> Tải về
                             </a>
                         {% endif %}
-                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                            Chi tiết <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.05);">
+                            Chi tiết <i data-lucide="chevron-right" style="width: 13px; height: 13px;"></i>
                         </a>
-                        <button onclick="confirmDeleteJob('{{ job.id }}')" class="btn btn-secondary" style="padding: 6px 8px; font-size: 12px; color: var(--color-error); border-color: rgba(239, 68, 68, 0.2); display: inline-flex; align-items: center; background: none; cursor: pointer;">
-                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        <button onclick="confirmDeleteJob('{{ job.id }}')" class="btn btn-secondary hover-scale" style="padding: 6px 8px; font-size: 12px; color: var(--color-danger); border: 1px solid rgba(248, 113, 113, 0.15); display: inline-flex; align-items: center; background: rgba(248, 113, 113, 0.02); cursor: pointer;">
+                            <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
                         </button>
                     </td>
                 </tr>
@@ -111,52 +374,74 @@
         </table>
     </div>
 
+    <!-- Bộ chuyển trang Pagination -->
+    <div id="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-md); flex-wrap: wrap; gap: var(--space-sm);">
+        <span style="font-size: 13px; color: var(--text-secondary);" id="pagination-info">Hiển thị 1-10 của 100 tác vụ</span>
+        <div style="display: flex; gap: 6px;" id="pagination-buttons">
+            <!-- Render động bằng JS -->
+        </div>
+    </div>
+
     <!-- Div hiển thị Empty State động khi lọc không có kết quả -->
-    <div id="no-jobs-tab" style="display: none; text-align: center; padding: var(--space-lg) 0; color: var(--text-secondary);">
-        <div style="font-size: 40px; margin-bottom: var(--space-xs);">📂</div>
-        <p style="font-size: 15px;">Không có tác vụ nào thuộc trạng thái này.</p>
+    <div id="no-jobs-tab" style="display: none; text-align: center; padding: var(--space-xl) 0; color: var(--text-secondary);">
+        <div style="font-size: 44px; margin-bottom: var(--space-sm); opacity: 0.5;">📁</div>
+        <p style="font-size: 15px; font-weight: 600; color: var(--text-secondary);">Không có tác vụ nào thuộc trạng thái này.</p>
     </div>
 
     {% endif %}
 </div>
 
+<!-- Custom Glassmorphic Confirm Modal -->
+<div id="delete-modal" class="custom-modal-backdrop" onclick="closeDeleteModal()">
+    <div class="custom-modal" onclick="event.stopPropagation()">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--color-danger); margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="alert-triangle" style="width: 20px; height: 20px;"></i> Xác nhận xóa tác vụ
+        </h3>
+        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 20px 0;">
+            Bạn có chắc chắn muốn xóa tác vụ lồng tiếng này không? Tất cả các file video, âm thanh và phụ đề liên quan trên máy chủ sẽ bị xóa vĩnh viễn và không thể khôi phục.
+        </p>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-secondary" onclick="closeDeleteModal()" style="padding: 8px 16px; border: 1px solid rgba(255,255,255,0.05);">Hủy bỏ</button>
+            <button id="btn-confirm-delete" class="btn btn-danger" style="padding: 8px 16px; font-weight: 700;">Đồng ý xóa</button>
+        </div>
+    </div>
+</div>
+
 <script>
+let jobIdToDelete = null;
+const pageSize = 10;
+let currentPage = 1;
+let currentTab = "all";
+
 document.addEventListener("DOMContentLoaded", function() {
     // 1. Tính toán số lượng cho các tab khi tải trang
     updateTabCounters();
 
     // 2. Xử lý sự kiện click chuyển Tab
-    const tabs = document.querySelectorAll(".tab-btn");
+    const tabs = document.querySelectorAll(".pill-tab-btn");
     tabs.forEach(tab => {
         tab.addEventListener("click", function() {
-            // Reset active style cho tất cả các tab
             tabs.forEach(t => {
                 t.classList.remove("active");
-                t.style.backgroundColor = "transparent";
-                t.style.color = "var(--text-secondary)";
-                // Reset màu chữ đếm số lượng của tab không active
-                const countBadge = t.querySelector(".tab-count");
-                if (countBadge) {
-                    countBadge.style.backgroundColor = "rgba(128,128,128,0.15)";
-                    countBadge.style.color = "var(--text-secondary)";
-                }
             });
 
-            // Gán active style cho tab được chọn
             this.classList.add("active");
-            this.style.backgroundColor = "var(--color-primary)";
-            this.style.color = "white";
-            const countBadge = this.querySelector(".tab-count");
-            if (countBadge) {
-                countBadge.style.backgroundColor = "rgba(255,255,255,0.2)";
-                countBadge.style.color = "white";
-            }
 
-            const selectedTab = this.getAttribute("data-tab");
-            filterJobs(selectedTab);
+            currentTab = this.getAttribute("data-tab");
+            currentPage = 1; // Reset về trang 1 khi chuyển tab
+            filterJobs(currentTab);
         });
     });
     
+    // Gắn event cho nút xác nhận xóa trong Custom Modal
+    const btnConfirmDelete = document.getElementById("btn-confirm-delete");
+    if (btnConfirmDelete) {
+        btnConfirmDelete.addEventListener("click", executeDeleteJob);
+    }
+
+    // Khởi động lọc lần đầu
+    filterJobs(currentTab);
+
     // Khởi tạo các Lucide Icons
     if (window.lucide) {
         window.lucide.createIcons();
@@ -177,12 +462,10 @@ function updateTabCounters() {
         } else if (status === "failed") {
             failed++;
         } else {
-            // Các trạng thái đang xử lý: pending, downloading, extracting_audio, translating...
             processing++;
         }
     });
 
-    // Cập nhật text badge đếm số lượng
     document.getElementById("count-all").textContent = all;
     document.getElementById("count-processing").textContent = processing;
     document.getElementById("count-completed").textContent = completed;
@@ -193,14 +476,15 @@ function filterJobs(tabName) {
     const rows = document.querySelectorAll(".job-row");
     const tableContainer = document.querySelector(".table-responsive");
     const emptyState = document.getElementById("no-jobs-tab");
-    let visibleCount = 0;
-
-    // Fade out bảng trước khi lọc để tạo hiệu ứng mượt mà
+    const paginationContainer = document.getElementById("pagination-container");
+    
     if (tableContainer) {
         tableContainer.style.opacity = "0.3";
     }
 
     setTimeout(() => {
+        // Giai đoạn 1: Lọc các row khớp tab
+        const matchedRows = [];
         rows.forEach(row => {
             const status = row.getAttribute("data-status");
             let shouldShow = false;
@@ -216,10 +500,29 @@ function filterJobs(tabName) {
             }
 
             if (shouldShow) {
+                matchedRows.push(row);
+            } else {
+                row.style.display = "none";
+                row.style.opacity = "0";
+            }
+        });
+
+        const total = matchedRows.length;
+        const totalPages = Math.ceil(total / pageSize) || 1;
+
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+
+        // Giai đoạn 2: Phân trang trên các row đã khớp
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, total);
+
+        matchedRows.forEach((row, index) => {
+            if (index >= startIndex && index < endIndex) {
                 row.style.display = "";
                 row.style.opacity = "1";
                 row.style.transform = "scaleY(1)";
-                visibleCount++;
             } else {
                 row.style.display = "none";
                 row.style.opacity = "0";
@@ -227,87 +530,145 @@ function filterJobs(tabName) {
             }
         });
 
-        // Xử lý hiển thị Empty State nếu không có tác vụ nào
-        if (visibleCount === 0) {
+        // Xử lý hiển thị UI Empty State
+        if (total === 0) {
             if (tableContainer) tableContainer.style.display = "none";
             if (emptyState) emptyState.style.display = "block";
+            if (paginationContainer) paginationContainer.style.display = "none";
         } else {
             if (tableContainer) {
                 tableContainer.style.display = "block";
-                // Đưa độ mờ về lại bình thường
                 setTimeout(() => {
                     tableContainer.style.opacity = "1";
                 }, 50);
             }
             if (emptyState) emptyState.style.display = "none";
+            
+            // Xử lý hiển thị Pagination Controls
+            if (totalPages > 1) {
+                if (paginationContainer) paginationContainer.style.display = "flex";
+                renderPaginationButtons(totalPages, startIndex, endIndex, total);
+            } else {
+                if (paginationContainer) paginationContainer.style.display = "none";
+            }
         }
     }, 150);
 }
 
-function confirmDeleteJob(jobId) {
-    if (confirm("Bạn có chắc chắn muốn xóa tác vụ lồng tiếng này và tất cả các file liên quan không?")) {
-        fetch(`/dubbing/history/delete/${jobId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const row = document.getElementById(`job-row-${jobId}`);
-                if (row) {
-                    row.style.transition = 'all 0.3s ease';
-                    row.style.opacity = '0';
-                    row.style.transform = 'translateX(20px)';
-                    setTimeout(() => {
-                        row.remove();
-                        // Cập nhật lại số lượng đếm trên các tab
-                        updateTabCounters();
-                        
-                        // Lọc lại tab hiện tại để cập nhật bảng và empty state
-                        const activeTab = document.querySelector(".tab-btn.active")?.getAttribute("data-tab") || "all";
-                        filterJobs(activeTab);
-                        
-                        const tbody = document.querySelector("tbody");
-                        if (tbody && tbody.children.length === 0) {
-                            window.location.reload();
-                        }
-                    }, 300);
-                } else {
-                    window.location.reload();
-                }
-            } else {
-                alert("Lỗi: " + (data.message || data.detail || "Không thể xóa tác vụ."));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Đã xảy ra lỗi khi kết nối tới máy chủ.");
-        });
+function renderPaginationButtons(totalPages, startIndex, endIndex, total) {
+    const infoEl = document.getElementById("pagination-info");
+    const buttonsContainer = document.getElementById("pagination-buttons");
+    
+    if (infoEl) {
+        infoEl.textContent = `Hiển thị ${startIndex + 1}-${endIndex} của ${total} tác vụ`;
     }
+
+    if (buttonsContainer) {
+        let html = "";
+        
+        // Nút trang trước (<)
+        const prevDisabled = (currentPage === 1) ? "disabled" : "";
+        html += `<button class="page-btn ${prevDisabled}" onclick="changePage(${currentPage - 1})"><i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i></button>`;
+
+        // Các nút số trang
+        for (let p = 1; p <= totalPages; p++) {
+            const activeClass = (p === currentPage) ? "active" : "";
+            html += `<button class="page-btn ${activeClass}" onclick="changePage(${p})">${p}</button>`;
+        }
+
+        // Nút trang sau (>)
+        const nextDisabled = (currentPage === totalPages) ? "disabled" : "";
+        html += `<button class="page-btn ${nextDisabled}" onclick="changePage(${currentPage + 1})"><i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></button>`;
+
+        buttonsContainer.innerHTML = html;
+
+        // Re-render Lucide icons cho các nút chevron
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+}
+
+function changePage(pageNumber) {
+    currentPage = pageNumber;
+    filterJobs(currentTab);
+    
+    // Cuộn nhẹ lên đầu Bento Card để tạo trải nghiệm mượt mà
+    const cardEl = document.querySelector(".bento-card");
+    if (cardEl) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+// Điều khiển Custom Delete Modal
+function confirmDeleteJob(jobId) {
+    jobIdToDelete = jobId;
+    const modal = document.getElementById("delete-modal");
+    if (modal) {
+        modal.classList.add("show");
+    }
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById("delete-modal");
+    if (modal) {
+        modal.classList.remove("show");
+    }
+    jobIdToDelete = null;
+}
+
+function executeDeleteJob() {
+    if (!jobIdToDelete) return;
+    
+    // Tạm khóa nút xóa để tránh click nhiều lần
+    const btn = document.getElementById("btn-confirm-delete");
+    if (btn) btn.disabled = true;
+
+    fetch(`/dubbing/history/delete/${jobIdToDelete}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (btn) btn.disabled = false;
+        closeDeleteModal();
+        
+        if (data.success) {
+            showToast("Đã xóa tác vụ lồng tiếng thành công!", "success");
+            const row = document.getElementById(`job-row-${jobIdToDelete}`);
+            if (row) {
+                row.style.transition = 'all 0.3s ease';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    row.remove();
+                    updateTabCounters();
+                    filterJobs(currentTab);
+                    
+                    const tbody = document.querySelector("tbody");
+                    if (tbody && tbody.children.length === 0) {
+                        window.location.reload();
+                    }
+                }, 300);
+            } else {
+                window.location.reload();
+            }
+        } else {
+            showToast("Lỗi: " + (data.message || data.detail || "Không thể xóa tác vụ."), "danger");
+        }
+    })
+    .catch(error => {
+        if (btn) btn.disabled = false;
+        closeDeleteModal();
+        console.error('Error:', error);
+        showToast("Đã xảy ra lỗi khi kết nối tới máy chủ.", "danger");
+    });
 }
 </script>
 
 <style>
-    .table-row:hover {
-        background-color: rgba(255, 255, 255, 0.02);
-    }
-    :root[data-theme="light"] .table-row:hover {
-        background-color: rgba(15, 23, 42, 0.02);
-    }
-    .tab-btn {
-        outline: none;
-    }
-    .tab-btn:hover:not(.active) {
-        background-color: rgba(255, 255, 255, 0.05);
-        color: var(--text-primary) !important;
-    }
-    :root[data-theme="light"] .tab-btn:hover:not(.active) {
-        background-color: rgba(15, 23, 42, 0.05);
-        color: var(--text-primary) !important;
-    }
-    
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }

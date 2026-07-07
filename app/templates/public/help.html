@@ -1,54 +1,402 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="card glass" style="margin-bottom: var(--space-md); padding: var(--space-lg);">
-    <h1 style="font-size: 32px; font-weight: 800; margin-bottom: var(--space-xs);">Hướng dẫn sử dụng VoiceAI</h1>
-    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.6;">
-        Chào mừng bạn đến với <b>VoiceAI</b> - giải pháp dịch thuật và lồng tiếng video tự động bằng trí tuệ nhân tạo. Hãy tham khảo các bước bên dưới để nhanh chóng làm quen với studio làm việc của chúng tôi.
-    </p>
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.25) !important;
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.05);
+    }
+
+    /* Visual Steps Stepper */
+    .visual-step {
+        display: flex;
+        gap: var(--space-md);
+        position: relative;
+        padding-bottom: var(--space-md);
+    }
+
+    .visual-step:last-child {
+        padding-bottom: 0;
+    }
+
+    .visual-step::before {
+        content: '';
+        position: absolute;
+        left: 17px;
+        top: 36px;
+        bottom: 0;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.06);
+    }
+    
+    :root[data-theme="light"] .visual-step::before {
+        background: rgba(0, 0, 0, 0.06);
+    }
+
+    .visual-step:last-child::before {
+        display: none;
+    }
+
+    .step-icon-wrapper {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        color: var(--color-primary);
+        font-weight: 800;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.05);
+        z-index: 2;
+    }
+
+    .step-body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 6px;
+    }
+
+    .step-title {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .step-desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    /* FAQ Accordion */
+    .faq-item {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: var(--space-sm) 0;
+        transition: all var(--transition-normal);
+    }
+
+    .faq-item:last-child {
+        border-bottom: none;
+    }
+
+    .faq-question {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .faq-question-text {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: var(--text-primary);
+        transition: color var(--transition-fast);
+    }
+
+    .faq-item:hover .faq-question-text {
+        color: var(--color-primary);
+    }
+
+    .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.2s;
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .faq-item.active .faq-answer {
+        margin-top: 10px;
+    }
+
+    /* CSS Chevron rotation safe fallback for Lucide compile */
+    .faq-item svg,
+    .faq-item i {
+        transition: transform 0.25s ease !important;
+    }
+
+    .faq-item.active svg,
+    .faq-item.active i {
+        transform: rotate(180deg) !important;
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    /* Status dot indicators */
+    .status-indicator-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        color: var(--text-secondary);
+        padding: 4px 0;
+    }
+
+    .status-dot-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background: #27c93f;
+        box-shadow: 0 0 8px rgba(39, 201, 63, 0.5);
+    }
+</style>
+
+<div class="page-header" style="margin-bottom: var(--space-md);">
+    <div>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Trợ giúp &amp; Hướng dẫn</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Tìm hiểu quy trình vận hành và giải quyết nhanh các câu hỏi thường gặp khi lồng tiếng bằng AI.</p>
+    </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md); align-items: start;">
-    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-        <div class="card glass">
-            <h2 style="font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <span style="background: var(--color-accent-bg); color: var(--color-accent); width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: 14px;" class="flex-center">1</span>
-                Các bước bắt đầu lồng tiếng
+<div class="grid-split" style="grid-template-columns: 1.6fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+    
+    <!-- Cột bên trái: Stepper Quy trình & FAQs -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
+        
+        <!-- Bento 1: Quy trình các bước -->
+        <div class="bento-card">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="compass" style="width: 20px; height: 20px; color: var(--color-primary);"></i>
+                Quy trình bắt đầu lồng tiếng
             </h2>
-            <ol style="margin-left: 20px; font-size: 14px; color: var(--text-secondary); display: flex; flex-direction: column; gap: var(--space-xs); line-height: 1.6; padding-left: 10px;">
-                <li>Đăng ký hoặc đăng nhập vào hệ thống.</li>
-                <li>Nhấp chọn mục <b>Tạo tác vụ</b> trên sidebar.</li>
-                <li>Sao chép liên kết video YouTube hoặc link tải trực tiếp (MP4, MP3) rồi nhấn <b>Dán liên kết</b> (hoặc kéo thả tệp từ máy tính).</li>
-                <li>Đợi hệ thống tải thông tin metadata của video và hiển thị màn hình preview.</li>
-                <li>Thiết lập giọng nói mong muốn (Giọng Nam/Nữ, vùng miền, tốc độ nói) rồi nhấp <b>Bắt đầu lồng tiếng</b>.</li>
-                <li>Theo dõi tiến trình xử lý real-time. Khi hoàn tất, bạn có thể tải về video lồng tiếng Việt hoặc phụ đề SRT/VTT.</li>
-            </ol>
+            
+            <div style="display: flex; flex-direction: column; margin-top: var(--space-xs);">
+                
+                <!-- Step 1 -->
+                <div class="visual-step">
+                    <div class="step-icon-wrapper">1</div>
+                    <div class="step-body">
+                        <span class="step-title">Khởi tạo tài khoản &amp; Truy cập Dashboard</span>
+                        <span class="step-desc">Đăng nhập vào hệ thống để có quyền lưu trữ lịch sử và quản lý các video đã lồng tiếng.</span>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="visual-step">
+                    <div class="step-icon-wrapper">2</div>
+                    <div class="step-body">
+                        <span class="step-title">Nhập nguồn nội dung video</span>
+                        <span class="step-desc">Sao chép dán link YouTube (hoặc dán liên kết video trực tiếp) rồi bấm <b>Kiểm tra</b>. Hoặc bạn có thể kéo thả file video từ máy tính của mình lên máy chủ.</span>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="visual-step">
+                    <div class="step-icon-wrapper">3</div>
+                    <div class="step-body">
+                        <span class="step-title">Cấu hình tham số lồng tiếng</span>
+                        <span class="step-desc">Chọn <b>phương thức lấy lời thoại</b> phù hợp (Whisper ASR, YouTube CC, Video OCR) và chọn <b>giọng đọc chính</b> (giọng nam, nữ, miền Bắc, miền Nam hoặc tự động theo nhân vật).</span>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="visual-step">
+                    <div class="step-icon-wrapper">4</div>
+                    <div class="step-body">
+                        <span class="step-title">Hệ thống xử lý tự động (Pipeline)</span>
+                        <span class="step-desc">Nhấn <b>Bắt đầu lồng tiếng</b>. Trình theo dõi tiến trình 20 bước sẽ chạy real-time để tách nhạc nền, lấy sub tiếng Anh, dịch thuật bằng Gemini và tổng hợp giọng nói.</span>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="visual-step">
+                    <div class="step-icon-wrapper">5</div>
+                    <div class="step-body">
+                        <span class="step-title">Hiệu chỉnh và Tải kết quả</span>
+                        <span class="step-desc">Xem trực tiếp video lồng tiếng, tải file MP4, MP3 hoặc SRT về máy. Bạn có thể chọn <b>Chỉnh sửa Timeline</b> nếu muốn biên tập lại mốc thời gian và nội dung dịch theo ý muốn.</span>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
-        <div class="card glass">
-            <h2 style="font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <span style="background: var(--color-accent-bg); color: var(--color-accent); width: 28px; height: 28px; border-radius: var(--radius-sm); font-size: 14px;" class="flex-center">2</span>
+        <!-- Bento 2: FAQs Accordion -->
+        <div class="bento-card">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="help-circle" style="width: 20px; height: 20px; color: var(--color-primary);"></i>
                 Câu hỏi thường gặp (FAQs)
             </h2>
-            <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-xs);">
-                <div>
-                    <h4 style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Hệ thống hỗ trợ các loại link nào?</h4>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5;">Hỗ trợ liên kết video YouTube công khai, các liên kết file video/audio trực tiếp (.mp4, .mp3, .wav, .webm) và các website công khai chứa thẻ video HTML5.</p>
+            
+            <div style="display: flex; flex-direction: column; margin-top: var(--space-xs);">
+                
+                <!-- FAQ 1 -->
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span class="faq-question-text">Hệ thống hỗ trợ các loại liên kết (link) nào?</span>
+                        <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-tertiary); transition: transform 0.2s;"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Hệ thống hỗ trợ các video YouTube công khai, link chia sẻ trực tiếp của video (.mp4, .webm) hoặc tệp tin âm thanh (.mp3, .wav). Đối với các link private hoặc yêu cầu đăng nhập tài khoản, hệ thống sẽ không thể tải xuống và phân tích được.
+                    </div>
                 </div>
-                <div>
-                    <h4 style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Tại sao tốc độ lồng tiếng lại khác nhau?</h4>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5;">Mô hình lồng tiếng thật (`AI_MODE=real`) đòi hỏi nhiều tài nguyên xử lý âm thanh, dịch thuật và kết xuất video. Giai đoạn dịch và tạo giọng TTS thường chiếm nhiều thời gian nhất.</p>
+
+                <!-- FAQ 2 -->
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span class="faq-question-text">Sự khác biệt giữa 3 phương thức lấy lời thoại là gì?</span>
+                        <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-tertiary); transition: transform 0.2s;"></i>
+                    </div>
+                    <div class="faq-answer">
+                        - <b>Nhận diện giọng nói (ASR)</b>: Dùng Whisper nghe âm thanh gốc và dịch sang text. Phù hợp cho mọi video.<br>
+                        - <b>Tải phụ đề (YouTube CC)</b>: Tải file phụ đề do tác giả soạn sẵn trên YouTube. Nhanh và chính xác tuyệt đối.<br>
+                        - <b>Quét chữ (OCR)</b>: Nhìn màn hình video để quét sub cứng được chèn sẵn vào ảnh. Hữu ích cho các video đã có sub tiếng Anh chèn trực tiếp trên khung hình.
+                    </div>
+                </div>
+
+                <!-- FAQ 3 -->
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span class="faq-question-text">Lồng tiếng có bị lệch thời gian so với video gốc không?</span>
+                        <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-tertiary); transition: transform 0.2s;"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Hệ thống sử dụng cơ chế **Adaptive Dynamic Speed-up (Tăng tốc thích ứng)** kết hợp **Auto-shift (Tự động lùi câu)**. Nếu câu tiếng Việt dịch ra dài hơn, AI sẽ tự động đọc nhanh hơn (tối đa +30%) để kịp khẩu hình, nếu vẫn dài thì lùi nhẹ câu sau chứ không cắt chữ hay chen vào nhau, hạn chế tối đa lệch tiếng.
+                    </div>
+                </div>
+
+                <!-- FAQ 4 -->
+                <div class="faq-item" onclick="toggleFaq(this)">
+                    <div class="faq-question">
+                        <span class="faq-question-text">Tôi có thể tự sửa lại nội dung lồng tiếng không?</span>
+                        <i data-lucide="chevron-down" style="width: 16px; height: 16px; color: var(--text-tertiary); transition: transform 0.2s;"></i>
+                    </div>
+                    <div class="faq-answer">
+                        Có. Sau khi lồng tiếng xong, tại màn hình tiến trình sẽ xuất hiện nút <b>Chỉnh sửa Timeline</b>. Bấm vào đây bạn sẽ được đưa đến Studio chỉnh sửa trực tiếp mốc thời gian, nội dung chữ dịch và bấm sinh lại âm thanh tức thì.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Cột bên phải: Trạng thái hệ thống & Hỗ trợ kỹ thuật (Bento 3) -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg); position: sticky; top: var(--space-md);">
+        
+        <!-- Bento 3a: Trạng thái hệ thống -->
+        <div class="bento-card">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="activity" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                Trạng thái dịch vụ (Status)
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                <div class="status-indicator-row">
+                    <span>Dịch thuật (Gemini AI API)</span>
+                    <div class="status-dot-wrapper"><span class="status-dot"></span> <b style="color: #27c93f; font-size: 12px;">Online</b></div>
+                </div>
+                <div class="status-indicator-row">
+                    <span>Lồng giọng (Edge TTS Engine)</span>
+                    <div class="status-dot-wrapper"><span class="status-dot"></span> <b style="color: #27c93f; font-size: 12px;">Online</b></div>
+                </div>
+                <div class="status-indicator-row">
+                    <span>Nhận diện (Whisper ASR)</span>
+                    <div class="status-dot-wrapper"><span class="status-dot"></span> <b style="color: #27c93f; font-size: 12px;">Ready (CPU)</b></div>
+                </div>
+                <div class="status-indicator-row">
+                    <span>Quét chữ (Video OCR Engine)</span>
+                    <div class="status-dot-wrapper"><span class="status-dot"></span> <b style="color: #27c93f; font-size: 12px;">Ready</b></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card glass">
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Hỗ trợ kỹ thuật</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-            Nếu gặp sự cố hoặc cần hỗ trợ cấu hình FFmpeg/Miniconda, bạn có thể liên hệ trực tiếp với đội ngũ phát triển.
-        </p>
-        <button class="btn btn-primary" style="width: 100%; margin-top: var(--space-xs);" onclick="showToast('Yêu cầu hỗ trợ đã được ghi nhận!', 'success')">Gửi Ticket hỗ trợ</button>
+        <!-- Bento 3b: Hỗ trợ kỹ thuật -->
+        <div class="bento-card" style="gap: var(--space-sm);">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="life-buoy" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                Hỗ trợ kỹ thuật
+            </h3>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                Nếu bạn cần hỗ trợ cài đặt môi trường chạy local (FFmpeg, CUDA GPU để tăng tốc Whisper/OCR) hoặc gặp lỗi trong quá trình xử lý, hãy gửi yêu cầu hỗ trợ ngay tại đây.
+            </p>
+            <button class="shiny-btn btn" style="width: 100%; margin-top: 4px; padding: 10px;" onclick="showToast('Đội kỹ thuật đã ghi nhận ticket hỗ trợ của bạn!', 'success')">
+                <i data-lucide="mail" style="width: 14px; height: 14px; margin-right: 4px;"></i> Gửi Ticket hỗ trợ
+            </button>
+        </div>
+
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleFaq(el) {
+        // Toggle active class on FAQ item
+        const isActive = el.classList.contains("active");
+        
+        // Close all other FAQs
+        document.querySelectorAll(".faq-item").forEach(item => {
+            item.classList.remove("active");
+            item.querySelector(".faq-answer").style.maxHeight = null;
+        });
+
+        if (!isActive) {
+            el.classList.add("active");
+            const answer = el.querySelector(".faq-answer");
+            answer.style.maxHeight = answer.scrollHeight + "px";
+        }
+    }
+</script>
 {% endblock %}

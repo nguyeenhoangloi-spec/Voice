@@ -1,43 +1,169 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="page-header">
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.2) !important;
+    }
+
+    /* Segment Card Styles */
+    .segment-card {
+        background: rgba(15, 22, 38, 0.4) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: var(--radius-md);
+        padding: var(--space-md);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+        transition: all var(--transition-normal);
+        border-left: 4px solid var(--color-primary) !important; /* Default Speaker 1 */
+    }
+
+    .segment-card.speaker-speaker-1 {
+        border-left: 4px solid var(--color-primary) !important;
+    }
+    .segment-card.speaker-speaker-2 {
+        border-left: 4px solid #ec4899 !important;
+    }
+    .segment-card.speaker-speaker-3 {
+        border-left: 4px solid #f59e0b !important;
+    }
+
+    .segment-card:hover {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        background: rgba(15, 22, 38, 0.55) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    /* Glassmorphic input controls */
+    .glass-input {
+        background: rgba(0, 0, 0, 0.25) !important;
+        border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        color: var(--text-primary) !important;
+        border-radius: var(--radius-sm);
+        padding: 6px 10px;
+        font-size: 13px;
+        transition: all var(--transition-fast);
+        outline: none;
+    }
+
+    :root[data-theme="light"] .glass-input {
+        background: rgba(255, 255, 255, 0.8) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .glass-input:focus {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    .video-neon-border {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        transition: border-color 0.3s;
+    }
+
+    .video-neon-border:hover {
+        border-color: rgba(56, 189, 248, 0.25);
+    }
+</style>
+
+<div class="page-header" style="margin-bottom: var(--space-md);">
     <div>
-        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Trình chỉnh sửa dòng thời gian &amp; Bản dịch</h1>
-        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Tác vụ: <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">{{ job.id }}</span></p>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Trình chỉnh sửa dòng thời gian &amp; Bản dịch</h1>
+        <p style="font-size: 14px; color: var(--text-secondary); margin: 0;">Tác vụ: <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">{{ job.id }}</span></p>
     </div>
     <div style="display: flex; gap: var(--space-xs);">
-        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 10px 18px;">
+        <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 10px 18px; border: 1px solid rgba(255,255,255,0.05);">
             <i data-lucide="x" style="width: 16px; height: 16px; margin-right: 2px;"></i> Hủy &amp; Quay lại
         </a>
-        <button id="btn-save-timeline" class="btn btn-primary hover-scale" style="padding: 10px 22px;">
+        <button id="btn-save-timeline" class="btn shiny-btn hover-scale" style="padding: 10px 22px;">
             <i data-lucide="save" style="width: 16px; height: 16px; margin-right: 2px;"></i> Lưu &amp; Kết xuất
         </button>
     </div>
 </div>
 
-<div class="grid-split" style="grid-template-columns: 1fr 1.2fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+<div class="grid-split" style="grid-template-columns: 1fr 1.25fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
     
-    <!-- Cột trái: Media Player và Cấu hình chung -->
+    <!-- Cột trái: Media Player và Cấu hình chung (Sticky) -->
     <div style="display: flex; flex-direction: column; gap: var(--space-lg); position: sticky; top: calc(var(--header-height) + var(--space-md));">
         
         <!-- Trình phát Media -->
-        <div class="card glass hover-glow" style="padding: var(--space-md); gap: var(--space-xs);">
-            <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+        <div class="bento-card">
+            <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="video" style="color: var(--color-primary); width: 18px; height: 18px;"></i> Xem trước Video gốc / Kết quả
             </h3>
-            <div style="width: 100%; background: #000;">
-                <video id="editor-video-player" controls style="width: 100%; max-height: 320px; display: block; border: 1px solid var(--border-color); border-radius: var(--radius-md); outline: none; cursor: pointer;"></video>
+            <div class="video-neon-border">
+                <video id="editor-video-player" controls style="width: 100%; max-height: 300px; display: block; outline: none; cursor: pointer; background: #000;"></video>
             </div>
-            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin-top: 4px;">
-                💡 Mẹo: Bạn có thể click vào mốc thời gian của từng đoạn dịch ở cột bên phải để tua nhanh trình phát video đến vị trí đó!
+            <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-top: 2px; display: flex; gap: 6px;">
+                <i data-lucide="lightbulb" style="width: 16px; height: 16px; color: #f59e0b; flex-shrink: 0;"></i>
+                <span>Bạn có thể click vào nút phát thời gian của từng đoạn dịch ở cột bên phải để tua nhanh video đến vị trí đó!</span>
             </div>
         </div>
 
         <!-- Cấu hình giọng đọc mặc định -->
-        <div class="card glass" style="padding: var(--space-md); gap: var(--space-xs);">
-            <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0;">Cấu hình giọng đọc gốc</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); font-size: 13px; color: var(--text-secondary); border-top: 1px solid var(--border-color); padding-top: var(--space-xs); margin-top: 4px;">
+        <div class="bento-card">
+            <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="settings-2" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                Cấu hình giọng đọc gốc
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); font-size: 13px; color: var(--text-secondary); border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-sm); margin-top: 2px;">
                 <div>Giới tính: <span style="font-weight: 700; color: var(--text-primary);">{{ job.voice_config.voice_gender }}</span></div>
                 <div>Vùng miền: <span style="font-weight: 700; color: var(--text-primary);">{{ job.voice_config.voice_region }}</span></div>
                 <div>Cảm xúc: <span style="font-weight: 700; color: var(--text-primary);">{{ job.voice_config.voice_emotion }}</span></div>
@@ -49,8 +175,11 @@
     <!-- Cột phải: Danh sách phân đoạn thoại (Segments) -->
     <div style="display: flex; flex-direction: column; gap: var(--space-md);">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0;">Danh sách phân đoạn ({{ segments|length }})</h3>
-            <button id="btn-add-segment" class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px;">
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="align-left" style="width: 20px; height: 20px; color: var(--color-primary);"></i>
+                Danh sách phân đoạn ({{ segments|length }})
+            </h3>
+            <button id="btn-add-segment" class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px; border: 1px solid rgba(255,255,255,0.05);">
                 <i data-lucide="plus" style="width: 16px; height: 16px; margin-right: 2px;"></i> Thêm đoạn thoại
             </button>
         </div>
@@ -58,34 +187,35 @@
         <form id="timeline-form" style="display: flex; flex-direction: column; gap: var(--space-md);">
             <div id="segments-container" style="display: flex; flex-direction: column; gap: var(--space-md);">
                 {% for seg in segments %}
-                <div class="card glass segment-card" id="seg-card-{{ seg.id }}" data-id="{{ seg.id }}" style="padding: var(--space-md); border-left: 4px solid var(--color-primary); gap: var(--space-sm);">
+                <!-- Trạng thái màu viền động theo speaker -->
+                <div class="segment-card speaker-{{ seg.speaker|lower|replace(' ', '-') }}" id="seg-card-{{ seg.id }}" data-id="{{ seg.id }}">
                     
                     <!-- Metadata của câu: Thời gian và Người nói -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-xs);">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-weight: 800; color: var(--color-primary); font-size: 14px;">#{{ loop.index }}</span>
                             <div style="display: flex; align-items: center; gap: 4px;">
-                                <input type="number" step="0.1" class="form-control start-time" value="{{ seg.start_time }}" style="width: 65px; padding: 4px; font-size: 12px; text-align: center; border-radius: var(--radius-sm);" required>
+                                <input type="number" step="0.1" class="glass-input start-time" value="{{ seg.start_time }}" style="width: 70px; text-align: center;" required>
                                 <span style="color: var(--text-tertiary);">→</span>
-                                <input type="number" step="0.1" class="form-control end-time" value="{{ seg.end_time }}" style="width: 65px; padding: 4px; font-size: 12px; text-align: center; border-radius: var(--radius-sm);" required>
-                                <button type="button" class="btn btn-secondary btn-seek hover-scale" data-time="{{ seg.start_time }}" style="padding: 4px 8px;" title="Tua video tới mốc này">
+                                <input type="number" step="0.1" class="glass-input end-time" value="{{ seg.end_time }}" style="width: 70px; text-align: center;" required>
+                                <button type="button" class="btn btn-secondary btn-seek hover-scale" data-time="{{ seg.start_time }}" style="padding: 5px 8px; border: 1px solid rgba(255,255,255,0.05);" title="Tua video tới mốc này">
                                     <i data-lucide="play" style="width: 12px; height: 12px; fill: currentColor;"></i>
                                 </button>
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                            <select class="form-control speaker-select" style="width: 100px; padding: 4px; font-size: 12px; border-radius: var(--radius-sm);">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <select class="glass-input speaker-select" onchange="updateSpeakerBorder(this, '{{ seg.id }}')" style="width: 105px; padding: 4px 6px;">
                                 <option value="Speaker 1" {% if seg.speaker == 'Speaker 1' %}selected{% endif %}>Speaker 1</option>
                                 <option value="Speaker 2" {% if seg.speaker == 'Speaker 2' %}selected{% endif %}>Speaker 2</option>
                                 <option value="Speaker 3" {% if seg.speaker == 'Speaker 3' %}selected{% endif %}>Speaker 3</option>
                             </select>
-                            <select class="form-control emotion-select" style="width: 90px; padding: 4px; font-size: 12px; border-radius: var(--radius-sm);">
+                            <select class="glass-input emotion-select" style="width: 95px; padding: 4px 6px;">
                                 <option value="neutral" {% if seg.emotional_tag == 'neutral' %}selected{% endif %}>Tự nhiên</option>
                                 <option value="happy" {% if seg.emotional_tag == 'happy' %}selected{% endif %}>Vui vẻ</option>
                                 <option value="sad" {% if seg.emotional_tag == 'sad' %}selected{% endif %}>Ấm áp</option>
                                 <option value="angry" {% if seg.emotional_tag == 'angry' %}selected{% endif %}>Mạnh mẽ</option>
                             </select>
-                            <button type="button" class="btn btn-danger btn-delete-seg hover-scale" style="padding: 6px; border-radius: var(--radius-sm);" onclick="deleteSegmentRow(this.dataset.segId)" data-seg-id="{{ seg.id }}" title="Xóa phân đoạn">
+                            <button type="button" class="btn btn-secondary hover-scale btn-delete-seg" style="padding: 6px; border: 1px solid rgba(248, 113, 113, 0.15); background: rgba(248, 113, 113, 0.02); color: var(--color-danger);" onclick="deleteSegmentRow('{{ seg.id }}')" title="Xóa phân đoạn">
                                 <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                             </button>
                         </div>
@@ -94,12 +224,12 @@
                     <!-- Nội dung text: Gốc và Dịch -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-sm);">
                         <div>
-                            <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">Tiếng Anh gốc:</label>
-                            <textarea class="form-control text-src" rows="2" style="font-size: 13px; resize: vertical; padding: 8px;" required>{{ seg.text }}</textarea>
+                            <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Tiếng Anh gốc:</label>
+                            <textarea class="glass-input text-src" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;" required>{{ seg.text }}</textarea>
                         </div>
                         <div>
-                            <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">Bản dịch tiếng Việt:</label>
-                            <textarea class="form-control text-trans" rows="2" style="font-size: 13px; resize: vertical; padding: 8px;" required>{{ seg.translation }}</textarea>
+                            <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Bản dịch tiếng Việt:</label>
+                            <textarea class="glass-input text-trans" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;" required>{{ seg.translation }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -138,7 +268,6 @@
                     videoPlayer.addEventListener("click", (e) => {
                         const rect = videoPlayer.getBoundingClientRect();
                         const clickY = e.clientY - rect.top;
-                        // Tránh trigger khi click vào vùng controls dưới cùng (khoảng 50px)
                         if (clickY < rect.height - 50) {
                             if (videoPlayer.paused) {
                                 videoPlayer.play();
@@ -169,41 +298,41 @@
         btnAdd.addEventListener("click", () => {
             customIdCounter++;
             const segmentHtml = `
-            <div class="card glass segment-card" id="seg-card-${customIdCounter}" data-id="${customIdCounter}" style="padding: var(--space-md); border-left: 4px solid var(--color-secondary); gap: var(--space-sm);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-xs);">
+            <div class="segment-card speaker-speaker-1" id="seg-card-${customIdCounter}" data-id="${customIdCounter}">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-xs);">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-weight: 800; color: var(--color-secondary); font-size: 14px;">Mới</span>
                         <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="number" step="0.1" class="form-control start-time" value="0.0" style="width: 65px; padding: 4px; font-size: 12px; text-align: center; border-radius: var(--radius-sm);" required>
+                            <input type="number" step="0.1" class="glass-input start-time" value="0.0" style="width: 70px; text-align: center;" required>
                             <span style="color: var(--text-tertiary);">→</span>
-                            <input type="number" step="0.1" class="form-control end-time" value="2.0" style="width: 65px; padding: 4px; font-size: 12px; text-align: center; border-radius: var(--radius-sm);" required>
+                            <input type="number" step="0.1" class="glass-input end-time" value="2.0" style="width: 70px; text-align: center;" required>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                        <select class="form-control speaker-select" style="width: 100px; padding: 4px; font-size: 12px; border-radius: var(--radius-sm);">
-                            <option value="Speaker 1">Speaker 1</option>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <select class="glass-input speaker-select" onchange="updateSpeakerBorder(this, '${customIdCounter}')" style="width: 105px; padding: 4px 6px;">
+                            <option value="Speaker 1" selected>Speaker 1</option>
                             <option value="Speaker 2">Speaker 2</option>
                             <option value="Speaker 3">Speaker 3</option>
                         </select>
-                        <select class="form-control emotion-select" style="width: 90px; padding: 4px; font-size: 12px; border-radius: var(--radius-sm);">
+                        <select class="glass-input emotion-select" style="width: 95px; padding: 4px 6px;">
                             <option value="neutral" selected>Tự nhiên</option>
                             <option value="happy">Vui vẻ</option>
                             <option value="sad">Ấm áp</option>
                             <option value="angry">Mạnh mẽ</option>
                         </select>
-                        <button type="button" class="btn btn-danger hover-scale" style="padding: 6px; border-radius: var(--radius-sm);" onclick="deleteSegmentRow(${customIdCounter})">
+                        <button type="button" class="btn btn-secondary hover-scale" style="padding: 6px; border: 1px solid rgba(248, 113, 113, 0.15); background: rgba(248, 113, 113, 0.02); color: var(--color-danger);" onclick="deleteSegmentRow('${customIdCounter}')">
                             <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                         </button>
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-sm);">
                     <div>
-                        <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">Tiếng Anh gốc:</label>
-                        <textarea class="form-control text-src" rows="2" style="font-size: 13px; resize: vertical; padding: 8px;" required></textarea>
+                        <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Tiếng Anh gốc:</label>
+                        <textarea class="glass-input text-src" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;" required></textarea>
                     </div>
                     <div>
-                        <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">Bản dịch tiếng Việt:</label>
-                        <textarea class="form-control text-trans" rows="2" style="font-size: 13px; resize: vertical; padding: 8px;" required></textarea>
+                        <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Bản dịch tiếng Việt:</label>
+                        <textarea class="glass-input text-trans" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;" required></textarea>
                     </div>
                 </div>
             </div>
@@ -251,7 +380,6 @@
                 return;
             }
 
-            // Gửi dữ liệu lên API bằng POST
             btnSave.disabled = true;
             btnSave.innerHTML = `<span style="font-size: 12px;">Đang kết xuất...</span>`;
 
@@ -273,7 +401,7 @@
                     const err = await response.json();
                     showToast(err.detail || "Lỗi lưu chỉnh sửa timeline.", "danger");
                     btnSave.disabled = false;
-                    btnSave.innerHTML = `<i data-lucide="save"></i> Lưu &amp; Kết xuất lại`;
+                    btnSave.innerHTML = `<i data-lucide="save" style="margin-right: 2px;"></i> Lưu &amp; Kết xuất`;
                     if (typeof lucide !== "undefined") {
                         lucide.createIcons();
                     }
@@ -281,13 +409,25 @@
             } catch (e) {
                 showToast("Lỗi kết nối máy chủ: " + e.message, "danger");
                 btnSave.disabled = false;
-                btnSave.innerHTML = `<i data-lucide="save"></i> Lưu &amp; Kết xuất lại`;
+                btnSave.innerHTML = `<i data-lucide="save" style="margin-right: 2px;"></i> Lưu &amp; Kết xuất`;
                 if (typeof lucide !== "undefined") {
                     lucide.createIcons();
                 }
             }
         });
     });
+
+    // Hàm cập nhật màu viền trái của phân đoạn thoại khi chọn Speaker khác
+    function updateSpeakerBorder(selectEl, segId) {
+        const card = document.getElementById(`seg-card-${segId}`);
+        if (card) {
+            const val = selectEl.value.toLowerCase().replace(" ", "-");
+            // Clear current classes
+            card.classList.remove("speaker-speaker-1", "speaker-speaker-2", "speaker-speaker-3");
+            // Add new class
+            card.classList.add(`speaker-${val}`);
+        }
+    }
 
     function deleteSegmentRow(id) {
         const card = document.getElementById(`seg-card-${id}`);

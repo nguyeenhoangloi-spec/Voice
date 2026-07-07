@@ -1,41 +1,109 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="grid-split" style="padding: var(--space-lg) 0;">
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.25) !important;
+        box-shadow: 0 12px 40px rgba(56, 189, 248, 0.08);
+        transform: translateY(-2px);
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    /* Hero Text gradient */
+    .hero-title-gradient {
+        background: linear-gradient(135deg, #fff 30%, #38bdf8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+</style>
+
+<div class="grid-split" style="padding: var(--space-lg) 0; align-items: center; gap: var(--space-xl);">
     <!-- Cột Trái: Giới thiệu & Kêu gọi hành động -->
     <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: var(--space-sm);">
-        <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--color-primary); background-color: var(--color-accent-bg); padding: 6px 16px; border-radius: var(--radius-full); width: fit-content;">
-            🔥 Trải nghiệm Lồng tiếng AI Thế hệ mới
+        <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: var(--color-primary); background-color: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); padding: 6px 16px; border-radius: var(--radius-full); width: fit-content; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); animation: pulseWave 1s infinite alternate;"></span>
+            Trải nghiệm Lồng tiếng AI Thế hệ mới
         </div>
         
-        <h1 class="hero-title">
-            Lồng tiếng Video tự động sang <span class="text-gradient">Tiếng Việt</span> chỉ trong nháy mắt
+        <h1 class="hero-title" style="font-size: 42px; line-height: 1.2;">
+            Lồng tiếng Video tự động sang <span class="hero-title-gradient">Tiếng Việt</span> chỉ trong nháy mắt
         </h1>
         
-        <p class="hero-desc">
+        <p class="hero-desc" style="font-size: 15.5px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px;">
             Chỉ cần dán liên kết video (YouTube/Direct Link) hoặc tải tệp lên. Hệ thống sẽ tự động tách nhạc nền, dịch nghĩa và lồng tiếng Việt chuẩn xác theo ngữ cảnh.
         </p>
 
         <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-xs); width: 100%; flex-wrap: wrap;">
-            <a href="/dubbing/create" class="btn btn-primary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+            <a href="/dubbing/create" class="btn shiny-btn hover-scale" style="padding: 14px 28px; font-size: 15px;">
                 Bắt đầu lồng tiếng ngay <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
             </a>
-            <a href="/pricing" class="btn btn-secondary hover-scale" style="padding: 14px 28px; font-size: 15px;">
+            <a href="/pricing" class="btn btn-secondary hover-scale" style="padding: 14px 28px; font-size: 15px; border: 1px solid rgba(255,255,255,0.05);">
                 Xem bảng giá
             </a>
         </div>
     </div>
 
     <!-- Cột Phải: Video Player Mockup Giả lập -->
-    <div class="interactive-mockup">
+    <div class="interactive-mockup" style="background: rgba(13,18,30,0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-lg); padding: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); backdrop-filter: blur(10px);">
         <!-- Header giả lập hệ điều hành -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-xs); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2xs);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-xs); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-2xs); width: 100%;">
             <div style="display: flex; gap: 6px;">
                 <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-danger);"></span>
                 <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-warning);"></span>
                 <span style="width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-success);"></span>
             </div>
-            <div style="font-size: 11px; color: var(--text-tertiary); font-family: monospace;">dubbing_sample.mp4</div>
+            <div style="font-size: 11px; color: var(--text-tertiary); font-family: monospace; font-weight: 600;">dubbing_sample.mp4</div>
             <i data-lucide="more-horizontal" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>
         </div>
         
@@ -44,7 +112,7 @@
             <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.85));"></div>
             
             <!-- Sóng âm audio lồng tiếng -->
-            <div style="position: absolute; bottom: 45px; left: 20px; right: 20px; display: flex; align-items: flex-end; gap: 4px; height: 35px;">
+            <div style="position: absolute; bottom: 45px; left: 20px; right: 20px; display: flex; align-items: flex-end; gap: 4px; height: 35px; opacity: 0.85;">
                 <div style="flex: 1; background: var(--color-primary); height: 20%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.1s; transform-origin: bottom;"></div>
                 <div style="flex: 1; background: var(--color-primary); height: 50%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.3s; transform-origin: bottom;"></div>
                 <div style="flex: 1; background: var(--color-accent); height: 80%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.5s; transform-origin: bottom;"></div>
@@ -53,12 +121,12 @@
                 <div style="flex: 1; background: var(--color-accent); height: 30%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.4s; transform-origin: bottom;"></div>
                 <div style="flex: 1; background: var(--color-secondary); height: 75%; border-radius: var(--radius-full); animation: pulseWave 1.2s infinite 0.8s; transform-origin: bottom;"></div>
             </div>
-
+ 
             <!-- Phụ đề giả lập dịch thuật -->
-            <div style="position: absolute; bottom: 12px; font-size: 13px; font-weight: 500; color: #fff; background: rgba(11, 15, 25, 0.75); border: 1px solid var(--border-color); backdrop-filter: blur(4px); padding: 5px 14px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 6px;">
-                <span style="color: var(--color-accent);">●</span> Lồng tiếng AI: "Chào mừng bạn đến với tương lai!"
+            <div style="position: absolute; bottom: 12px; font-size: 12.5px; font-weight: 700; color: #fff; background: rgba(11, 15, 25, 0.75); border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(4px); padding: 5px 14px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 6px;">
+                <span style="color: var(--color-accent); animation: pulseWave 1s infinite alternate;">●</span> Lồng tiếng AI: "Chào mừng bạn đến với tương lai!"
             </div>
-
+ 
             <!-- Nút Play phát sóng -->
             <div style="width: 54px; height: 54px; border-radius: var(--radius-full); background: rgba(56, 189, 248, 0.15); backdrop-filter: blur(4px); border: 1px solid var(--color-primary); color: var(--color-primary); display: flex; align-items: center; justify-content: center; z-index: 1;" class="hover-scale">
                 <i data-lucide="play" style="fill: var(--color-primary); width: 22px; height: 22px; margin-left: 3px;"></i>
@@ -70,48 +138,48 @@
 <!-- Phần các tính năng nổi bật (Bento Grid) -->
 <div class="bento-grid" style="margin-top: var(--space-xl); margin-bottom: var(--space-lg);">
     <!-- Feature 1 (Bento Item Large) -->
-    <div class="card glass hover-glow bento-item-large" style="padding: var(--space-md); display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
-        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(56, 189, 248, 0.1); color: var(--color-primary); flex-shrink: 0;" class="flex-center">
+    <div class="bento-card bento-item-large" style="display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
+        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(56, 189, 248, 0.08); color: var(--color-primary); flex-shrink: 0; border: 1px solid rgba(56,189,248,0.15);" class="flex-center">
             <i data-lucide="link" style="width: 28px; height: 28px;"></i>
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Tự động nhập liên kết thông minh</h3>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary);">Tự động nhập liên kết thông minh</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
                 Hỗ trợ dán liên kết trực tiếp từ YouTube, tệp âm thanh/video lưu trữ đám mây. Hệ thống phân tích luồng và trích xuất dữ liệu đa phương tiện tức thì mà không cần bạn phải tải xuống trước.
             </p>
         </div>
     </div>
 
     <!-- Feature 2 (Bento Item Small) -->
-    <div class="card glass hover-glow bento-item" style="padding: var(--space-md);">
-        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(168, 85, 247, 0.1); color: var(--color-secondary); margin-bottom: var(--space-xs);" class="flex-center">
+    <div class="bento-card bento-item" style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(168, 85, 247, 0.08); color: var(--color-secondary); margin-bottom: 4px; border: 1px solid rgba(168,85,247,0.15);" class="flex-center">
             <i data-lucide="languages" style="width: 22px; height: 22px;"></i>
         </div>
-        <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Dịch thuật ngữ cảnh</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0;">Dịch thuật ngữ cảnh</h3>
+        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
             Dịch thuật dựa trên mô hình ngôn ngữ lớn, hiểu từ lóng, bám sát ngữ cảnh trò chuyện và tự động chia lời thoại cho từng người nói.
         </p>
     </div>
 
     <!-- Feature 3 (Bento Item Small) -->
-    <div class="card glass hover-glow bento-item" style="padding: var(--space-md);">
-        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(45, 212, 191, 0.1); color: var(--color-accent); margin-bottom: var(--space-xs);" class="flex-center">
+    <div class="bento-card bento-item" style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background-color: rgba(45, 212, 191, 0.08); color: var(--color-accent); margin-bottom: 4px; border: 1px solid rgba(45,212,191,0.15);" class="flex-center">
             <i data-lucide="audio-lines" style="width: 22px; height: 22px;"></i>
         </div>
-        <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Ducking nhạc nền</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0;">Ducking nhạc nền</h3>
+        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
             Trích tách giọng nói và nhạc nền bằng AI. Nhạc nền tự động giảm nhỏ âm lượng khi có lời lồng tiếng và tự động to lại khi hết thoại.
         </p>
     </div>
 
     <!-- Feature 4 (Bento Item Large) - Thêm tính năng thứ 4 để Bento Grid cân đối -->
-    <div class="card glass hover-glow bento-item-large" style="padding: var(--space-md); display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
-        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(16, 185, 129, 0.1); color: var(--color-success); flex-shrink: 0;" class="flex-center">
+    <div class="bento-card bento-item-large" style="display: flex; flex-direction: row; gap: var(--space-md); align-items: center;">
+        <div style="width: 60px; height: 60px; border-radius: var(--radius-lg); background-color: rgba(16, 185, 129, 0.08); color: var(--color-success); flex-shrink: 0; border: 1px solid rgba(16,185,129,0.15);" class="flex-center">
             <i data-lucide="gauge" style="width: 28px; height: 28px;"></i>
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
-            <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Tốc độ xử lý siêu tốc</h3>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary);">Tốc độ xử lý siêu tốc</h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
                 Nhờ kiến trúc xử lý song song trên đám mây, các tác vụ lồng tiếng video 10 phút chỉ mất chưa đầy 3 phút để hoàn thành. Bạn có thể xuất video với chất lượng gốc lên đến 4K ngay lập tức.
             </p>
         </div>

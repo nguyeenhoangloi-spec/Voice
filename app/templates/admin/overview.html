@@ -1,67 +1,185 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div style="margin-bottom: var(--space-md);">
-    <h1 style="font-size: 32px; font-weight: 800;">Tổng quan Hệ thống quản trị</h1>
-    <p style="font-size: 15px; color: var(--text-secondary);">Giám sát trạng thái hoạt động, quản lý người dùng và theo dõi hàng đợi tác vụ.</p>
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.2) !important;
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.05);
+    }
+
+    /* Stat Card Specific */
+    .stat-bento {
+        padding: var(--space-md) var(--space-lg) !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: var(--space-xs);
+    }
+
+    .table-container-fixed {
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(0, 0, 0, 0.15);
+        width: 100%;
+    }
+
+    :root[data-theme="light"] .table-container-fixed {
+        background: rgba(0, 0, 0, 0.01);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .admin-table th {
+        padding: 12px 14px !important;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background-color: rgba(0, 0, 0, 0.2) !important;
+        text-transform: uppercase;
+    }
+
+    :root[data-theme="light"] .admin-table th {
+        background-color: rgba(0, 0, 0, 0.02) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .admin-table td {
+        padding: 12px 14px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-size: 13.5px;
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    :root[data-theme="light"] .admin-table td {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .admin-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .admin-table tr {
+        transition: background-color var(--transition-fast);
+    }
+
+    .admin-table tr:hover {
+        background-color: rgba(255, 255, 255, 0.01) !important;
+    }
+
+    :root[data-theme="light"] .admin-table tr:hover {
+        background-color: rgba(0, 0, 0, 0.01) !important;
+    }
+</style>
+
+<div class="page-header" style="margin-bottom: var(--space-md);">
+    <div>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Tổng quan Hệ thống quản trị</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Giám sát trạng thái hoạt động, quản lý người dùng và theo dõi hàng đợi tác vụ.</p>
+    </div>
 </div>
 
 <!-- Stats cards -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng số người dùng</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--text-primary);">{{ users|length }}</div>
+    <!-- Stat 1 -->
+    <div class="bento-card stat-bento">
+        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Tổng người dùng</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">{{ users|length }}</div>
     </div>
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tổng số tác vụ</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-primary);">{{ total_jobs }}</div>
+    <!-- Stat 2 -->
+    <div class="bento-card stat-bento">
+        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Tổng tác vụ</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-primary); margin-top: 4px;">{{ total_jobs }}</div>
     </div>
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tác vụ đang chạy</div>
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-info);">{{ processing_jobs }}</div>
+    <!-- Stat 3 -->
+    <div class="bento-card stat-bento">
+        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Đang chạy</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-info); margin-top: 4px;">{{ processing_jobs }}</div>
     </div>
-    <div class="card glass">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Tỷ lệ lỗi tác vụ</div>
+    <!-- Stat 4 -->
+    <div class="bento-card stat-bento">
+        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Tỷ lệ lỗi tác vụ</div>
         {% if total_jobs > 0 %}
-        <div style="font-size: 36px; font-weight: 800; color: var(--color-danger);">
+        <div style="font-size: 36px; font-weight: 800; color: var(--color-danger); margin-top: 4px;">
             {{ ((failed_jobs / total_jobs) * 100)|round(1) }}%
         </div>
         {% else %}
-        <div style="font-size: 36px; font-weight: 800; color: var(--text-tertiary);">0%</div>
+        <div style="font-size: 36px; font-weight: 800; color: var(--text-tertiary); margin-top: 4px;">0%</div>
         {% endif %}
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md);">
+<div style="display: grid; grid-template-columns: 2fr 1.1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+    
     <!-- Danh sách tất cả các task đang chạy hoặc hoàn thành -->
-    <div class="card glass">
-        <h3 style="font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Tất cả tác vụ hệ thống</h3>
+    <div class="bento-card" style="padding: var(--space-lg); gap: var(--space-md);">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="server" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+            Tất cả tác vụ hệ thống
+        </h3>
         
         {% if not jobs %}
         <p style="font-size: 14px; color: var(--text-secondary); text-align: center; padding: var(--space-md) 0;">Hệ thống chưa có tác vụ nào.</p>
         {% else %}
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+        <div class="table-container-fixed">
+            <table class="admin-table">
                 <thead>
-                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
-                        <th style="padding: var(--space-xs);">User ID</th>
-                        <th style="padding: var(--space-xs);">Loại</th>
-                        <th style="padding: var(--space-xs);">Trạng thái</th>
-                        <th style="padding: var(--space-xs);">Tiến trình</th>
-                        <th style="padding: var(--space-xs);">Hành động</th>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Loại nguồn</th>
+                        <th>Trạng thái</th>
+                        <th>Tiến trình</th>
+                        <th style="text-align: right;">Hành động</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for job in jobs %}
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: var(--space-xs); font-family: monospace;">User #{{ job.user_id }}</td>
-                        <td style="padding: var(--space-xs);">{{ job.source_type.upper() }}</td>
-                        <td style="padding: var(--space-xs);">
+                    <tr>
+                        <td style="font-family: monospace; font-weight: 600; color: var(--text-primary);">User #{{ job.user_id }}</td>
+                        <td style="color: var(--text-secondary);">{{ job.source_type.upper() }}</td>
+                        <td>
                             <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
                         </td>
-                        <td style="padding: var(--space-xs);">{{ job.progress_percent }}%</td>
-                        <td style="padding: var(--space-xs);">
-                            <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary" style="padding: 2px 6px; font-size: 11px;">Chi tiết</a>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="background-color: rgba(255,255,255,0.04); border-radius: var(--radius-full); height: 6px; width: 60px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;">
+                                    <div class="progress-bar-fill {% if job.status == 'failed' %}status-failed{% else %}status-gradient{% endif %}" style="--progress-width: {{ job.progress_percent }}%;"></div>
+                                </div>
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-primary);">{{ job.progress_percent }}%</span>
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="/dubbing/job/{{ job.id }}" class="btn btn-secondary hover-scale" style="padding: 4px 10px; font-size: 11.5px; border: 1px solid rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 2px;">
+                                <span>Chi tiết</span>
+                                <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -72,16 +190,19 @@
     </div>
 
     <!-- Danh sách người dùng -->
-    <div class="card glass">
-        <h3 style="font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Tài khoản đăng ký</h3>
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); overflow-y: auto; max-height: 300px;">
+    <div class="bento-card" style="padding: var(--space-lg); gap: var(--space-md);">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="users" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+            Tài khoản đăng ký
+        </h3>
+        <div style="display: flex; flex-direction: column; gap: var(--space-sm); overflow-y: auto; max-height: 380px;">
             {% for u in users %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-2xs); border-bottom: 1px dashed var(--border-color);">
-                <div style="display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis;">
-                    <span style="font-size: 13px; font-weight: 600;">{{ u.full_name if u.full_name else 'No Name' }}</span>
-                    <span style="font-size: 11px; color: var(--text-tertiary);">{{ u.email }}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(0,0,0,0.1); border-radius: var(--radius-sm);">
+                <div style="display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis; gap: 2px;">
+                    <span style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">{{ u.full_name if u.full_name else 'No Name' }}</span>
+                    <span style="font-size: 11.5px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ u.email }}</span>
                 </div>
-                <span class="badge badge-completed" style="font-size: 10px; padding: 2px 6px;">{{ u.role }}</span>
+                <span class="badge badge-completed" style="font-size: 10px; padding: 2px 8px;">{{ u.role.upper() }}</span>
             </div>
             {% endfor %}
         </div>

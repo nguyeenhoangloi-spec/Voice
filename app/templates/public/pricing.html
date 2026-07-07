@@ -1,64 +1,265 @@
 {% extends 'layouts/base.html' %}
 
 {% block content %}
-<div class="page-header" style="justify-content: center; text-align: center;">
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+        position: relative;
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.25) !important;
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.05);
+        transform: translateY(-2px);
+    }
+
+    /* Popular plan special styling */
+    .popular-card {
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
+        box-shadow: 0 0 30px rgba(56, 189, 248, 0.08) !important;
+    }
+
+    .popular-card:hover {
+        box-shadow: 0 0 35px rgba(56, 189, 248, 0.15) !important;
+    }
+
+    /* Toggle Switcher style */
+    .toggle-pricing-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: var(--space-xl);
+    }
+
+    .pricing-switch-pill {
+        display: flex;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 4px;
+        border-radius: var(--radius-full);
+        position: relative;
+        cursor: pointer;
+    }
+
+    :root[data-theme="light"] .pricing-switch-pill {
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .switch-option {
+        padding: 8px 18px;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        border-radius: var(--radius-full);
+        transition: all var(--transition-normal);
+        user-select: none;
+    }
+
+    .switch-option.active {
+        color: white;
+        background: var(--color-primary);
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    /* Pricing display animation */
+    .price-num {
+        transition: opacity 0.15s ease-in-out;
+    }
+</style>
+
+<div class="page-header" style="justify-content: center; text-align: center; margin-bottom: var(--space-md);">
     <div>
-        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 4px;">Chọn gói dịch vụ phù hợp</h1>
-        <p class="hero-desc" style="max-width: 600px; margin: 0 auto;">Nâng cấp để mở khóa thêm thời lượng video và giọng nói AI chất lượng cao, phục vụ cho việc sáng tạo nội dung chuyên nghiệp.</p>
+        <h1 class="hero-title" style="font-size: 36px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Chọn gói dịch vụ phù hợp</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">Nâng cấp để mở khóa thêm thời lượng video và giọng nói AI chất lượng cao, phục vụ cho việc sáng tạo nội dung chuyên nghiệp.</p>
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-xl);">
+<!-- Switcher chọn chu kỳ thanh toán -->
+<div class="toggle-pricing-container">
+    <span style="font-size: 13.5px; font-weight: 600; color: var(--text-secondary);">Thanh toán hàng tháng</span>
+    <div class="pricing-switch-pill" onclick="toggleBillingCycle()">
+        <span class="switch-option active" id="opt-monthly">Tháng</span>
+        <span class="switch-option" id="opt-yearly">Năm (Ưu đãi -20%)</span>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-xl); align-items: stretch;">
+    
     <!-- Gói Free -->
-    <div class="card glass hover-glow" style="padding: var(--space-lg); display: flex; flex-direction: column; justify-content: space-between;">
+    <div class="bento-card">
         <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Cơ bản</div>
-            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">Miễn phí</h2>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Phù hợp cho cá nhân thử nghiệm dịch vụ</p>
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+            <div style="font-size: 11px; font-weight: 800; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">Cơ bản</div>
+            <h2 style="font-size: 38px; font-weight: 800; color: var(--text-primary); margin: 6px 0;">Miễn phí</h2>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Phù hợp cho cá nhân thử nghiệm dịch vụ</p>
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.06); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 13.5px; color: var(--text-secondary); padding: 0; margin: 0;">
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Tối đa 2 phút/video</li>
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 3 giọng đọc AI tiêu chuẩn</li>
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video 720p</li>
-                <li style="display: flex; align-items: center; gap: 10px; opacity: 0.5;"><i data-lucide="x" style="color: var(--color-danger); width: 18px; height: 18px;"></i> Tách nhạc nền nâng cao</li>
+                <li style="display: flex; align-items: center; gap: 10px; opacity: 0.4;"><i data-lucide="x" style="color: var(--color-danger); width: 18px; height: 18px;"></i> Tách nhạc nền nâng cao</li>
             </ul>
         </div>
-        <a href="/auth/register" class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;">Đăng ký miễn phí</a>
+        <a href="/auth/register" class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center; display: block;">Đăng ký miễn phí</a>
     </div>
 
     <!-- Gói Creator (Nổi bật) -->
-    <div class="card glass hover-glow" style="padding: var(--space-lg); border-color: var(--color-primary); box-shadow: 0 0 30px rgba(56, 189, 248, 0.12); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
-        <div style="position: absolute; top: -14px; right: 24px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: white; padding: 4px 14px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);">Phổ biến</div>
+    <div class="bento-card popular-card">
+        <div style="position: absolute; top: -14px; right: 24px; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); color: white; padding: 4px 14px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.2);">Bán chạy nhất</div>
         <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Sáng tạo</div>
-            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">199.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Hoàn hảo cho người sáng tạo nội dung</p>
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+            <div style="font-size: 11px; font-weight: 800; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">Sáng tạo</div>
+            <h2 style="font-size: 38px; font-weight: 800; color: var(--text-primary); margin: 6px 0;" class="price-num" id="price-creator">199.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Hoàn hảo cho người sáng tạo nội dung</p>
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.06); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 13.5px; color: var(--text-secondary); padding: 0; margin: 0;">
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Tối đa 15 phút/video</li>
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 15+ giọng đọc AI cảm xúc</li>
-                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video Full HD 1080p</li>
-                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Hỗ trợ tách nhạc nền cao cấp</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng Full HD 1080p</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Tách nhạc nền nâng cao</li>
             </ul>
         </div>
-        <button class="btn btn-primary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;" onclick="showToast('Tính năng thanh toán sẽ hoạt động ở Giai đoạn 5!', 'info')">Nâng cấp ngay</button>
+        <button class="btn shiny-btn hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;" onclick="showToast('Tính năng nâng cấp gói sẽ mở ở Giai đoạn tiếp theo!', 'info')">Nâng cấp ngay</button>
     </div>
 
     <!-- Gói Studio -->
-    <div class="card glass hover-glow" style="padding: var(--space-lg); display: flex; flex-direction: column; justify-content: space-between;">
+    <div class="bento-card">
         <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: var(--space-2xs);">Doanh nghiệp</div>
-            <h2 style="font-size: 36px; font-weight: 800; color: var(--text-primary); margin: var(--space-2xs) 0;">499.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Lựa chọn tốt nhất cho các studio dịch thuật</p>
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: var(--space-md) 0;">
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 14px; color: var(--text-secondary); padding: 0;">
+            <div style="font-size: 11px; font-weight: 800; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">Doanh nghiệp</div>
+            <h2 style="font-size: 38px; font-weight: 800; color: var(--text-primary); margin: 6px 0;" class="price-num" id="price-studio">499.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span></h2>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: var(--space-sm);">Lựa chọn tốt nhất cho các studio dịch thuật</p>
+            <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.06); margin: var(--space-md) 0;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); font-size: 13.5px; color: var(--text-secondary); padding: 0; margin: 0;">
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Không giới hạn thời lượng video</li>
-                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 50+ giọng đọc và dịch đa ngôn ngữ</li>
-                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video gốc Ultra HD 4K</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> 50+ giọng đọc &amp; Đa ngôn ngữ</li>
+                <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Chất lượng video Ultra HD 4K</li>
                 <li style="display: flex; align-items: center; gap: 10px;"><i data-lucide="check" style="color: var(--color-success); width: 18px; height: 18px;"></i> Nhân bản giọng nói (Voice Cloning)</li>
             </ul>
         </div>
-        <button class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px;" onclick="showToast('Liên hệ admin để đăng ký gói Studio!', 'info')">Liên hệ bán hàng</button>
+        <button class="btn btn-secondary hover-scale" style="width: 100%; margin-top: var(--space-lg); padding: 12px; border: 1px solid rgba(255,255,255,0.05);" onclick="showToast('Liên hệ admin để nâng cấp gói Studio!', 'info')">Liên hệ bán hàng</button>
+    </div>
+
+</div>
+
+<!-- Bento card so sánh tính năng kỹ thuật bổ sung -->
+<div class="bento-card" style="margin-bottom: var(--space-xl); padding: var(--space-lg); gap: var(--space-sm);">
+    <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin: 0 0 var(--space-xs) 0; display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="sliders" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+        So sánh chi tiết hạn mức kỹ thuật
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-md); margin-top: 4px;">
+        <div style="background: rgba(0,0,0,0.15); padding: var(--space-md); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.03);">
+            <h4 style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 6px 0;">Giới hạn ký tự SSML</h4>
+            <ul style="list-style: none; padding:0; margin:0; font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                <li>• Free: 3.000 ký tự / tác vụ</li>
+                <li>• Creator: 50.000 ký tự / tác vụ</li>
+                <li>• Studio: Không giới hạn</li>
+            </ul>
+        </div>
+        <div style="background: rgba(0,0,0,0.15); padding: var(--space-md); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.03);">
+            <h4 style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 6px 0;">Mô hình Whisper ASR</h4>
+            <ul style="list-style: none; padding:0; margin:0; font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                <li>• Free: Whisper Tiny</li>
+                <li>• Creator: Whisper Base</li>
+                <li>• Studio: Whisper Large v3 (CUDA)</li>
+            </ul>
+        </div>
+        <div style="background: rgba(0,0,0,0.15); padding: var(--space-md); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.03);">
+            <h4 style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin: 0 0 6px 0;">Ưu tiên Pipeline luồng</h4>
+            <ul style="list-style: none; padding:0; margin:0; font-size: 12.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                <li>• Free: Luồng chờ (Queue)</li>
+                <li>• Creator: Luồng tiêu chuẩn (Standard)</li>
+                <li>• Studio: Luồng chuyên dụng (Dedicated)</li>
+            </ul>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let isYearly = false;
+
+    function toggleBillingCycle() {
+        isYearly = !isYearly;
+        
+        const optMonthly = document.getElementById("opt-monthly");
+        const optYearly = document.getElementById("opt-yearly");
+        const priceCreator = document.getElementById("price-creator");
+        const priceStudio = document.getElementById("price-studio");
+
+        // Fade out animation
+        priceCreator.style.opacity = "0.2";
+        priceStudio.style.opacity = "0.2";
+
+        setTimeout(() => {
+            if (isYearly) {
+                optMonthly.classList.remove("active");
+                optYearly.classList.add("active");
+                
+                priceCreator.innerHTML = `159.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span> <span style="display:block; font-size: 11px; color: var(--color-success); font-weight: 700; margin-top:2px;">(Thanh toán 1.908.000đ/năm)</span>`;
+                priceStudio.innerHTML = `399.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span> <span style="display:block; font-size: 11px; color: var(--color-success); font-weight: 700; margin-top:2px;">(Thanh toán 4.788.000đ/năm)</span>`;
+            } else {
+                optMonthly.classList.add("active");
+                optYearly.classList.remove("active");
+                
+                priceCreator.innerHTML = `199.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span>`;
+                priceStudio.innerHTML = `499.000đ<span style="font-size: 14px; font-weight: 500; color: var(--text-secondary);">/tháng</span>`;
+            }
+            
+            // Fade in animation
+            priceCreator.style.opacity = "1";
+            priceStudio.style.opacity = "1";
+        }, 150);
+    }
+</script>
 {% endblock %}
