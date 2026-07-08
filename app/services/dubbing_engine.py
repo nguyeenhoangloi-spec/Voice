@@ -829,26 +829,28 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
 
                     client = genai.Client(api_key=api_key)
 
-                    # === PROMPT CẢI TIẾN: Faithfulness + Natural + Dynamic Character Map ===
+                    # === PROMPT CẢI TIẾN: Tiếng Việt + Hard Limit + Dynamic Character Map ===
                     prompt = (
-                        "You are an elite Vietnamese video dubbing translator with 20+ years of experience.\n"
-                        f"Video type: {detected_type} | Title: {detected_title or video_topic} | Tone: {detected_tone}\n\n"
-                        "YOUR TASK: Translate the source transcript segments into natural spoken Vietnamese for voice dubbing.\n\n"
-                        "PRIORITY RULES (in order of importance):\n"
-                        "1. FAITHFULNESS (HIGHEST): Your translation MUST faithfully convey the EXACT meaning of the original. "
-                        "Do NOT add information that doesn't exist in the source. Do NOT remove or skip any meaning. "
-                        "Do NOT hallucinate or invent content. Every translated sentence must map directly to the source.\n\n"
-                        "2. NATURAL SPOKEN VIETNAMESE: Adapt sentence structure to sound natural when spoken aloud in Vietnamese (văn nói). "
-                        "Avoid literal word-by-word translation that sounds robotic. Mirror the speaker's emotional tone "
-                        f"(detected tone: {detected_tone}) from the original.\n\n"
-                        "3. CHARACTER NAMES: If a CHARACTER NAME REFERENCE block is provided below, you MUST use EXACTLY "
-                        "those Vietnamese names — no exceptions. For names NOT in the reference, keep the original name. "
-                        "For real people and brands, always keep original names unchanged.\n\n"
-                        "4. TECHNICAL TERMS: Keep English terms when no natural Vietnamese equivalent exists.\n\n"
-                        "5. CONCISENESS (secondary): Only shorten if the translation is significantly longer than the duration allows. "
-                        "Never sacrifice meaning for brevity. Target word count is a soft guide, not a hard limit.\n\n"
-                        "6. OUTPUT: Return ONLY a JSON array of strings in the same order. No markdown, no explanation.\n"
-                        f"   Example: [\"câu một\", \"câu hai\"]\n"
+                        "Bạn là chuyên gia lồng tiếng phim ảnh hàng đầu Việt Nam với 20 năm kinh nghiệm.\n"
+                        f"Thể loại: {detected_type} | Tên phim: {detected_title or video_topic} | Giọng điệu: {detected_tone}\n\n"
+                        "NHIỆM VỤ: Dịch các câu dưới đây sang tiếng Việt dùng để lồng tiếng (dubbing).\n\n"
+                        "QUY TẮC ƯU TIÊN (Theo thứ tự quan trọng):\n"
+                        "1. BẢO TOÀN NỘI DUNG (QUAN TRỌNG NHẤT): Phải dịch chính xác 100% ý của câu gốc. "
+                        "TUYỆT ĐỐI KHÔNG thêm thắt thông tin, KHÔNG tự bịa chuyện, KHÔNG lược bỏ ý chính.\n\n"
+                        "2. VĂN NÓI TỰ NHIÊN: Dùng cấu trúc câu nói đời thường, ngắt nghỉ đúng chỗ. "
+                        "TUYỆT ĐỐI KHÔNG dịch word-by-word cứng nhắc. Phải thể hiện được cảm xúc "
+                        f"(giọng điệu: {detected_tone}).\n\n"
+                        "3. TÊN NHÂN VẬT: Nếu có phần CHARACTER NAME REFERENCE bên dưới, BẮT BUỘC dùng đúng tên "
+                        "tiếng Việt đó. Tên thật người/thương hiệu thì giữ nguyên.\n\n"
+                        "4. THUẬT NGỮ KỸ THUẬT: Giữ nguyên tiếng Anh nếu tiếng Việt không có từ thay thế tự nhiên.\n\n"
+                        "5. GIỚI HẠN THỜI GIAN (HARD LIMIT - RẤT QUAN TRỌNG): Tốc độ nói tiếng Việt tự nhiên là ~3 từ/giây. "
+                        "Số từ tối đa (được đánh dấu ~N từ) cho mỗi câu là GIỚI HẠN CỨNG, KHÔNG ĐƯỢC VƯỢT QUÁ. "
+                        "Nếu ý nghĩa quá dài so với số từ cho phép, BẮT BUỘC phải diễn đạt lại bằng từ đồng nghĩa ngắn hơn, "
+                        "lược bỏ từ thừa (filler words). "
+                        "Một câu dịch hơi ngắn nhưng khớp hoàn hảo với thời lượng khung hình luôn tốt hơn "
+                        "một câu dịch hay nhưng bị cắt cụt hoặc bị ép nói siêu nhanh.\n\n"
+                        "6. ĐỊNH DẠNG: CHỈ TRẢ VỀ một mảng JSON chuỗi, đúng thứ tự. KHÔNG dùng markdown, KHÔNG giải thích gì thêm.\n"
+                        "   Ví dụ: [\"câu một\", \"câu hai\"]\n"
                     )
 
                     # Inject dynamic character map from pre-scan
@@ -913,6 +915,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                     if json_match:
                         translated_list = json.loads(json_match.group(0))
                         if len(translated_list) == len(batch):
+
                             for local_idx, trans in enumerate(translated_list):
                                 batch[local_idx]["translation"] = trans
                             # Lưu context cho batch tiếp theo
@@ -1018,55 +1021,49 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     Returns a dict with 'text' and 'rate'.
 
     Strategy:
-    - Natural Vietnamese speech: ~3.2 words/sec at normal rate
-    - Keep rate at +0% by default; only speed up if words > 3.5 words/sec (still natural)
+    - Natural Vietnamese speech: ~2.8 words/sec at normal rate
+    - Only speed up Edge TTS if words exceed natural threshold (max +20%)
     - If translation still too long after rate boost, compress at sentence boundaries
-    - NOTE: The merge step will do a final atempo stretch to lock audio to slot exactly
+    - NOTE: The merge step will do a final atempo stretch (max 1.4x) + truncate-to-fit
     """
     translation = seg.get("translation", seg.get("text", ""))
     start_time = seg.get("start", 0.0)
     end_time = seg.get("end", start_time + 3.0)
     duration = max(end_time - start_time, 0.5)  # at least 0.5s
 
-    # Natural rate: 3.0 w/s; max comfortable rate before sounding rushed: 4.0 w/s
-    # Vietnamese speech research: ~3.2-3.8 words/sec is natural and clear
-    max_words_normal = int(duration * 3.0)   # normal reading pace
-    max_words_fast   = int(duration * 4.5)   # hard ceiling - only compress beyond this
-
-    # Adjust base rate from video context
-    rate_map = {
-        "fast": 10,
-        "neutral": 0,
-        "slow": -5,
-        "teaching": -8,
-    }
-    base_rate_pct = rate_map.get(video_context.lower(), 0)
-
     words = translation.split()
     word_count = len(words)
 
-    # Dynamic timing calculation (Vietnamese natural pace is ~2.8 words/sec)
-    wps = word_count / duration if duration > 0 else 2.8
-    
-    # If words exceed the natural speed threshold, calculate additional speed-up needed
+    # TỐC ĐỘ TỰ NHIÊN: 2.8 từ/giây (Không đổi)
+    NATURAL_WPS = 2.8
+    MAX_ALLOWED_WPS = 3.5  # Tối đa trước khi nghe bị "đọc nhịp"
+
+    # Adjust base rate from video context
+    rate_map = {"fast": 5, "neutral": 0, "slow": -5, "teaching": -8}
+    base_rate_pct = rate_map.get(video_context.lower(), 0)
+
+    wps = word_count / duration if duration > 0 else NATURAL_WPS
     extra_speed_pct = 0
-    if wps > 2.8:
-        # Each 0.1 w/s above threshold adds 1% speed
-        extra_speed_pct = int((wps - 2.8) * 10)
-        # Limit the extra speed to prevent it from sounding cartoonish (max +30% total)
+
+    # Tự động tăng chút tốc độ nếu câu hơi dài, nhưng giới hạn ở mức +30%
+    if wps > NATURAL_WPS:
+        extra_speed_pct = int((wps - NATURAL_WPS) * 15)
         extra_speed_pct = min(extra_speed_pct, 30)
 
     final_rate_pct = base_rate_pct + extra_speed_pct
-    
+
     # Format rate for Edge TTS (e.g. "+15%", "-5%", "+0%")
     rate_str = f"+{final_rate_pct}%" if final_rate_pct >= 0 else f"{final_rate_pct}%"
 
-    logger.info(f"Segment info: {word_count} words in {duration:.1f}s (wps: {wps:.2f}) → Speed rate: {rate_str}")
+    # Cắt ngắn bằng mọi giá nếu vẫn vượt quá mức nghe được
+    if word_count > int(duration * MAX_ALLOWED_WPS):
+        logger.warning(f"Câu quá dài ({word_count} từ / {duration:.1f}s). Đang cắt ngắn...")
+        translation = _compress_translation(translation, int(duration * MAX_ALLOWED_WPS))
 
-    ssml_content = translation.strip()
+    logger.info(f"Segment: {len(translation.split())} từ trong {duration:.1f}s (wps: {wps:.2f}) → TTS Rate: {rate_str}")
 
     return {
-        "text": ssml_content,
+        "text": translation.strip(),
         "rate": rate_str
     }
 

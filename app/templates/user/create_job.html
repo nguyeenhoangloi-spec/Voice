@@ -404,12 +404,7 @@
                 opt.textContent = voice.text;
                 voiceProfileSelect.appendChild(opt);
             });
-            // Auto-select first female voice by default
-            const defaultVoice = engineVoices.find(v => v.gender === "female") || engineVoices[0];
-            if (defaultVoice) {
-                voiceProfileSelect.value = defaultVoice.value;
-                voiceGenderSelect.value = defaultVoice.gender;
-            }
+            // Giữ "auto" làm mặc định — user tự chọn giọng cụ thể nếu muốn
         }
 
         // Lắng nghe thay đổi TTS Engine để reload voices
