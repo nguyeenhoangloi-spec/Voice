@@ -82,6 +82,7 @@ Sử dụng các lệnh sau để kích hoạt quy trình tác chiến chuyên s
 - **/performance**: Tối ưu hóa hiệu năng & tốc độ.
 - **/plan**: Lập kế hoạch & lộ trình development.
 - **/ponytail-audit**: Quét và đề xuất tối giản hóa code thừa theo chuẩn Ponytail.
+- **/karpathy-audit**: Kiểm tra mã nguồn và quy trình theo chuẩn Andrej Karpathy.
 - **/portfolio**: Xây dựng trang Portfolio cá nhân.
 - **/preview**: Xem trước ứng dụng (Live Preview).
 - **/realtime**: Tích hợp Realtime (Socket.io/WebRTC).
