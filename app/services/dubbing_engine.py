@@ -1345,33 +1345,39 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     # (extra 5s buffer - will be trimmed back to video_duration_ms after all overlays)
     mixed_audio = AudioSegment.silent(duration=video_duration_ms + 5000)
 
-     # Overlay each TTS segment at its correct timestamp
+     # Overlay each TTS segment at its correct timestamp (TRUNCATE-TO-FIT mode)
+    # Mỗi câu thoại LUÔN bắt đầu đúng thời điểm gốc trên video.
+    # Nếu câu trước dài quá → cắt + fade-out 200ms, KHÔNG đẩy lùi câu sau.
     overlay_count = 0
-    last_end_ms = 0  # Theo dõi thời điểm âm thanh câu trước thực tế kết thúc
 
     for idx, seg in enumerate(segments):
         if not seg.get("audio_path") or not os.path.exists(seg["audio_path"]):
             continue
         try:
             tts_audio = AudioSegment.from_file(seg["audio_path"])
-            original_start_ms = int(seg["start"] * 1000)
-            
-            # Nếu thời điểm bắt đầu của câu này sớm hơn lúc câu trước nói xong, 
-            # đẩy lùi thời điểm bắt đầu của câu này ra sau câu trước + 150ms nghỉ tự nhiên
-            start_ms = original_start_ms
-            if start_ms < last_end_ms:
-                start_ms = last_end_ms + 150
-                logger.info(f"Segment {idx} bị chen → Tự động lùi start từ {original_start_ms}ms sang {start_ms}ms (lùi {(start_ms - original_start_ms)/1000:.2f}s)")
+            start_ms = int(seg["start"] * 1000)
+
+            # Tính thời lượng tối đa cho phép cho câu thoại này
+            # = thời lượng slot gốc trên video (end - start)
+            slot_end_ms = int(seg.get("end", seg["start"] + 3.0) * 1000)
+            max_duration_ms = slot_end_ms - start_ms
+
+            # Nếu audio dài hơn slot → cắt + fade-out 200ms để khớp phân cảnh
+            if max_duration_ms > 0 and len(tts_audio) > max_duration_ms:
+                original_len = len(tts_audio)
+                fade_ms = min(200, max_duration_ms // 2)  # fade-out không dài hơn nửa slot
+                tts_audio = tts_audio[:max_duration_ms].fade_out(fade_ms)
+                logger.info(
+                    f"Seg {idx}: cắt audio từ {original_len}ms xuống {max_duration_ms}ms "
+                    f"+ fade-out {fade_ms}ms để khớp phân cảnh"
+                )
 
             # Fade-in 50ms to prevent click noise at segment start
             if len(tts_audio) > 100:
                 tts_audio = tts_audio.fade_in(50)
 
-            # Overlay câu nói vào track chính
+            # Overlay câu nói vào track chính tại ĐÚNG thời điểm gốc
             mixed_audio = mixed_audio.overlay(tts_audio, position=start_ms)
-            
-            # Cập nhật thời điểm kết thúc thực tế của câu này
-            last_end_ms = start_ms + len(tts_audio)
             overlay_count += 1
         except Exception as e:
             logger.warning(f"Failed to overlay segment at {seg.get('start', '?')}s: {e}")
