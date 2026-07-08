@@ -1144,6 +1144,42 @@ def select_voice(gender: str = "female", region: str = "south", engine: str = "e
     return voice_map.get((gender.lower(), region.lower()), "vi-VN-HoaiMyNeural")
 
 
+def _adjust_audio_speed(audio_path: str, speed_factor: float) -> str:
+    """Tăng tốc độ âm thanh sử dụng bộ lọc FFmpeg atempo (giữ nguyên cao độ giọng).
+    speed_factor giới hạn trong khoảng [0.5, 2.0]."""
+    import subprocess
+    
+    if abs(speed_factor - 1.0) < 0.05:
+        return audio_path  # Không cần điều chỉnh nếu lệch quá ít (< 5%)
+        
+    ffmpeg = get_ffmpeg_path()
+    speed_factor = max(0.5, min(speed_factor, 2.0))
+    
+    temp_dir = os.path.dirname(audio_path)
+    temp_out = os.path.join(temp_dir, "speedup_" + os.path.basename(audio_path))
+    
+    try:
+        cmd = [
+            ffmpeg, "-y",
+            "-i", audio_path,
+            "-filter:a", f"atempo={speed_factor:.2f}",
+            "-vn",
+            temp_out
+        ]
+        res = subprocess.run(cmd, capture_output=True, check=True)
+        if os.path.exists(temp_out) and os.path.getsize(temp_out) > 100:
+            os.replace(temp_out, audio_path)
+            logger.info(f"Khớp nhịp tự động: tăng tốc {speed_factor:.2f}x cho vừa slot video.")
+            return audio_path
+    except Exception as e:
+        logger.warning(f"Không thể co kéo tốc độ âm thanh bằng FFmpeg: {e}")
+        if os.path.exists(temp_out):
+            try:
+                os.remove(temp_out)
+            except Exception:
+                pass
+    return audio_path
+
 
 # Default multi-speaker voice map (auto-assigned based on detected speakers)
 DEFAULT_SPEAKER_VOICE_MAP = {
@@ -1215,7 +1251,7 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 rate=ssml_config["rate"]
             )
 
-            # ─── CHECK: Log actual audio length vs slot (no action, just info) ─
+            # ─── KHỚP NHỊP TỰ ĐỘNG: Co dãn âm thanh bằng FFmpeg atempo nếu dài hơn slot video ─
             slot_ms = max(0, (seg.get("end", 0) - seg.get("start", 0)) * 1000)
             if os.path.exists(output_path):
                 from pydub import AudioSegment as _AS
@@ -1226,10 +1262,24 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                     pass
                 try:
                     actual_ms = len(_AS.from_file(output_path))
+                    # Nếu âm thanh thực tế dài hơn slot video
+                    if actual_ms > slot_ms:
+                        speed_factor = actual_ms / slot_ms
+                        # Giới hạn tăng tốc tối đa 1.4x để tránh biến dạng giọng nói quá nhiều
+                        speed_factor = min(speed_factor, 1.4)
+                        
+                        if speed_factor > 1.05:  # Lệch trên 5% mới co dãn
+                            _adjust_audio_speed(output_path, speed_factor)
+                            # Cập nhật lại thời lượng sau khi tăng tốc
+                            try:
+                                actual_ms = len(_AS.from_file(output_path))
+                            except Exception:
+                                pass
+                                
                     if actual_ms > slot_ms * 1.2:
-                        logger.info(f"Seg {idx}: audio={actual_ms:.0f}ms, slot={slot_ms:.0f}ms (will overlap slightly - OK)")
+                        logger.info(f"Seg {idx}: audio={actual_ms:.0f}ms, slot={slot_ms:.0f}ms (vẫn đè nhẹ sau khi tăng tốc tối đa 1.4x)")
                 except Exception as _e:
-                    logger.warning(f"Seg {idx}: smart retry check FAILED ({type(_e).__name__}: {_e})")
+                    logger.warning(f"Seg {idx}: auto-stretch check FAILED ({type(_e).__name__}: {_e})")
             # ───────────────────────────────────────────────────────────────
 
 
