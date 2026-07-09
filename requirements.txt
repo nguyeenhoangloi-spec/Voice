@@ -42,5 +42,9 @@ openai-whisper
 
 # Translation
 deep-translator
-google-genai==0.1.1
+google-genai==0.5.0
 
+# Live OCR Dubbing
+mss==9.0.1
+winsdk==1.0.0.b10
+pygame==2.5.2

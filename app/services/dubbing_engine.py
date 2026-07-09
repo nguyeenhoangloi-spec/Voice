@@ -282,6 +282,58 @@ def _frames_differ(prev_gray, curr_gray, threshold=15.0):
     return mean_diff > threshold
 
 
+def _find_subtitle_bounding_box(gray_img):
+    """
+    Find subtitle bounding box using contour detection on CPU.
+    Returns (x, y, w, h) or None if no subtitle-like shape is found.
+    """
+    import cv2
+    # Threshold to isolate bright text (subtitles are usually white/yellow/bright gray)
+    _, thresh = cv2.threshold(gray_img, 200, 255, cv2.THRESH_BINARY)
+    
+    # Morphological opening to merge characters into words/sentences
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 3))
+    dilated = cv2.dilate(thresh, kernel, iterations=1)
+    
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    bbox_list = []
+    h_img, w_img = gray_img.shape[:2]
+    
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        
+        # Subtitle contour characteristics:
+        # 1. Height should be reasonable (e.g. 8px to 100px)
+        # 2. Width should not be tiny (e.g. > 15px)
+        # 3. Position should be centered horizontally to some degree
+        if 8 < h < 100 and w > 15:
+            center_x = x + w / 2
+            if w_img * 0.15 < center_x < w_img * 0.85:
+                bbox_list.append((x, y, w, h))
+                
+    if not bbox_list:
+        return None
+        
+    # Merge all bounding boxes
+    x_min = min(b[0] for b in bbox_list)
+    y_min = min(b[1] for b in bbox_list)
+    x_max = max(b[0] + b[2] for b in bbox_list)
+    y_max = max(b[1] + b[3] for b in bbox_list)
+    
+    # Add 10% padding
+    pad_x = int((x_max - x_min) * 0.10)
+    pad_y = int((y_max - y_min) * 0.10)
+    
+    # Clip to image boundaries
+    x_start = max(0, x_min - pad_x)
+    y_start = max(0, y_min - pad_y)
+    x_end = min(w_img, x_max + pad_x)
+    y_end = min(h_img, y_max + pad_y)
+    
+    return x_start, y_start, x_end - x_start, y_end - y_start
+
+
 def _preprocess_for_ocr(gray_crop):
     """Enhance image for better OCR accuracy.
     Pipeline: CLAHE contrast -> Sharpen edges -> Upscale 2x."""
@@ -410,19 +462,68 @@ def ocr_video_subtitles(video_path: str) -> list:
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     duration_sec = total_frames / fps if fps > 0 else 0
 
-    # OCR settings - subtitle region is bottom 25%
-    crop_y_start = int(height * 0.75)
+    # OCR settings - subtitle region is bottom 50% (from middle of the screen downward)
+    crop_y_start = int(height * 0.50)
 
     # Sample every 1.0 second instead of 0.5s for speed
     sample_interval = max(1, int(fps))
     logger.info(f"Video: {duration_sec:.0f}s, FPS: {fps:.0f}, Total frames: {total_frames}, Sample interval: {sample_interval} frames")
 
     raw_frames = []
-    keyframe_images = {}  # segment_index -> base64 JPEG for Gemini Vision
+    keyframe_images = {}   # raw_frame_index -> base64 JPEG for Gemini Vision
     frame_idx = 0
     prev_gray_crop = None
     frames_skipped = 0
     frames_ocred = 0
+
+    # Streaming batch buffers
+    BATCH_SIZE = 16
+    batch_images: list = []        # preprocessed grayscale crops
+    batch_meta: list = []          # (timestamp, original_color_crop)
+
+    def _flush_batch():
+        """Run OCR on accumulated batch and append results to raw_frames."""
+        nonlocal frames_ocred
+        if not batch_images:
+            return
+        try:
+            batch_results = reader.readtext_batched(
+                batch_images,
+                detail=0,
+                paragraph=False,
+                text_threshold=0.6,
+                low_text=0.3,
+                mag_ratio=1.5
+            )
+        except Exception as e:
+            logger.warning(f"readtext_batched error: {e}. Falling back to sequential.")
+            batch_results = [reader.readtext(img, detail=0) for img in batch_images]
+
+        for i, results in enumerate(batch_results):
+            timestamp, color_crop = batch_meta[i]
+            text = " ".join(results).strip()
+            # Clean text (keep Unicode characters)
+            text = re.sub(r"[^\w\s.,!?'\"\-\(\)]", "", text)
+            text = " ".join(text.split()).strip()
+
+            frames_ocred += 1
+
+            # Save keyframe for Gemini Vision refinement
+            if text:
+                try:
+                    _, buffer = cv2.imencode('.jpg', color_crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    keyframe_images[len(raw_frames)] = base64.b64encode(buffer).decode('utf-8')
+                except Exception:
+                    pass
+
+            raw_frames.append({
+                "time": timestamp,
+                "time_end": timestamp + 1.0,
+                "text": text
+            })
+
+        batch_images.clear()
+        batch_meta.clear()
 
     while True:
         ret, frame = cap.read()
@@ -432,53 +533,52 @@ def ocr_video_subtitles(video_path: str) -> list:
         if frame_idx % sample_interval == 0:
             timestamp = frame_idx / fps
 
-            # Crop the subtitle region
-            cropped = frame[crop_y_start:height, 0:width]
-            gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+            # Crop the subtitle region (bottom 50%)
+            half_crop = frame[crop_y_start:height, 0:width]
+            gray = cv2.cvtColor(half_crop, cv2.COLOR_BGR2GRAY)
 
             # Smart Frame Detection: skip if subtitle region hasn't changed
             if not _frames_differ(prev_gray_crop, gray):
                 frames_skipped += 1
-                # Still extend the timestamp for the current raw_frames entry
                 if raw_frames and raw_frames[-1]["text"]:
                     raw_frames[-1]["time_end"] = timestamp + 1.0
+                # Also extend last item in batch_meta if batch not flushed yet
+                # (no-op needed; flush handles its own timestamps)
                 frame_idx += 1
                 prev_gray_crop = gray
                 continue
 
             prev_gray_crop = gray
 
+            # --- Dynamic Cropping via contour detection ---
+            bbox = _find_subtitle_bounding_box(gray)
+            if bbox is not None:
+                bx, by, bw, bh = bbox
+                tight_gray = gray[by:by + bh, bx:bx + bw]
+                tight_color = half_crop[by:by + bh, bx:bx + bw]
+            else:
+                tight_gray = gray
+                tight_color = half_crop
+
             # Image Preprocessing Pipeline
-            preprocessed = _preprocess_for_ocr(gray)
+            preprocessed = _preprocess_for_ocr(tight_gray)
 
-            # Perform OCR on preprocessed image
-            results = reader.readtext(preprocessed, detail=0)
-            text = " ".join(results).strip()
+            batch_images.append(preprocessed)
+            batch_meta.append((timestamp, tight_color))
 
-            # Clean text (keep Unicode characters)
-            text = re.sub(r"[^\w\s.,!?'\"\-\(\)]", "", text)
-            text = " ".join(text.split()).strip()
-
-            frames_ocred += 1
-
-            # Save keyframe image (original color crop) for Gemini Vision refinement
-            if text:
-                _, buffer = cv2.imencode('.jpg', cropped, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                keyframe_b64 = base64.b64encode(buffer).decode('utf-8')
-                keyframe_images[len(raw_frames)] = keyframe_b64
-
-            raw_frames.append({
-                "time": timestamp,
-                "time_end": timestamp + 1.0,
-                "text": text
-            })
+            # Flush when batch is full
+            if len(batch_images) >= BATCH_SIZE:
+                _flush_batch()
 
         frame_idx += 1
+
+    # Flush any remaining frames in the last partial batch
+    _flush_batch()
 
     cap.release()
     total_sampled = frames_skipped + frames_ocred
     skip_pct = (frames_skipped / total_sampled * 100) if total_sampled > 0 else 0
-    logger.info(f"Smart OCR: {frames_ocred} frames quét, {frames_skipped} frames bỏ qua ({skip_pct:.0f}% tiết kiệm). Tổng: {len(raw_frames)} kết quả.")
+    logger.info(f"Smart OCR (Batched): {frames_ocred} frames quét, {frames_skipped} frames bỏ qua ({skip_pct:.0f}% tiết kiệm). Tổng: {len(raw_frames)} kết quả.")
 
     # Group continuous identical text into segments
     segments = []

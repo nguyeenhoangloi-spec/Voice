@@ -106,7 +106,11 @@ def test_translate_segments_with_video_topic():
     segments = [{"start": 0.0, "end": 2.0, "text": "Nobita and Shizuka went to Suneo's house."}]
 
     # Case 1: Google Translator Fallback (khi không có API key)
-    with patch("app.config.settings.GEMINI_API_KEY", ""):
+    with patch("app.config.settings.GEMINI_API_KEY", ""), \
+         patch("app.config.settings.GROQ_API_KEY", ""), \
+         patch("app.config.settings.OPENROUTER_API_KEY", ""), \
+         patch("app.config.settings.GITHUB_API_KEY", ""), \
+         patch("app.config.settings.COHERE_API_KEY", ""):
         with patch("deep_translator.GoogleTranslator.translate") as mock_trans:
             mock_trans.return_value = "Nobita và Shizuka đi đến nhà Suneo."
             res = translate_segments([dict(s) for s in segments], target_lang="vi", video_context="neutral", video_topic="Doraemon")
@@ -147,6 +151,48 @@ def test_translate_segments_with_video_topic():
             segments_vi = [{"start": 0.0, "end": 2.0, "text": "Chào Nô Bi Ta", "translation": "Chào Nô Bi Ta"}]
             res_vi = translate_segments(segments_vi, target_lang="vi", video_context="neutral", video_topic="Phim hoạt hình Doraemon")
             assert res_vi[0]["translation"] == "Chào Nô Bi Ta"
+
+def test_prescan_video_context_and_character_mapping():
+    from app.services.dubbing_engine import _prescan_video_context, _build_character_map_prompt
+    
+    # Giả lập phản hồi từ Gemini Vision / API pre-scan
+    mock_prescan_response = {
+        "video_type": "anime",
+        "title_guess": "Doraemon",
+        "source_language": "ja",
+        "characters": [
+            {"original": "のび太", "aliases": ["Nobita"], "vietnamese": "Nô Bi Ta"},
+            {"original": "しずか", "aliases": ["Shizuka"], "vietnamese": "Xu Ka"}
+        ],
+        "tone": "childish"
+    }
+    
+    with patch("requests.post") as mock_post:
+        mock_res = MagicMock()
+        mock_res.json.return_value = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"text": '{"video_type": "anime", "title_guess": "Doraemon", "source_language": "ja", "characters": [{"original": "のび太", "aliases": ["Nobita"], "vietnamese": "Nô Bi Ta"}], "tone": "childish"}'}
+                        ]
+                    }
+                }
+            ]
+        }
+        mock_post.return_value = mock_res
+        
+        segments = [{"text": "Hello Nobita"}]
+        res = _prescan_video_context(segments, api_key="dummy_key")
+        assert res["video_type"] == "anime"
+        assert len(res["characters"]) == 1
+        assert res["characters"][0]["vietnamese"] == "Nô Bi Ta"
+
+    # Kiểm tra hàm dựng Prompt map nhân vật
+    prompt_block = _build_character_map_prompt(mock_prescan_response)
+    assert "CHARACTER NAME REFERENCE" in prompt_block
+    assert "Nobita → 'Nô Bi Ta'" in prompt_block
+    assert "Shizuka → 'Xu Ka'" in prompt_block
 
 @patch("os.path.getsize")
 @patch("os.remove")
