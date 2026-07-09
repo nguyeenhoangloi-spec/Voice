@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,13 +7,17 @@ from app.dependencies import templates, get_current_user_optional
 
 router = APIRouter()
 
-@router.get("/", response_class=HTMLResponse)
+
+@router.get("/")
 def home_page(request: Request, user=Depends(get_current_user_optional)):
     """Render trang chủ giới thiệu dịch vụ lồng tiếng VoiceAI"""
+    if user:
+        return RedirectResponse(url="/dashboard")
     return templates.TemplateResponse(
-        "public/home.html", 
+        "public/landing.html", 
         {"request": request, "user": user, "page_title": "VoiceAI - AI Video Dubbing Platform"}
     )
+
 
 @router.get("/pricing", response_class=HTMLResponse)
 def pricing_page(request: Request, user=Depends(get_current_user_optional)):

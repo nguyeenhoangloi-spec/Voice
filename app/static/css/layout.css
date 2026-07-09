@@ -59,7 +59,11 @@
 }
 
 .logo-text {
-    transition: opacity var(--transition-normal);
+    max-width: 200px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-collapsed .sidebar-header {
@@ -72,8 +76,11 @@
 }
 
 .sidebar-collapsed .logo-text {
-    display: none !important;
+    opacity: 0;
+    max-width: 0;
+    pointer-events: none;
 }
+
 
 .sidebar-menu {
     flex: 1;
@@ -133,7 +140,11 @@
 
 .menu-item-text {
     white-space: nowrap;
-    transition: opacity var(--transition-normal);
+    max-width: 200px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
@@ -145,7 +156,9 @@
 }
 
 .sidebar-collapsed .menu-item-text {
-    display: none !important;
+    opacity: 0;
+    max-width: 0;
+    pointer-events: none;
 }
 
 .sidebar-collapsed .menu-group-title {
@@ -214,6 +227,16 @@
     align-items: center;
     justify-content: center;
     transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* Icon xoay 180° mượt khi sidebar thu lại */
+#sidebar-toggle svg {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block;
+}
+
+#sidebar-toggle.is-collapsed svg {
+    transform: rotate(180deg);
 }
 
 .sidebar-toggle-btn:hover {
@@ -322,7 +345,9 @@
 /* Hide text immediately during preload + collapse to prevent text flash/jump */
 .preload .sidebar-collapsed .menu-item-text,
 .preload .sidebar-collapsed .logo-text {
-    display: none !important;
+    max-width: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
 }
 
 .preload .sidebar-collapsed .menu-group-title {
@@ -343,7 +368,9 @@
 
 .sidebar-collapsed-init .logo-text,
 .sidebar-collapsed-init .menu-item-text {
-    display: none !important;
+    max-width: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
 }
 
 .sidebar-collapsed-init .menu-group-title {

@@ -1,57 +1,131 @@
-# Python caching and environment
+# ============================================================
+# VoiceAI — .gitignore
+# ============================================================
+
+# ─── Python ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.venv/  
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# ─── Virtual Environments ────────────────────────────────────
+.venv/
 venv/
 env/
-# .env
+ENV/
 
-# Agent directories (internal IDE configs, workflows, and tools)
-.agent/
+# ─── Testing & Coverage ──────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.coveragerc
+.tox/
 
-# Local logging
-*.log
-server.log
+# ─── Type Checking ───────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+.pyright/
 
-# DB
-storage/*.db
-storage/*.sqlite
+# ─── Secrets & Environment Variables ─────────────────────────
+# NEVER commit .env — store secrets in .env.example only
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
 
-# Media & dynamic directories
+# ─── Database ────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+storage/database.db
+
+# ─── Storage — User-generated media ──────────────────────────
 storage/uploads/*
 storage/temp/*
 storage/audio/*
 storage/video/*
 storage/subtitles/*
 storage/exports/*
+storage/models/*
 
-# Keep directory structure but ignore contents
+# Keep directory stubs for git (do not ignore .gitkeep files)
 !storage/uploads/.gitkeep
 !storage/temp/.gitkeep
 !storage/audio/.gitkeep
 !storage/video/.gitkeep
 !storage/subtitles/.gitkeep
 !storage/exports/.gitkeep
+!storage/models/.gitkeep
 
-# Do NOT ignore samples
+# Keep sample files
 !storage/samples/
 
-# Node modules
-node_modules/
+# ─── Binary / Large Files ────────────────────────────────────
+# FFmpeg/FFprobe executables — download separately, don't commit
+binaries/*.exe
+binaries/*.dll
+binaries/ffmpeg
+binaries/ffprobe
 
-# IDE and Editor files
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+server.log
+error.log
+
+# ─── Node / JS ───────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ─── IDE & Editor ────────────────────────────────────────────
 .vscode/
 .idea/
 *.suo
+*.user
+*.userosscache
+*.sln.docstates
 *.ntvs*
 *.njsproj
 *.sln
 *.swp
+*.swo
+*~
+.project
+.classpath
 
-# OS generated files
+# ─── OS Generated ────────────────────────────────────────────
 .DS_Store
 .DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
+
+# ─── Agent / AI IDE configs ──────────────────────────────────
+# Keep GEMINI.md (project rules) but ignore agent internals
+.agent/
+!GEMINI.md
+
+# ─── Alembic ─────────────────────────────────────────────────
+# Keep alembic config but ignore generated migration scripts if using auto-gen
+# alembic/versions/  # Uncomment if you auto-generate versions locally
+
+# ─── Misc ────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+.cache/

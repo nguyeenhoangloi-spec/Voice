@@ -50,6 +50,8 @@ Sử dụng workflow `/plan` -> `/create` -> `/orchestrate` -> `/status`.
 1.  **Hang Detection**: Tuyệt đối không để tiến trình treo quá 5 phút. Nếu phát hiện bị kẹt, PHẢI thực hiện quy trình `STOP -> CLEANUP -> REPORT`.
 2.  **Zero-Silent-Failure**: Mọi thất bại (Test fail, Build fail, Agent hiểu sai) KHÔNG được bỏ qua. PHẢI ghi nhận vào `ERRORS.md` ngay lập tức.
 3.  **Recursive Learning**: Mỗi lỗi lặp lại lần thứ 2 PHẢI được biến thành một Rule hoặc Test Case mới. Lỗi là tài sản, không phải gánh nặng.
+4.  **Auto Run Server**: At startup of a session or after any system/server restart, the Agent MUST check if the application server is active. If not, the Agent MUST automatically run `D:\miniconda3\envs\voiceai\python.exe run.py` in the background (WaitMsBeforeAsync: 2000) to keep the preview online.
+
 
 ---
 

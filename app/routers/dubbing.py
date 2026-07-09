@@ -423,7 +423,10 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             "gender": "Nữ",
             "region": "Việt Nam (Edge TTS)",
             "voice": "vi-VN-HoaiMyNeural",
-            "desc": "Giọng nữ đọc trong trẻo, tự nhiên, cực kỳ phù hợp thuyết minh phim, bài giảng hoặc sách nói."
+            "desc": "Giọng nữ đọc trong trẻo, tự nhiên, cực kỳ phù hợp thuyết minh phim, bài giảng hoặc sách nói.",
+            "provider": "edge",
+            "language": "vi",
+            "tech_badge": "Edge Neural"
         },
         {
             "id": "namminh",
@@ -431,7 +434,10 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             "gender": "Nam",
             "region": "Việt Nam (Edge TTS)",
             "voice": "vi-VN-NamMinhNeural",
-            "desc": "Giọng nam đọc trầm ấm, rõ ràng, thích hợp làm tin tức, phóng sự và tài liệu kỹ thuật."
+            "desc": "Giọng nam đọc trầm ấm, rõ ràng, thích hợp làm tin tức, phóng sự và tài liệu kỹ thuật.",
+            "provider": "edge",
+            "language": "vi",
+            "tech_badge": "Edge Neural"
         }
     ]
     
@@ -443,7 +449,10 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             "gender": "Nữ" if v["gender"] == "female" else "Nam",
             "region": "CapCut / TikTok (Free)",
             "voice": v["id"],
-            "desc": v["desc"]
+            "desc": v["desc"],
+            "provider": "tiktok",
+            "language": v.get("lang", "en"),
+            "tech_badge": "CapCut Voice"
         })
     
     region_names = {
@@ -466,18 +475,52 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
                 "gender": "Nữ" if v["gender"] == "female" else "Nam",
                 "region": f"{region_name} (Kokoro)",
                 "voice": v["id"],
-                "desc": f"Giọng đọc {v['gender']} chất lượng phòng thu, chạy offline hoàn toàn. Ngôn ngữ gốc: {region_name}."
+                "desc": f"Giọng đọc {v['gender']} chất lượng phòng thu, chạy offline hoàn toàn. Ngôn ngữ gốc: {region_name}.",
+                "provider": "kokoro",
+                "language": lang if lang in ["vi", "en"] else "other",
+                "tech_badge": "Kokoro Studio"
             })
                  
+    import os
+    tiktok_session_id = os.getenv("TIKTOK_SESSION_ID", "")
     return templates.TemplateResponse(
         "user/voices.html",
         {
             "request": request,
             "user": user,
             "voices": voices,
+            "tiktok_session_id": tiktok_session_id,
             "page_title": "Mẫu giọng AI lồng tiếng - VoiceAI"
         }
     )
+
+@router.post("/voices/save-session")
+def save_tiktok_session(payload: dict, user=Depends(get_current_user)):
+    """API lưu trữ TikTok Session ID do người dùng dán vào từ giao diện, đồng thời xóa cache giọng cũ để ép sinh lại."""
+    session_id = payload.get("session_id", "").strip()
+    try:
+        from app.services.tiktok_service import update_env_session_id
+        update_env_session_id(session_id)
+        
+        # Xóa các file sample cũ của TikTok/CapCut để buộc sinh lại bằng sessionid mới
+        try:
+            from app.config import settings
+            import glob
+            sample_dir = settings.STORAGE_DIR / "samples"
+            if sample_dir.exists():
+                for file_path in glob.glob(str(sample_dir / "vi_vn_*.mp3")):
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"[TikTok TTS] Đã xóa file sample cũ để ép sinh lại: {file_path}")
+                    except Exception as rm_err:
+                        logger.error(f"[TikTok TTS] Lỗi khi xóa file {file_path}: {rm_err}")
+        except Exception as cache_err:
+            logger.error(f"[TikTok TTS] Lỗi khi dọn dẹp cache sample: {cache_err}")
+            
+        return {"success": True, "message": "Đã cập nhật Session ID và xóa cache giọng cũ thành công!"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 
 @router.get("/voices/sample/{voice_id}.mp3")
@@ -519,7 +562,8 @@ def get_voice_sample_audio(voice_id: str):
         elif voice_id.startswith(("ef_", "em_")):
             sample_text = "¡Hola! Soy una voz de síntesis de voz de alta calidad de Kokoro AI, que se ejecuta completamente fuera de línea con claridad de estudio."
         elif voice_id.startswith("ff_"):
-            sample_text = "Bonjour! Je suis une voix de synthèse vocale de haut        try:
+            sample_text = "Bonjour! Je suis une voix de synthèse vocale de haute qualité de Kokoro AI, qui s'exécute complètement hors ligne avec une clarté de studio."
+        try:
             generate_tts_audio(
                 text=sample_text,
                 output_path=str(file_path),
@@ -552,7 +596,7 @@ def get_voice_sample_audio(voice_id: str):
                 file_path = fallback_path
                 logger.info(f"Đã sinh thành công giọng mẫu fallback Edge TTS cho {voice_id}.")
             except Exception as edge_err:
-                logger.error(f"Lỗi khi sinh giọng mẫu fallback Edge TTS cho {voice_id}: {edge_err}")�的清晰音质。"
+                logger.error(f"Lỗi khi sinh giọng mẫu fallback Edge TTS cho {voice_id}: {edge_err}")
         
         try:
             generate_tts_audio(

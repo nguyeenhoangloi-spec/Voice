@@ -14,10 +14,18 @@ def test_tiktok_tts():
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "test_tiktok_output.mp3")
     
-    text = "Xin chao cac ban! Day la ban long tieng nghe thu bang giong nu hoat ngon cua CapCut."
-    voice = "vi_vn_002"
-    
-    print(f"Dang sinh giong CapCut '{voice}'...")
+    # Neu co session_id trong .env thi test giong Viet vi_vn_002
+    # Con neu khong co thi test giong My en_us_001 (khong can session_id qua proxy)
+    session_id = os.getenv("TIKTOK_SESSION_ID")
+    if session_id:
+        voice = "vi_vn_002"
+        text = "Xin chao cac ban! Day la ban long tieng nghe thu bang giong nu hoat ngon cua CapCut."
+        print(f"Co TIKTOK_SESSION_ID. Dang sinh giong CapCut Viet '{voice}'...")
+    else:
+        voice = "en_us_001"
+        text = "Hello! This is a test of CapCut voice without session ID."
+        print(f"Khong co TIKTOK_SESSION_ID. Dang sinh giong CapCut My '{voice}'...")
+        
     success = service.generate_speech(text, voice, output_path)
     
     if success and os.path.exists(output_path):

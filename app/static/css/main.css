@@ -153,7 +153,27 @@ button, input, select, textarea {
     letter-spacing: -1px;
     margin-top: 0 !important;
     margin-bottom: var(--space-2xs);
-    color: var(--text-primary);
+    background: linear-gradient(to right, #ffffff, #38bdf8) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    display: inline-block;
+}
+
+.auth-bento-card h2 {
+    background: linear-gradient(to right, #ffffff, #38bdf8) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    display: inline-block;
+}
+
+:root[data-theme="light"] .hero-title,
+:root[data-theme="light"] .auth-bento-card h2 {
+    background: linear-gradient(to right, #0f172a, #0ea5e9) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
 }
 
 .hero-desc {

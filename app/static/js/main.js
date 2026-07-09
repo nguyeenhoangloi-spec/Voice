@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isCollapsed = localStorage.getItem("voiceai-sidebar-collapsed") === "true";
     if (isCollapsed && container && window.innerWidth > 768) {
         container.classList.add("sidebar-collapsed");
+        if (toggleBtn) toggleBtn.classList.add("is-collapsed");
     }
     
     // Gỡ bỏ class khóa tạm thời ở html để trả lại transition mượt mà
@@ -29,12 +30,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 sidebar.classList.toggle("active");
                 overlay.classList.toggle("active");
             } else {
-                // Trên PC: Thu gọn/Mở rộng
-                container.classList.toggle("sidebar-collapsed");
-                localStorage.setItem("voiceai-sidebar-collapsed", container.classList.contains("sidebar-collapsed"));
+                // Trên PC: Thu gọn/Mở rộng + xoay icon 180°
+                const nowCollapsed = container.classList.toggle("sidebar-collapsed");
+                toggleBtn.classList.toggle("is-collapsed", nowCollapsed);
+                localStorage.setItem("voiceai-sidebar-collapsed", nowCollapsed);
             }
         });
     }
+
     
     // Đóng drawer khi chạm vào lớp phủ overlay
     if (overlay) {

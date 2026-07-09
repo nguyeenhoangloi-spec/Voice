@@ -159,25 +159,160 @@
         border-color: var(--color-primary);
         box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
     }
+
+    /* Premium UI-UX Pro Max additions */
+    .hero-title {
+        font-size: 32px;
+        margin-bottom: 6px;
+    }
+
+    .voice-card-item {
+        transition: opacity 0.2s ease, transform 0.2s ease, border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-normal) !important;
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    /* Filters Styles */
+    :root[data-theme="light"] .filters-container {
+        background: rgba(255, 255, 255, 0.8) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 4px 20px rgba(31, 38, 135, 0.04);
+    }
+    :root[data-theme="light"] .filter-tab-btn {
+        color: var(--text-secondary) !important;
+        border-color: rgba(0, 0, 0, 0.08) !important;
+        background: rgba(0, 0, 0, 0.02) !important;
+    }
+    :root[data-theme="light"] .filter-tab-btn.active {
+        color: white !important;
+        background: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+    }
+    :root[data-theme="light"] #lang-select {
+        background: #fff !important;
+        border-color: rgba(0, 0, 0, 0.08) !important;
+        color: var(--text-primary) !important;
+    }
+    
+
+
+    :root[data-theme="light"] .use-voice-btn {
+        background: rgba(0, 0, 0, 0.02) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        color: var(--text-primary) !important;
+    }
+
+    :root[data-theme="light"] .use-voice-btn:hover {
+        background: var(--color-primary) !important;
+        color: white !important;
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15) !important;
+    }
+
+    .session-config-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+        margin-bottom: var(--space-md);
+        box-shadow: 0 8px 32px 0 rgba(0,0,0,0.25);
+    }
+    
+    :root[data-theme="light"] .session-config-card {
+        background: rgba(255, 255, 255, 0.75) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
 </style>
 
 <div class="page-header" style="margin-bottom: var(--space-md);">
     <div>
-        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Mẫu giọng lồng tiếng AI</h1>
+        <h1 class="hero-title">Mẫu giọng lồng tiếng AI</h1>
         <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Nghe thử và lựa chọn giọng đọc phù hợp nhất cho dự án video của bạn.</p>
+    </div>
+</div>
+
+
+<!-- Cấu hình TikTok Session ID (UX Pro Max) -->
+<div class="session-config-card">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 280px; flex: 1;">
+            <div style="width: 38px; height: 38px; border-radius: var(--radius-sm); background: rgba(244,63,94,0.1); color: #f43f5e; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i data-lucide="key-round" style="width: 20px; height: 20px;"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 15px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    TikTok / CapCut Session ID
+                    <span style="font-size: 11px; font-weight: 700; background: rgba(244,63,94,0.15); color: #f43f5e; padding: 2px 8px; border-radius: var(--radius-sm);">Cần thiết</span>
+                </h4>
+                <p style="font-size: 12.5px; color: var(--text-secondary); margin: 2px 0 0 0;">Yêu cầu để chạy các giọng CapCut tiếng Việt. Dán cookie sessionid của bạn vào đây.</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-grow: 2; max-width: 600px; width: 100%;">
+            <input type="password" id="tiktok-session-input" placeholder="Dán cookie sessionid (ví dụ: e610d84910d19a26...) vào đây..." value="{{ tiktok_session_id }}" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); color: var(--text-primary); padding: 10px 14px; border-radius: var(--radius-md); font-size: 13.5px; outline: none; width: 100%; font-family: monospace;">
+            <button onclick="saveTikTokSession()" style="background: var(--color-primary); color: white; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer; transition: all var(--transition-fast); display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                <i data-lucide="save" style="width: 16px; height: 16px;"></i> Lưu lại
+            </button>
+        </div>
+    </div>
+    <div id="session-status-msg" style="font-size: 12.5px; display: none; font-weight: 700; margin-top: 8px;"></div>
+</div>
+
+<!-- Bộ lọc và Tabs (Bento / Glassmorphism 2.0) -->
+<div class="filters-container" style="background: rgba(13, 18, 30, 0.35); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: var(--space-lg); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+    <!-- Tabs nhà cung cấp -->
+    <div class="tabs-wrapper" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="filter-tab-btn active" onclick="filterByProvider('all', this)" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #fff; padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer; transition: all var(--transition-fast);">
+            Tất cả
+        </button>
+        <button class="filter-tab-btn" onclick="filterByProvider('edge', this)" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); color: var(--text-secondary); padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer; transition: all var(--transition-fast);">
+            Microsoft Edge
+        </button>
+        <button class="filter-tab-btn" onclick="filterByProvider('tiktok', this)" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); color: var(--text-secondary); padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer; transition: all var(--transition-fast);">
+            TikTok / CapCut
+        </button>
+        <button class="filter-tab-btn" onclick="filterByProvider('kokoro', this)" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); color: var(--text-secondary); padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; cursor: pointer; transition: all var(--transition-fast);">
+            Kokoro AI (Phòng thu)
+        </button>
+    </div>
+    
+    <!-- Lọc ngôn ngữ -->
+    <div class="lang-filter-wrapper" style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 13.5px; color: var(--text-tertiary); font-weight: 700;">Ngôn ngữ:</span>
+        <select id="lang-select" onchange="filterByLanguage(this.value)" style="background: rgba(13, 18, 30, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-primary); padding: 8px 14px; border-radius: var(--radius-md); font-weight: 700; font-size: 13.5px; outline: none; cursor: pointer;">
+            <option value="all">Tất cả ngôn ngữ</option>
+            <option value="vi">Tiếng Việt</option>
+            <option value="en">Tiếng Anh</option>
+            <option value="other">Ngôn ngữ khác</option>
+        </select>
     </div>
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-xl);">
     {% for voice in voices %}
-    <div class="bento-card voice-card-item" data-voice-id="{{ voice.id }}">
+    <div class="bento-card voice-card-item" data-voice-id="{{ voice.id }}" data-provider="{{ voice.provider }}" data-language="{{ voice.language }}">
         <div>
-            <!-- Giới tính + Vùng miền -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
-                <span class="gender-badge {% if voice.gender == 'Nam' %}male{% else %}female{% endif %}">
-                    <i data-lucide="{% if voice.gender == 'Nam' %}shield{% else %}music{% endif %}" style="width: 12px; height: 12px;"></i>
-                    {{ voice.gender }}
-                </span>
+            <!-- Giới tính + Vùng miền + Badge công nghệ -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm); flex-wrap: wrap; gap: 6px;">
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <span class="gender-badge {% if voice.gender == 'Nam' %}male{% else %}female{% endif %}">
+                        <i data-lucide="{% if voice.gender == 'Nam' %}shield{% else %}music{% endif %}" style="width: 12px; height: 12px;"></i>
+                        {{ voice.gender }}
+                    </span>
+                    <span class="tech-badge" style="font-size: 11px; padding: 4px 10px; border-radius: var(--radius-full); font-weight: 700; background: rgba(56, 189, 248, 0.08); color: var(--color-primary); border: 1px solid rgba(56, 189, 248, 0.2);">
+                        {{ voice.tech_badge }}
+                    </span>
+                </div>
                 <span style="font-size: 12.5px; color: var(--text-tertiary); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
                     <i data-lucide="map-pin" style="width: 13px; height: 13px; color: var(--color-primary);"></i> {{ voice.region }}
                 </span>
@@ -190,7 +325,7 @@
         <div>
             <!-- Custom HTML5 Audio Player -->
             <div class="custom-player-wrapper">
-                <audio id="audio-el-{{ voice.id }}" src="/dubbing/voices/sample/{{ voice.id }}.mp3?v=1.0.4" preload="none"></audio>
+                <audio id="audio-el-{{ voice.id }}" src="/dubbing/voices/sample/{{ voice.id }}.mp3?v={{ range(1, 999999) | random }}" preload="none"></audio>
                 
                 <button class="play-btn-circle" onclick="togglePlayVoice('{{ voice.id }}')" id="play-btn-{{ voice.id }}" title="Nghe thử">
                     <i data-lucide="play" style="width: 16px; height: 16px; fill: white; margin-left: 2px;" id="play-icon-{{ voice.id }}"></i>
@@ -221,6 +356,108 @@
     // Singleton player tracker để đảm bảo chỉ có tối đa 1 giọng nói phát tại 1 thời điểm
     let currentPlayingVoiceId = null;
     let activeInterval = null;
+
+    // Filters State
+    let currentProviderFilter = 'all';
+    let currentLanguageFilter = 'all';
+
+    function filterByProvider(provider, btnEl) {
+        // Dừng nhạc nếu đang phát để tránh chồng âm thanh
+        if (currentPlayingVoiceId) {
+            pauseVoice(currentPlayingVoiceId);
+        }
+
+        currentProviderFilter = provider;
+
+        // Cập nhật class active cho tab button
+        const buttons = document.querySelectorAll('.filter-tab-btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.background = 'rgba(255, 255, 255, 0.02)';
+            btn.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+            btn.style.color = 'var(--text-secondary)';
+            
+            // Check light mode styles
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                btn.style.background = 'rgba(0, 0, 0, 0.02)';
+                btn.style.color = 'var(--text-secondary)';
+            }
+        });
+
+        btnEl.classList.add('active');
+        btnEl.style.background = 'rgba(56, 189, 248, 0.15)';
+        btnEl.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+        btnEl.style.color = '#fff';
+        if (document.documentElement.getAttribute('data-theme') === 'light') {
+            btnEl.style.background = 'var(--color-primary)';
+            btnEl.style.borderColor = 'var(--color-primary)';
+            btnEl.style.color = 'white';
+        }
+
+        applyFilters();
+    }
+
+    function filterByLanguage(lang) {
+        if (currentPlayingVoiceId) {
+            pauseVoice(currentPlayingVoiceId);
+        }
+
+        currentLanguageFilter = lang;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const cards = document.querySelectorAll('.voice-card-item');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const provider = card.getAttribute('data-provider');
+            const language = card.getAttribute('data-language');
+
+            const providerMatch = (currentProviderFilter === 'all' || provider === currentProviderFilter);
+            const languageMatch = (currentLanguageFilter === 'all' || language === currentLanguageFilter);
+
+            if (providerMatch && languageMatch) {
+                card.style.display = 'flex';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'scale(1)';
+                }, 10);
+                visibleCount++;
+            } else {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    if (card.style.opacity === '0') {
+                        card.style.display = 'none';
+                    }
+                }, 200);
+            }
+        });
+        
+        // Cập nhật UI nếu không có giọng đọc nào thỏa mãn
+        let emptyMsg = document.getElementById('no-voices-message');
+        if (visibleCount === 0) {
+            if (!emptyMsg) {
+                emptyMsg = document.createElement('div');
+                emptyMsg.id = 'no-voices-message';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.padding = '40px';
+                emptyMsg.style.width = '100%';
+                emptyMsg.style.gridColumn = '1 / -1';
+                emptyMsg.style.color = 'var(--text-tertiary)';
+                emptyMsg.style.fontSize = '16px';
+                emptyMsg.style.fontWeight = '600';
+                emptyMsg.innerHTML = `<i data-lucide="inbox" style="width: 48px; height: 48px; margin: 0 auto 12px auto; display: block; opacity: 0.5;"></i>Không tìm thấy giọng đọc nào phù hợp với bộ lọc.`;
+                document.querySelector('.voice-card-item').parentElement.appendChild(emptyMsg);
+                if (window.lucide) window.lucide.createIcons();
+            } else {
+                emptyMsg.style.display = 'block';
+            }
+        } else if (emptyMsg) {
+            emptyMsg.style.display = 'none';
+        }
+    }
 
     function togglePlayVoice(voiceId) {
         const audio = document.getElementById(`audio-el-${voiceId}`);
@@ -339,6 +576,42 @@
         
         audio.currentTime = clickPercent * audio.duration;
         updatePlayerProgress(voiceId, audio);
+    }
+
+    function saveTikTokSession() {
+        const input = document.getElementById("tiktok-session-input");
+        const msgEl = document.getElementById("session-status-msg");
+        const sid = input.value.trim();
+        
+        msgEl.style.display = "block";
+        msgEl.style.color = "var(--color-primary)";
+        msgEl.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i> Đang xử lý...';
+        
+        if (window.lucide) window.lucide.createIcons();
+
+        fetch("/dubbing/voices/save-session", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ session_id: sid })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                msgEl.style.color = "#10b981";
+                msgEl.innerHTML = '<i data-lucide="check-circle-2" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #10b981;"></i> ' + data.message;
+            } else {
+                msgEl.style.color = "#ef4444";
+                msgEl.innerHTML = '<i data-lucide="alert-circle" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i> Lỗi: ' + data.error;
+            }
+            if (window.lucide) window.lucide.createIcons();
+        })
+        .catch(err => {
+            msgEl.style.color = "#ef4444";
+            msgEl.innerHTML = '<i data-lucide="alert-circle" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i> Lỗi kết nối máy chủ.';
+            if (window.lucide) window.lucide.createIcons();
+        });
     }
 </script>
 {% endblock %}
