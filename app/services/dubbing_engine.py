@@ -1071,22 +1071,101 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNeural",
                         rate: str = "+0%") -> str:
     """
-    Generate TTS audio using Microsoft Edge TTS (free) with retry logic.
+    Generate TTS audio using Microsoft Edge TTS (free) or Kokoro TTS (local, 50 voices) with retry logic.
     """
-    # Edge TTS logic
-    import edge_tts
     import asyncio
     import concurrent.futures
     import time
     import random
 
-    # Sanitize text before sending to Edge TTS
-    # Remove trailing ellipsis (...) which causes "No audio received" errors
     clean_text = text.strip()
     clean_text = clean_text.rstrip('…').rstrip('.')
-    # Add a proper sentence-ending period so Edge TTS speaks the last word fully
     if clean_text and clean_text[-1] not in '.!?,;:':
         clean_text += '.'
+
+    # ── Check if we should use Kokoro TTS ──
+    # Kokoro voice IDs start with gender/lang prefixes (e.g. af_bella, am_adam, bf_emma, etc.)
+    if voice.startswith(("af_", "am_", "bf_", "bm_", "ef_", "em_", "ff_", "hf_", "hm_", "if_", "im_", "pf_", "pm_", "jf_", "jm_", "zf_")):
+        from app.services.kokoro_service import KokoroService
+        speed = 1.0
+        try:
+            if rate.startswith("+"):
+                speed = 1.0 + float(rate.replace("+", "").replace("%", "")) / 100.0
+            elif rate.startswith("-"):
+                speed = 1.0 - float(rate.replace("-", "").replace("%", "")) / 100.0
+        except ValueError:
+            speed = 1.0
+
+        # Determine target language code from voice prefix
+        lang_code = "en"
+        voice_prefix = voice[:2]
+        if voice_prefix in ("af", "am", "bf", "bm"):
+            lang_code = "en"
+        elif voice_prefix in ("ef", "em"):
+            lang_code = "es"
+        elif voice_prefix == "ff":
+            lang_code = "fr"
+        elif voice_prefix in ("hf", "hm"):
+            lang_code = "hi"
+        elif voice_prefix in ("if", "im"):
+            lang_code = "it"
+        elif voice_prefix in ("pf", "pm"):
+            lang_code = "pt"
+        elif voice_prefix in ("jf", "jm"):
+            lang_code = "ja"
+        elif voice_prefix == "zf":
+            lang_code = "zh"
+
+        service = KokoroService()
+        
+        # Remove old file to ensure fresh generation
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+
+        success = service.generate_speech(
+            text=clean_text,
+            voice_id=voice,
+            lang=lang_code,
+            output_path=output_path,
+            speed=speed
+        )
+        if success and os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+            return output_path
+        
+        logger.warning(f"Kokoro TTS failed for voice {voice}, text: '{clean_text[:20]}...'. Falling back to Edge-TTS.")
+        # Fallback to default edge-tts voice if kokoro fails
+        voice = "vi-VN-HoaiMyNeural"
+
+    # ── Check if we should use TikTok/CapCut TTS ──
+    # TikTok voice IDs start with "vi_vn_" or "en_us_" (e.g. vi_vn_002, vi_vn_001, en_us_001, en_us_006, en_us_ghostface)
+    if voice.startswith(("vi_vn_", "en_us_ghostface")) or (voice.startswith("en_us_") and len(voice) > 6 and voice[6:].isdigit()):
+        from app.services.tiktok_service import TiktokService
+        tiktok_service = TiktokService()
+        
+        # Remove old file to ensure fresh generation
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+
+        # Gửi request sinh giọng qua TikTok public API
+        success = tiktok_service.generate_speech(
+            text=clean_text,
+            voice_id=voice,
+            output_path=output_path
+        )
+        if success and os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+            return output_path
+        
+        logger.warning(f"TikTok TTS failed for voice {voice}, text: '{clean_text[:20]}...'. Falling back to Edge-TTS.")
+        voice = "vi-VN-HoaiMyNeural"
+
+    # Edge TTS logic
+    import edge_tts
 
     async def _gen():
         communicate = edge_tts.Communicate(clean_text, voice, rate=rate)
@@ -1117,7 +1196,6 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
         except Exception as e:
             logger.warning(f"Lần thử {attempt}/{max_retries} sinh TTS thất bại cho text '{clean_text[:20]}...': {e}")
             if attempt < max_retries:
-                # Random jitter (0.5-1.5s) + backoff to avoid concurrent threads hitting Microsoft at same time
                 jitter = random.uniform(0.5, 1.5)
                 time.sleep(2.0 * attempt + jitter)
             else:

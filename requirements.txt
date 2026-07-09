@@ -33,8 +33,9 @@ librosa==0.10.2
 pytest==8.2.2
 pytest-asyncio==0.23.7
 
-# Voice TTS Fallback
+# Voice TTS
 edge-tts==7.2.8
+kokoro-onnx==0.5.0
 
 # Voice Recognition (ASR)
 openai-whisper

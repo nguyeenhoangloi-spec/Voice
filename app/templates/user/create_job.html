@@ -187,6 +187,7 @@
                     <label for="tts-engine" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Công nghệ lồng tiếng (TTS)</label>
                     <select id="tts-engine" class="form-control">
                         <option value="edge" selected>Microsoft Edge TTS (Miễn phí)</option>
+                        <option value="kokoro">Kokoro AI (Chạy offline, 50 giọng mẫu)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -390,6 +391,67 @@
             edge: [
                 { value: "vi-VN-HoaiMyNeural", gender: "female", region: "north", text: "Microsoft Edge Nữ (Hoài My - Neural)" },
                 { value: "vi-VN-NamMinhNeural", gender: "male", region: "north", text: "Microsoft Edge Nam (Nam Minh - Neural)" }
+            ],
+            kokoro: [
+                // American English
+                { value: "af_heart", gender: "female", region: "us", text: "Kokoro Heart (Nữ Mỹ)" },
+                { value: "af_bella", gender: "female", region: "us", text: "Kokoro Bella (Nữ Mỹ)" },
+                { value: "af_sarah", gender: "female", region: "us", text: "Kokoro Sarah (Nữ Mỹ)" },
+                { value: "af_alloy", gender: "female", region: "us", text: "Kokoro Alloy (Nữ Mỹ)" },
+                { value: "af_aoede", gender: "female", region: "us", text: "Kokoro Aoede (Nữ Mỹ)" },
+                { value: "af_jessica", gender: "female", region: "us", text: "Kokoro Jessica (Nữ Mỹ)" },
+                { value: "af_kore", gender: "female", region: "us", text: "Kokoro Kore (Nữ Mỹ)" },
+                { value: "af_nicole", gender: "female", region: "us", text: "Kokoro Nicole (Nữ Mỹ)" },
+                { value: "af_nova", gender: "female", region: "us", text: "Kokoro Nova (Nữ Mỹ)" },
+                { value: "af_river", gender: "female", region: "us", text: "Kokoro River (Nữ Mỹ)" },
+                { value: "af_sky", gender: "female", region: "us", text: "Kokoro Sky (Nữ Mỹ)" },
+                { value: "am_adam", gender: "male", region: "us", text: "Kokoro Adam (Nam Mỹ)" },
+                { value: "am_echo", gender: "male", region: "us", text: "Kokoro Echo (Nam Mỹ)" },
+                { value: "am_eric", gender: "male", region: "us", text: "Kokoro Eric (Nam Mỹ)" },
+                { value: "am_fenrir", gender: "male", region: "us", text: "Kokoro Fenrir (Nam Mỹ)" },
+                { value: "am_liam", gender: "male", region: "us", text: "Kokoro Liam (Nam Mỹ)" },
+                { value: "am_michael", gender: "male", region: "us", text: "Kokoro Michael (Nam Mỹ)" },
+                { value: "am_onyx", gender: "male", region: "us", text: "Kokoro Onyx (Nam Mỹ)" },
+                { value: "am_puck", gender: "male", region: "us", text: "Kokoro Puck (Nam Mỹ)" },
+                { value: "am_santa", gender: "male", region: "us", text: "Kokoro Santa (Nam Mỹ)" },
+                // British English
+                { value: "bf_alice", gender: "female", region: "uk", text: "Kokoro Alice (Nữ Anh)" },
+                { value: "bf_emma", gender: "female", region: "uk", text: "Kokoro Emma (Nữ Anh)" },
+                { value: "bf_isabella", gender: "female", region: "uk", text: "Kokoro Isabella (Nữ Anh)" },
+                { value: "bf_lily", gender: "female", region: "uk", text: "Kokoro Lily (Nữ Anh)" },
+                { value: "bm_daniel", gender: "male", region: "uk", text: "Kokoro Daniel (Nam Anh)" },
+                { value: "bm_fable", gender: "male", region: "uk", text: "Kokoro Fable (Nam Anh)" },
+                { value: "bm_george", gender: "male", region: "uk", text: "Kokoro George (Nam Anh)" },
+                { value: "bm_lewis", gender: "male", region: "uk", text: "Kokoro Lewis (Nam Anh)" },
+                // Spanish
+                { value: "ef_dora", gender: "female", region: "es", text: "Kokoro Dora (Nữ TBN)" },
+                { value: "em_alex", gender: "male", region: "es", text: "Kokoro Alex (Nam TBN)" },
+                { value: "em_santa", gender: "male", region: "es", text: "Kokoro Santa (Nam TBN)" },
+                // French
+                { value: "ff_siwis", gender: "female", region: "fr", text: "Kokoro Siwis (Nữ Pháp)" },
+                // Hindi
+                { value: "hf_alpha", gender: "female", region: "in", text: "Kokoro Alpha (Nữ Ấn)" },
+                { value: "hf_beta", gender: "female", region: "in", text: "Kokoro Beta (Nữ Ấn)" },
+                { value: "hm_omega", gender: "male", region: "in", text: "Kokoro Omega (Nam Ấn)" },
+                { value: "hm_psi", gender: "male", region: "in", text: "Kokoro Psi (Nam Ấn)" },
+                // Italian
+                { value: "if_sara", gender: "female", region: "it", text: "Kokoro Sara (Nữ Ý)" },
+                { value: "im_nicola", gender: "male", region: "it", text: "Kokoro Nicola (Nam Ý)" },
+                // Portuguese
+                { value: "pf_dora", gender: "female", region: "pt", text: "Kokoro Dora (Nữ BĐN)" },
+                { value: "pm_alex", gender: "male", region: "pt", text: "Kokoro Alex (Nam BĐN)" },
+                { value: "pm_santa", gender: "male", region: "pt", text: "Kokoro Santa (Nam BĐN)" },
+                // Japanese
+                { value: "jf_alpha", gender: "female", region: "jp", text: "Kokoro Alpha (Nữ Nhật)" },
+                { value: "jf_gongitsune", gender: "female", region: "jp", text: "Kokoro Gongitsune (Nữ Nhật)" },
+                { value: "jf_nezumi", gender: "female", region: "jp", text: "Kokoro Nezumi (Nữ Nhật)" },
+                { value: "jf_tebukuro", gender: "female", region: "jp", text: "Kokoro Tebukuro (Nữ Nhật)" },
+                { value: "jm_kumo", gender: "male", region: "jp", text: "Kokoro Kumo (Nam Nhật)" },
+                // Chinese
+                { value: "zf_xiaobei", gender: "female", region: "cn", text: "Kokoro Xiaobei (Nữ Trung)" },
+                { value: "zf_xiaoni", gender: "female", region: "cn", text: "Kokoro Xiaoni (Nữ Trung)" },
+                { value: "zf_xiaoxiao", gender: "female", region: "cn", text: "Kokoro Xiaoxiao (Nữ Trung)" },
+                { value: "zf_xiaoyi", gender: "female", region: "cn", text: "Kokoro Xiaoyi (Nữ Trung)" }
             ]
         };
 
