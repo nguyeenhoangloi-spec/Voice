@@ -74,10 +74,7 @@ storage/samples/*
 
 # ─── Binary / Large Files ────────────────────────────────────
 # FFmpeg/FFprobe executables — download separately, don't commit
-binaries/*.exe
-binaries/*.dll
-binaries/ffmpeg
-binaries/ffprobe
+binaries/
 
 # ─── Logs ────────────────────────────────────────────────────
 *.log
