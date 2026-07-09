@@ -769,8 +769,186 @@ def _build_character_map_prompt(prescan: dict) -> str:
     return "\n".join(lines)
 
 
+def _call_gemini_api_http(prompt: str, api_key: str) -> str:
+    """Gọi trực tiếp API REST của Gemini 2.5 Flash bằng thư viện requests"""
+    import requests
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
+    response.raise_for_status()
+    res_data = response.json()
+    return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+
+def _call_groq_api_http(prompt: str, api_key: str) -> str:
+    """Gọi trực tiếp API tương thích OpenAI của Groq bằng thư viện requests"""
+    import requests
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
+    response.raise_for_status()
+    res_data = response.json()
+    return res_data["choices"][0]["message"]["content"].strip()
+
+
+def _call_openrouter_api_http(prompt: str, api_key: str) -> str:
+    """Gọi trực tiếp API của OpenRouter bằng thư viện requests"""
+    import requests
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/nguyeenhoangloi-spec/Voice",
+        "X-Title": "Voice AI Platform"
+    }
+    payload = {
+        "model": "meta-llama/llama-3-8b-instruct:free",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
+    response.raise_for_status()
+    res_data = response.json()
+    return res_data["choices"][0]["message"]["content"].strip()
+
+
+def _call_github_api_http(prompt: str, api_key: str) -> str:
+    """Gọi trực tiếp API GitHub Models bằng thư viện requests"""
+    import requests
+    url = "https://models.inference.ai.azure.com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
+    response.raise_for_status()
+    res_data = response.json()
+    return res_data["choices"][0]["message"]["content"].strip()
+
+
+def _call_cohere_api_http(prompt: str, api_key: str) -> str:
+    """Gọi trực tiếp API của Cohere bằng thư viện requests"""
+    import requests
+    url = "https://api.cohere.com/v1/chat"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "command-r-plus",
+        "message": prompt,
+        "temperature": 0.2
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
+    response.raise_for_status()
+    res_data = response.json()
+    return res_data["text"].strip()
+
+
+def _translate_batch_with_llm(prompt: str, expected_count: int) -> list:
+    """Thử dịch thuật một batch bằng các LLM API khả dụng theo thứ tự ưu tiên."""
+    from app.config import settings
+    import time as _time
+    import json
+    import re
+
+    # Tạo danh sách các provider khả dụng theo thứ tự ưu tiên
+    providers = []
+    if settings.GEMINI_API_KEY.strip():
+        providers.append(("gemini", settings.GEMINI_API_KEY.strip()))
+    if settings.GROQ_API_KEY.strip():
+        providers.append(("groq", settings.GROQ_API_KEY.strip()))
+    if settings.OPENROUTER_API_KEY.strip():
+        providers.append(("openrouter", settings.OPENROUTER_API_KEY.strip()))
+    if settings.GITHUB_API_KEY.strip():
+        providers.append(("github", settings.GITHUB_API_KEY.strip()))
+    if settings.COHERE_API_KEY.strip():
+        providers.append(("cohere", settings.COHERE_API_KEY.strip()))
+
+    if not providers:
+        logger.warning("Không có API Key nào được cấu hình trong settings. Bỏ qua dịch LLM.")
+        return []
+
+    for provider_name, api_key in providers:
+        logger.info(f"Đang thử dịch batch bằng API: {provider_name.upper()}...")
+        for attempt in range(1, 4):
+            try:
+                res_text = ""
+                if provider_name == "gemini":
+                    if api_key.startswith("AQ."):
+                        res_text = _call_gemini_api_http(prompt, api_key)
+                    else:
+                        from google import genai
+                        client = genai.Client(api_key=api_key)
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
+                        )
+                        res_text = response.text.strip()
+                elif provider_name == "groq":
+                    res_text = _call_groq_api_http(prompt, api_key)
+                elif provider_name == "openrouter":
+                    res_text = _call_openrouter_api_http(prompt, api_key)
+                elif provider_name == "github":
+                    res_text = _call_github_api_http(prompt, api_key)
+                elif provider_name == "cohere":
+                    res_text = _call_cohere_api_http(prompt, api_key)
+
+                # Trích xuất mảng JSON từ phản hồi của LLM
+                json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
+                if json_match:
+                    translated_list = json.loads(json_match.group(0))
+                    if len(translated_list) == expected_count:
+                        logger.info(f"Dịch thành công {expected_count} câu bằng {provider_name.upper()} API.")
+                        return translated_list
+                    else:
+                        logger.warning(
+                            f"Kết quả {provider_name.upper()} trả về số câu không khớp: "
+                            f"nhận {len(translated_list)} vs mong đợi {expected_count}."
+                        )
+                else:
+                    logger.warning(f"Không thể parse JSON từ kết quả của {provider_name.upper()}.")
+
+            except Exception as e:
+                err_str = str(e)
+                is_rate_limit = "429" in err_str or "Too Many Requests" in err_str
+                is_retryable = (
+                    is_rate_limit or "503" in err_str or
+                    "UNAVAILABLE" in err_str or
+                    "timeout" in err_str.lower() or "connection" in err_str.lower()
+                )
+                if is_retryable and attempt < 3:
+                    wait_sec = 15 * attempt if is_rate_limit else 5 * attempt
+                    logger.warning(f"Lỗi {provider_name.upper()} (lần {attempt}/3): {e} - thử lại sau {wait_sec}s...")
+                    _time.sleep(wait_sec)
+                    continue
+                logger.warning(f"Lỗi {provider_name.upper()} API (lần {attempt}/3): {e}.")
+                break  # Thất bại với provider này, chuyển sang provider tiếp theo trong danh sách
+
+    logger.warning("Đã thử tất cả các nhà cung cấp dịch thuật LLM cấu hình sẵn nhưng đều thất bại.")
+    return []
+
+
 def translate_segments(segments: list, target_lang: str = "vi", video_context: str = "neutral", video_topic: str = "") -> list:
-    """Translate each segment text to target language using Gemini API (if available) or Google Translate"""
+    """Translate each segment text to target language using LLM API (if available) or Google Translate"""
     import sys
     if "pytest" not in sys.modules:
         import os
@@ -781,8 +959,12 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         load_dotenv(base_dir / ".env", override=True)
 
         from app.config import settings
-        # Cập nhật lại giá trị GEMINI_API_KEY trong settings đối tượng
+        # Cập nhật lại giá trị các API KEY trong settings đối tượng
         settings.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+        settings.GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+        settings.OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+        settings.GITHUB_API_KEY = os.getenv("GITHUB_API_KEY", "").strip()
+        settings.COHERE_API_KEY = os.getenv("COHERE_API_KEY", "").strip()
 
     from app.config import settings
 
@@ -791,21 +973,34 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         logger.info("Tất cả segments đều đã có sẵn bản dịch (phụ đề tiếng Việt). Bỏ qua bước dịch thuật.")
         return segments
 
-    # Sử dụng Gemini API nếu có API Key
-    api_key = settings.GEMINI_API_KEY.strip()
-    if api_key:
+    # Sử dụng LLM API nếu có bất kỳ API Key nào khả dụng
+    has_llm_key = (
+        settings.GEMINI_API_KEY.strip() or
+        settings.GROQ_API_KEY.strip() or
+        settings.OPENROUTER_API_KEY.strip() or
+        settings.GITHUB_API_KEY.strip() or
+        settings.COHERE_API_KEY.strip()
+    )
+    if has_llm_key:
         import time as _time
-        logger.info(f"Sử dụng Gemini API với ngữ cảnh video: {video_context}, chủ đề: {video_topic}...")
+        logger.info("Sử dụng LLM API dịch thuật...")
 
         # === PRE-SCAN: Tự động nhận dạng video và trích xuất nhân vật ===
-        prescan = _prescan_video_context(segments, api_key)
-        character_map_block = _build_character_map_prompt(prescan)
-        detected_tone = prescan.get("tone", "neutral")
-        detected_type = prescan.get("video_type", "unknown")
-        detected_title = prescan.get("title_guess", "")
+        detected_tone = "neutral"
+        detected_type = "unknown"
+        detected_title = ""
+        character_map_block = ""
 
-        # Rate limit: chờ 3s sau pre-scan để tránh 429 Too Many Requests
-        _time.sleep(3)
+        gemini_key = settings.GEMINI_API_KEY.strip()
+        if gemini_key:
+            logger.info("Chạy pre-scan ngữ cảnh video bằng Gemini...")
+            prescan = _prescan_video_context(segments, gemini_key)
+            character_map_block = _build_character_map_prompt(prescan)
+            detected_tone = prescan.get("tone", "neutral")
+            detected_type = prescan.get("video_type", "unknown")
+            detected_title = prescan.get("title_guess", "")
+            # Rate limit: chờ 3s sau pre-scan để tránh 429 Too Many Requests
+            _time.sleep(3)
 
         # Chia nhỏ segments thành các batch để tránh timeout do prompt quá dài
         BATCH_SIZE = 15
@@ -821,133 +1016,83 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             logger.info(f"Đang dịch batch {batch_idx + 1}/{len(batches)} ({len(batch)} câu, segment {batch_start_global}-{batch_start_global + len(batch) - 1})...")
 
             batch_success = False
-            for gemini_attempt in range(1, 4):  # retry up to 3 times per batch
-                try:
-                    from google import genai
-                    from google.genai import types
-                    import json
 
-                    client = genai.Client(api_key=api_key)
+            # === PROMPT CẢI TIẾN: Tiếng Việt + Hard Limit + Dynamic Character Map ===
+            prompt = (
+                "Bạn là chuyên gia lồng tiếng phim ảnh hàng đầu Việt Nam với 20 năm kinh nghiệm.\n"
+                f"Thể loại: {detected_type} | Tên phim: {detected_title or video_topic} | Giọng điệu: {detected_tone}\n\n"
+                "NHIỆM VỤ: Dịch các câu dưới đây sang tiếng Việt dùng để lồng tiếng (dubbing).\n\n"
+                "QUY TẮC ƯU TIÊN (Theo thứ tự quan trọng):\n"
+                "1. BẢO TOÀN NỘI DUNG (QUAN TRỌNG NHẤT): Phải dịch chính xác 100% ý của câu gốc. "
+                "TUYỆT ĐỐI KHÔNG thêm thắt thông tin, KHÔNG tự bịa chuyện, KHÔNG lược bỏ ý chính.\n\n"
+                "2. VĂN NÓI TỰ NHIÊN: Dùng cấu trúc câu nói đời thường, ngắt nghỉ đúng chỗ. "
+                "TUYỆT ĐỐI KHÔNG dịch word-by-word cứng nhắc. Phải thể hiện được cảm xúc "
+                f"(giọng điệu: {detected_tone}).\n\n"
+                "3. TÊN NHÂN VẬT: Nếu có phần CHARACTER NAME REFERENCE bên dưới, BẮT BUỘC dùng đúng tên "
+                "tiếng Việt đó. Tên thật người/thương hiệu thì giữ nguyên.\n\n"
+                "4. THUẬT NGỮ KỸ THUẬT: Giữ nguyên tiếng Anh nếu tiếng Việt không có từ thay thế tự nhiên.\n\n"
+                "5. ĐỘ DÀI & PHONG CÁCH (Gợi ý mềm - KHÔNG phải giới hạn cứng): \n"
+                "   - Mục tiêu: dịch ngắn gọn, đủ ý, đúng chất SUBTITLE (không dư thừa, không filler words). \n"
+                "   - Số từ gợi ý (~N từ) chỉ là tham khảo về nhịp thời gian. \n"
+                "   - NẾU câu gốc có nhiều ý quan trọng → ĐƯỢC PHÉP vượt quá ~N từ để dịch đầy đủ. \n"
+                "   - TUYỆT ĐỐI KHÔNG cắt bỏ ý chính để ép vừa giới hạn số từ. \n"
+                "   - Hệ thống sẽ TỰ ĐỘNG điều chỉnh tốc độ đọc để khớp thời lượng video.\n\n"
+                "6. ĐỊNH DẠNG: CHỈ TRẢ VỀ một mảng JSON chuỗi, đúng thứ tự. KHÔNG dùng markdown, KHÔNG giải thích gì thêm.\n"
+                "   Ví dụ: [\"câu một\", \"câu hai\"]\n"
+            )
 
-                    # === PROMPT CẢI TIẾN: Tiếng Việt + Hard Limit + Dynamic Character Map ===
-                    prompt = (
-                        "Bạn là chuyên gia lồng tiếng phim ảnh hàng đầu Việt Nam với 20 năm kinh nghiệm.\n"
-                        f"Thể loại: {detected_type} | Tên phim: {detected_title or video_topic} | Giọng điệu: {detected_tone}\n\n"
-                        "NHIỆM VỤ: Dịch các câu dưới đây sang tiếng Việt dùng để lồng tiếng (dubbing).\n\n"
-                        "QUY TẮC ƯU TIÊN (Theo thứ tự quan trọng):\n"
-                        "1. BẢO TOÀN NỘI DUNG (QUAN TRỌNG NHẤT): Phải dịch chính xác 100% ý của câu gốc. "
-                        "TUYỆT ĐỐI KHÔNG thêm thắt thông tin, KHÔNG tự bịa chuyện, KHÔNG lược bỏ ý chính.\n\n"
-                        "2. VĂN NÓI TỰ NHIÊN: Dùng cấu trúc câu nói đời thường, ngắt nghỉ đúng chỗ. "
-                        "TUYỆT ĐỐI KHÔNG dịch word-by-word cứng nhắc. Phải thể hiện được cảm xúc "
-                        f"(giọng điệu: {detected_tone}).\n\n"
-                        "3. TÊN NHÂN VẬT: Nếu có phần CHARACTER NAME REFERENCE bên dưới, BẮT BUỘC dùng đúng tên "
-                        "tiếng Việt đó. Tên thật người/thương hiệu thì giữ nguyên.\n\n"
-                        "4. THUẬT NGỮ KỸ THUẬT: Giữ nguyên tiếng Anh nếu tiếng Việt không có từ thay thế tự nhiên.\n\n"
-                        "5. GIỚI HẠN THỜI GIAN (HARD LIMIT - RẤT QUAN TRỌNG): Tốc độ nói tiếng Việt tự nhiên là ~3 từ/giây. "
-                        "Số từ tối đa (được đánh dấu ~N từ) cho mỗi câu là GIỚI HẠN CỨNG, KHÔNG ĐƯỢC VƯỢT QUÁ. "
-                        "Nếu ý nghĩa quá dài so với số từ cho phép, BẮT BUỘC phải diễn đạt lại bằng từ đồng nghĩa ngắn hơn, "
-                        "lược bỏ từ thừa (filler words). "
-                        "Một câu dịch hơi ngắn nhưng khớp hoàn hảo với thời lượng khung hình luôn tốt hơn "
-                        "một câu dịch hay nhưng bị cắt cụt hoặc bị ép nói siêu nhanh.\n\n"
-                        "6. ĐỊNH DẠNG: CHỈ TRẢ VỀ một mảng JSON chuỗi, đúng thứ tự. KHÔNG dùng markdown, KHÔNG giải thích gì thêm.\n"
-                        "   Ví dụ: [\"câu một\", \"câu hai\"]\n"
-                    )
+            # Inject dynamic character map from pre-scan
+            if character_map_block:
+                prompt += character_map_block
 
-                    # Inject dynamic character map from pre-scan
-                    if character_map_block:
-                        prompt += character_map_block
+            # Cross-batch context: inject previous translations for continuity
+            if previous_translations:
+                prompt += "\n[PREVIOUS BATCH TRANSLATIONS for context continuity — maintain consistent style and names]:\n"
+                for pt in previous_translations[-5:]:
+                    prompt += f"  \"{pt['original']}\" → \"{pt['translation']}\"\n"
+                prompt += "\n"
 
-                    # Cross-batch context: inject previous translations for continuity
-                    if previous_translations:
-                        prompt += "\n[PREVIOUS BATCH TRANSLATIONS for context continuity — maintain consistent style and names]:\n"
-                        for pt in previous_translations[-5:]:
-                            prompt += f"  \"{pt['original']}\" → \"{pt['translation']}\"\n"
-                        prompt += "\n"
+            prompt += f"\nSegments (batch {batch_idx + 1}/{len(batches)}):\n"
 
-                    prompt += f"\nSegments (batch {batch_idx + 1}/{len(batches)}):\n"
+            for local_idx, seg in enumerate(batch):
+                global_idx = batch_start_global + local_idx
+                duration = seg.get("end", 0.0) - seg.get("start", 0.0)
+                orig_text = seg.get("text", "").strip()
+                orig_words = len(orig_text.split()) if orig_text else 0
 
-                    for local_idx, seg in enumerate(batch):
-                        global_idx = batch_start_global + local_idx
-                        duration = seg.get("end", 0.0) - seg.get("start", 0.0)
-                        orig_text = seg.get("text", "").strip()
-                        orig_words = len(orig_text.split()) if orig_text else 0
+                # Target word count (soft guide)
+                max_words = max(1, int(orig_words * 1.20))
+                max_words = max(max_words, max(1, int(duration * 2.6)))
+                max_words = min(max_words, max(1, int(duration * 3.2)))
 
-                        # Target word count (soft guide)
-                        max_words = max(1, int(orig_words * 1.20))
-                        max_words = max(max_words, max(1, int(duration * 2.6)))
-                        max_words = min(max_words, max(1, int(duration * 3.2)))
+                # Include previous segment as context clue
+                if local_idx > 0:
+                    prev_text = batch[local_idx - 1].get("text", "").strip()
+                elif global_idx > 0:
+                    prev_text = segments[global_idx - 1].get("text", "").strip()
+                else:
+                    prev_text = ""
 
-                        # Include previous segment as context clue
-                        if local_idx > 0:
-                            prev_text = batch[local_idx - 1].get("text", "").strip()
-                        elif global_idx > 0:
-                            prev_text = segments[global_idx - 1].get("text", "").strip()
-                        else:
-                            prev_text = ""
+                if prev_text:
+                    prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
+                else:
+                    prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
 
-                        if prev_text:
-                            prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [PREV]: {prev_text}\n  [CURR]: {orig_text}\n\n"
-                        else:
-                            prompt += f"[{local_idx}] (~{max_words} words, {duration:.1f}s)\n  [CURR]: {orig_text}\n\n"
-
-                    if api_key.startswith("AQ."):
-                        import requests
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-                        headers = {"Content-Type": "application/json"}
-                        payload = {
-                            "contents": [{
-                                "parts": [{"text": prompt}]
-                            }]
-                        }
-                        res_http = requests.post(url, headers=headers, json=payload, timeout=60.0)
-                        res_http.raise_for_status()
-                        res_data = res_http.json()
-                        res_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    else:
-                        response = client.models.generate_content(
-                            model="gemini-2.5-flash",
-                            contents=prompt,
-                        )
-                        res_text = response.text.strip()
-
-                    # Tìm mảng JSON trong phản hồi của Gemini
-                    json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
-                    if json_match:
-                        translated_list = json.loads(json_match.group(0))
-                        if len(translated_list) == len(batch):
-
-                            for local_idx, trans in enumerate(translated_list):
-                                batch[local_idx]["translation"] = trans
-                            # Lưu context cho batch tiếp theo
-                            for seg in batch:
-                                previous_translations.append({
-                                    "original": seg.get("text", ""),
-                                    "translation": seg.get("translation", "")
-                                })
-                            logger.info(f"Batch {batch_idx + 1}/{len(batches)}: Dịch thành công {len(batch)} câu bằng Gemini API.")
-                            batch_success = True
-                            # Rate limit: chờ 5s giữa các batch để tránh 429
-                            if batch_idx < len(batches) - 1:
-                                _time.sleep(5)
-                            break  # success, move to next batch
-                    logger.warning(f"Batch {batch_idx + 1}: Không thể parse kết quả JSON của Gemini (got {len(translated_list) if json_match else 0} vs expected {len(batch)}). Batch này sẽ fallback.")
-                    break  # parse failed - no point retrying this batch
-                except Exception as e:
-                    err_str = str(e)
-                    is_rate_limit = "429" in err_str or "Too Many Requests" in err_str
-                    is_retryable = (
-                        is_rate_limit or "503" in err_str or
-                        "UNAVAILABLE" in err_str or
-                        "timeout" in err_str.lower() or "connection" in err_str.lower()
-                    )
-                    if is_retryable and gemini_attempt < 3:
-                        # 429: chờ lâu hơn (30s, 60s). Lỗi khác: 10s, 20s
-                        wait_sec = 30 * gemini_attempt if is_rate_limit else 10 * gemini_attempt
-                        logger.warning(f"Batch {batch_idx + 1} - Lỗi Gemini (lần {gemini_attempt}/3): {e} - thử lại sau {wait_sec}s...")
-                        _time.sleep(wait_sec)
-                        continue
-                    logger.warning(f"Batch {batch_idx + 1} - Lỗi Gemini API: {e}. Batch này sẽ fallback sang Google Translate.")
-                    break
+            # Thực hiện dịch thuật batch bằng LLM có fallback
+            translated_list = _translate_batch_with_llm(prompt, len(batch))
+            if translated_list:
+                for local_idx, trans in enumerate(translated_list):
+                    batch[local_idx]["translation"] = trans
+                # Lưu context cho batch tiếp theo
+                for seg in batch:
+                    previous_translations.append({
+                        "original": seg.get("text", ""),
+                        "translation": seg.get("translation", "")
+                    })
+                batch_success = True
+                # Chờ nhẹ giữa các batch để tránh spam
+                if batch_idx < len(batches) - 1:
+                    _time.sleep(2)
 
             if not batch_success:
                 all_translated = False
@@ -969,9 +1114,9 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 logger.info(f"Batch {batch_idx + 1}: Đã fallback {len(batch)} câu sang Google Translate.")
 
         if all_translated:
-            logger.info(f"Đã dịch thành công toàn bộ {len(segments)} câu bằng Gemini API.")
+            logger.info(f"Đã dịch thành công toàn bộ {len(segments)} câu bằng LLM API.")
         else:
-            logger.info(f"Hoàn tất dịch {len(segments)} câu (một số batch dùng Gemini, một số fallback Google Translate).")
+            logger.info(f"Hoàn tất dịch {len(segments)} câu (một số batch dùng LLM, một số fallback Google Translate).")
         return segments
 
     # Fallback sang Google Translate
@@ -1036,7 +1181,8 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
 
     # TỐC ĐỘ TỰ NHIÊN: 2.8 từ/giây (Không đổi)
     NATURAL_WPS = 2.8
-    MAX_ALLOWED_WPS = 3.5  # Tối đa trước khi nghe bị "đọc nhịp"
+    # Tăng ngưỡng tối đa: trước khi cắt chữ, hệ thống sẽ tăng tốc TTS + atempo (max 1.5x)
+    MAX_ALLOWED_WPS = 4.5
 
     # Adjust base rate from video context
     rate_map = {"fast": 5, "neutral": 0, "slow": -5, "teaching": -8}
@@ -1045,22 +1191,27 @@ def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",
     wps = word_count / duration if duration > 0 else NATURAL_WPS
     extra_speed_pct = 0
 
-    # Tự động tăng chút tốc độ nếu câu hơi dài, nhưng giới hạn ở mức +30%
+    # Tự động tăng tốc độ TTS nếu câu dài hơn tốc độ tự nhiên.
+    # Giới hạn tối đa +60% để Edge TTS vẫn còn nghe được.
+    # Phần còn lại sẽ được bù bằng ffmpeg atempo trong bước overlay.
     if wps > NATURAL_WPS:
         extra_speed_pct = int((wps - NATURAL_WPS) * 15)
-        extra_speed_pct = min(extra_speed_pct, 30)
+        extra_speed_pct = min(extra_speed_pct, 60)
 
     final_rate_pct = base_rate_pct + extra_speed_pct
 
     # Format rate for Edge TTS (e.g. "+15%", "-5%", "+0%")
     rate_str = f"+{final_rate_pct}%" if final_rate_pct >= 0 else f"{final_rate_pct}%"
 
-    # Cắt ngắn bằng mọi giá nếu vẫn vượt quá mức nghe được
+    # Chỉ cảnh báo log — KHÔNG cắt chữ ở đây nữa.
+    # Việc khớp thời lượng sẽ do bước atempo trong overlay xử lý.
     if word_count > int(duration * MAX_ALLOWED_WPS):
-        logger.warning(f"Câu quá dài ({word_count} từ / {duration:.1f}s). Đang cắt ngắn...")
-        translation = _compress_translation(translation, int(duration * MAX_ALLOWED_WPS))
+        logger.warning(
+            f"Câu rất dài ({word_count} từ / {duration:.1f}s, {wps:.1f} wps). "
+            f"Sẽ dùng atempo tối đa 1.5x để khớp khung hình."
+        )
 
-    logger.info(f"Segment: {len(translation.split())} từ trong {duration:.1f}s (wps: {wps:.2f}) → TTS Rate: {rate_str}")
+    logger.info(f"Segment: {word_count} từ trong {duration:.1f}s (wps: {wps:.2f}) → TTS Rate: {rate_str}")
 
     return {
         "text": translation.strip(),
@@ -1437,14 +1588,45 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             slot_end_ms = int(seg.get("end", seg["start"] + 3.0) * 1000)
             max_duration_ms = slot_end_ms - start_ms
 
-            # Nếu audio dài hơn slot → cắt + fade-out 200ms để khớp phân cảnh
+            # Nếu audio dài hơn slot → ưu tiên nén bằng ffmpeg atempo (tối đa 1.5x)
+            # trước khi cắt, để đảm bảo đọc hết câu mà không mất chữ cuối.
+            MAX_ATEMPO = 1.5
             if max_duration_ms > 0 and len(tts_audio) > max_duration_ms:
                 original_len = len(tts_audio)
-                fade_ms = min(200, max_duration_ms // 2)  # fade-out không dài hơn nửa slot
-                tts_audio = tts_audio[:max_duration_ms].fade_out(fade_ms)
+                speed_factor = original_len / max_duration_ms  # e.g. 1.2 nếu dài hơn 20%
+
+                if speed_factor <= MAX_ATEMPO:
+                    # Trường hợp 1: Có thể nén vừa khít trong slot
+                    audio_path = seg["audio_path"]
+                    _adjust_audio_speed(audio_path, speed_factor)
+                    try:
+                        tts_audio = AudioSegment.from_file(audio_path)
+                        logger.info(
+                            f"Seg {idx}: atempo {speed_factor:.2f}x → {original_len}ms → "
+                            f"{len(tts_audio)}ms (khớp slot {max_duration_ms}ms)"
+                        )
+                    except Exception as reload_err:
+                        logger.warning(f"Seg {idx}: Không đọc lại audio sau atempo: {reload_err}")
+                else:
+                    # Trường hợp 2: Quá dài ngay cả ở 1.5x → nén tối đa rồi để tràn nhẹ
+                    audio_path = seg["audio_path"]
+                    _adjust_audio_speed(audio_path, MAX_ATEMPO)
+                    try:
+                        tts_audio = AudioSegment.from_file(audio_path)
+                    except Exception:
+                        pass
+                    logger.warning(
+                        f"Seg {idx}: audio {original_len}ms vẫn quá dài so với slot {max_duration_ms}ms "
+                        f"ngay cả ở {MAX_ATEMPO}x. Cho phép tràn nhẹ để không mất chữ."
+                    )
+
+            # Nếu sau atempo vẫn còn dài hơn 120% slot → cắt cứng với fade-out 100ms (dự phòng)
+            hard_cut_limit = int(max_duration_ms * 1.2) if max_duration_ms > 0 else len(tts_audio)
+            if max_duration_ms > 0 and len(tts_audio) > hard_cut_limit:
+                fade_ms = min(100, hard_cut_limit // 4)
+                tts_audio = tts_audio[:hard_cut_limit].fade_out(fade_ms)
                 logger.info(
-                    f"Seg {idx}: cắt audio từ {original_len}ms xuống {max_duration_ms}ms "
-                    f"+ fade-out {fade_ms}ms để khớp phân cảnh"
+                    f"Seg {idx}: cắt dự phòng xuống {hard_cut_limit}ms + fade-out {fade_ms}ms"
                 )
 
             # Fade-in 50ms to prevent click noise at segment start

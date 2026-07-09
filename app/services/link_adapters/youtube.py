@@ -79,21 +79,22 @@ class YouTubeAdapter(BaseAdapter):
         """
         base_path, _ = os.path.splitext(output_path)
 
-        # Strategy 1: Multi-client download without cookies (Safe, prevents DPAPI crash)
+        # Strategy 1: Multi-client, best quality with flexible format
         strategies = [
             {
                 **_get_ydl_base_opts(),
                 'outtmpl': base_path + '.%(ext)s',
-                'format': 'bestvideo+bestaudio/best',
+                # Flexible: tries merged video+audio first, then falls back to any best single file
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best',
             },
             {
-                # Strategy 2: iOS-specific client configuration
+                # Strategy 2: iOS client — often bypasses format restrictions
                 'quiet': True,
                 'no_warnings': True,
                 'ignoreconfig': True,
                 'noplaylist': True,
                 'outtmpl': base_path + '.%(ext)s',
-                'format': 'bestvideo+bestaudio/best',
+                'format': 'bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best',
                 'extractor_args': {
                     'youtube': {
                         'player_client': ['ios']
@@ -104,20 +105,34 @@ class YouTubeAdapter(BaseAdapter):
                 },
             },
             {
-                # Strategy 3: Try fallback with cookies (if browser supports decryption)
+                # Strategy 3: Android client — reliable for most restricted videos
+                'quiet': True,
+                'no_warnings': True,
+                'ignoreconfig': True,
+                'noplaylist': True,
+                'outtmpl': base_path + '.%(ext)s',
+                'format': 'best[ext=mp4]/best',
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android']
+                    }
+                },
+            },
+            {
+                # Strategy 4: Try with Chrome cookies if available
                 **_get_ydl_base_opts(),
                 'outtmpl': base_path + '.%(ext)s',
                 'format': 'bestvideo+bestaudio/best',
                 'cookiesfrombrowser': ('chrome',),
             },
             {
-                # Strategy 4: Audio only (always works as fallback)
+                # Strategy 5: Audio only — always works as last resort
                 'quiet': True,
                 'no_warnings': True,
                 'ignoreconfig': True,
                 'noplaylist': True,
                 'outtmpl': base_path + '.%(ext)s',
-                'format': 'bestaudio',
+                'format': 'bestaudio/best',
                 'extractor_args': {
                     'youtube': {
                         'player_client': ['android', 'ios']

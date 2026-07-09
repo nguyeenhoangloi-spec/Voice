@@ -67,7 +67,10 @@ storage/models/*
 !storage/models/.gitkeep
 
 # Keep sample files
-!storage/samples/
+# Note: sample audio files are excluded (too large for git, download separately)
+# !storage/samples/
+storage/samples/*
+!storage/samples/.gitkeep
 
 # ─── Binary / Large Files ────────────────────────────────────
 # FFmpeg/FFprobe executables — download separately, don't commit
