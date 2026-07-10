@@ -19,12 +19,18 @@ app = FastAPI(
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
-    """Bắt lỗi HTTPException để tự động chuyển hướng về trang đăng nhập nếu truy cập từ trình duyệt"""
+    """
+    Handle HTTPExceptions globally.
+    If a 401 Unauthorized error occurs on a browser request (demanded text/html response),
+    automatically redirect the user to the login page (/auth/login) with HTTP 303 See Other.
+    Also, deletes the invalid 'access_token' cookie to prevent infinite redirect loops.
+    """
     if exc.status_code == 401:
         accept_header = request.headers.get("accept", "")
         if "text/html" in accept_header:
             response = RedirectResponse(url="/auth/login", status_code=303)
-            # Xoá cookie access_token bị lỗi/hết hạn để tránh lặp vô hạn
+            # Deleting the cookie is critical to prevent the browser from sending
+            # the expired/invalid token repeatedly, which triggers infinite loops.
             response.delete_cookie("access_token")
             return response
             

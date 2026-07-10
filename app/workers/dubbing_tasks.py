@@ -395,7 +395,8 @@ def run_dubbing_pipeline(job_id: str):
                     if custom_map:
                         voice_map = custom_map
                     elif voice_profile and voice_profile != "auto":
-                        # Người dùng chọn một giọng cụ thể -> ép tất cả các Speaker dùng chung giọng này
+                        # SINGLE VOICE MODE: If the user selected a specific voice profile (not 'auto'),
+                        # force all detected speakers to use this single voice to respect their choice.
                         voice_map = {
                             "Speaker 1": voice_name,
                             "Speaker 2": voice_name,
@@ -403,7 +404,8 @@ def run_dubbing_pipeline(job_id: str):
                             "Speaker 4": voice_name,
                         }
                     else:
-                        # Chế độ tự động ("auto") -> cho phép phân vai nhiều giọng (xen kẽ giới tính)
+                        # AUTO VOICE MODE: Automatically assign alternating male/female voices to
+                        # different speakers for dynamic and lively dubbing.
                         opposite_voice = (
                             "vi-VN-NamMinhNeural" if voice_name == "vi-VN-HoaiMyNeural"
                             else "vi-VN-HoaiMyNeural"
