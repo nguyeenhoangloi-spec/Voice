@@ -438,6 +438,160 @@ def get_voices_page(request: Request, user=Depends(get_current_user)):
             "provider": "edge",
             "language": "vi",
             "tech_badge": "Edge Neural"
+        },
+        {
+            "id": "vieneu_Trúc Ly",
+            "name": "VieNeu Trúc Ly (Nữ - Bắc)",
+            "gender": "Nữ",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Trúc Ly",
+            "desc": "Giọng nữ miền Bắc tự nhiên, trong trẻo, lồng tiếng cực tốt và chạy hoàn toàn offline.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Phạm Tuyên",
+            "name": "VieNeu Phạm Tuyên (Nam - Bắc)",
+            "gender": "Nam",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Phạm Tuyên",
+            "desc": "Giọng nam miền Bắc tự nhiên, rõ ràng, trầm ấm, chạy hoàn toàn offline.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Thái Sơn",
+            "name": "VieNeu Thái Sơn (Nam - Nam)",
+            "gender": "Nam",
+            "region": "Miền Nam (VieNeu)",
+            "voice": "vieneu_Thái Sơn",
+            "desc": "Giọng nam miền Nam chuyên dùng kể chuyện, diễn cảm và ấm áp.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Xuân Vĩnh",
+            "name": "VieNeu Xuân Vĩnh (Nam - Nam)",
+            "gender": "Nam",
+            "region": "Miền Nam (VieNeu)",
+            "voice": "vieneu_Xuân Vĩnh",
+            "desc": "Giọng nam miền Nam phong cách tự nhiên, hoạt ngôn, thích hợp làm vlog.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Thanh Bình",
+            "name": "VieNeu Thanh Bình (Nam - Bắc)",
+            "gender": "Nam",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Thanh Bình",
+            "desc": "Giọng nam miền Bắc phong cách kể chuyện truyền cảm, lôi cuốn.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Minh Đức",
+            "name": "VieNeu Minh Đức (Nam - Bắc)",
+            "gender": "Nam",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Minh Đức",
+            "desc": "Giọng nam miền Bắc phong cách tin tức, thời sự chuẩn mực.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Ngọc Linh",
+            "name": "VieNeu Ngọc Linh (Nữ - Bắc)",
+            "gender": "Nữ",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Ngọc Linh",
+            "desc": "Giọng nữ miền Bắc phong cách kể chuyện nhẹ nhàng, ấm áp.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Đoan Trang",
+            "name": "VieNeu Đoan Trang (Nữ - Bắc)",
+            "gender": "Nữ",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Đoan Trang",
+            "desc": "Giọng nữ miền Bắc tự nhiên, truyền cảm, dễ nghe.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Mai Anh",
+            "name": "VieNeu Mai Anh (Nữ - Bắc)",
+            "gender": "Nữ",
+            "region": "Miền Bắc (VieNeu)",
+            "voice": "vieneu_Mai Anh",
+            "desc": "Giọng nữ miền Bắc phong cách tin tức, đọc rõ ràng, dứt khoát.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Thục Đoan",
+            "name": "VieNeu Thục Đoan (Nữ - Nam)",
+            "gender": "Nữ",
+            "region": "Miền Nam (VieNeu)",
+            "voice": "vieneu_Thục Đoan",
+            "desc": "Giọng nữ miền Nam phong cách kể chuyện, ngọt ngào, truyền cảm.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Minh Triết",
+            "name": "VieNeu Minh Triết (Nam - Nam)",
+            "gender": "Nam",
+            "region": "Miền Nam (VieNeu)",
+            "voice": "vieneu_Minh Triết",
+            "desc": "Giọng nam miền Nam phong cách tin tức, chuyên nghiệp.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Thùy Dung",
+            "name": "VieNeu Thùy Dung (Nữ - Nam)",
+            "gender": "Nữ",
+            "region": "Miền Nam (VieNeu)",
+            "voice": "vieneu_Thùy Dung",
+            "desc": "Giọng nữ miền Nam phong cách tin tức, rõ chữ, truyền cảm.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Quang Sơn",
+            "name": "VieNeu Quang Sơn (Nam - Trung)",
+            "gender": "Nam",
+            "region": "Miền Trung (VieNeu)",
+            "voice": "vieneu_Quang Sơn",
+            "desc": "Giọng nam miền Trung tự nhiên, mộc mạc và chân thực.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
+        },
+        {
+            "id": "vieneu_Ngọc Trân",
+            "name": "VieNeu Ngọc Trân (Nữ - Trung)",
+            "gender": "Nữ",
+            "region": "Miền Trung (VieNeu)",
+            "voice": "vieneu_Ngọc Trân",
+            "desc": "Giọng nữ miền Trung tự nhiên, ngọt ngào, đậm chất Huế.",
+            "provider": "vieneu",
+            "language": "vi",
+            "tech_badge": "VieNeu Offline"
         }
     ]
     
@@ -533,8 +687,8 @@ def get_voice_sample_audio(voice_id: str):
     sample_dir = settings.STORAGE_DIR / "samples"
     os.makedirs(sample_dir, exist_ok=True)
     
-    # We save as .wav for Kokoro, .mp3 for others
-    if voice_id.startswith(("af_", "am_", "bf_", "bm_", "ef_", "em_", "ff_", "hf_", "hm_", "if_", "im_", "pf_", "pm_", "jf_", "jm_", "zf_")):
+    # We save as .wav for Kokoro and Vieneu, .mp3 for others
+    if voice_id.startswith(("af_", "am_", "bf_", "bm_", "ef_", "em_", "ff_", "hf_", "hm_", "if_", "im_", "pf_", "pm_", "jf_", "jm_", "zf_", "vieneu_")):
         file_path = sample_dir / f"{voice_id}.wav"
     else:
         file_path = sample_dir / f"{voice_id}.mp3"
@@ -562,7 +716,11 @@ def get_voice_sample_audio(voice_id: str):
         elif voice_id.startswith(("ef_", "em_")):
             sample_text = "¡Hola! Soy una voz de síntesis de voz de alta calidad de Kokoro AI, que se ejecuta completamente fuera de línea con claridad de estudio."
         elif voice_id.startswith("ff_"):
-            sample_text = "Bonjour! Je suis une voix de synthèse vocale de haute qualité de Kokoro AI, qui s'exécute complètement hors ligne avec une clarté de studio."
+            sample_text = "Bonjour! Je suis une voix de synthèse vocale de haute qualité de Kokoro AI, qui s'exécute complètement hors ligne với một sự rõ ràng như ở phòng thu."
+        elif voice_id.startswith("vieneu_"):
+            clean_name = voice_id.replace("vieneu_", "")
+            sample_text = f"Xin chào! Đây là bản nghe thử giọng đọc tiếng Việt cực kỳ chất lượng và truyền cảm {clean_name}, được sinh hoàn toàn offline bằng mô hình trí tuệ nhân tạo của dự án VieNeu TTS."
+            voice_code = voice_id
         try:
             generate_tts_audio(
                 text=sample_text,

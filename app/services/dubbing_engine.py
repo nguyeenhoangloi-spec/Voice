@@ -1390,6 +1390,30 @@ def generate_tts_audio(text: str, output_path: str, voice: str = "vi-VN-HoaiMyNe
         # Fallback to default edge-tts voice if kokoro fails
         voice = "vi-VN-HoaiMyNeural"
 
+    # ── Check if we should use VieNeu TTS ──
+    if voice.startswith("vieneu_"):
+        from app.services.vieneu_service import VieneuService
+        vieneu_voice_id = voice.replace("vieneu_", "")
+        service = VieneuService()
+        
+        # Remove old file to ensure fresh generation
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+
+        success = service.generate_speech(
+            text=clean_text,
+            voice_id=vieneu_voice_id,
+            output_path=output_path
+        )
+        if success and os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+            return output_path
+            
+        logger.warning(f"Vieneu TTS failed for voice {voice}, text: '{clean_text[:20]}...'. Falling back to Edge-TTS.")
+        voice = "vi-VN-HoaiMyNeural"
+
     # ── Check if we should use TikTok/CapCut TTS ──
     # TikTok voice IDs start with "vi_vn_" or "en_us_" (e.g. vi_vn_002, vi_vn_001, en_us_001, en_us_006, en_us_ghostface)
     if voice.startswith(("vi_vn_", "en_us_ghostface")) or (voice.startswith("en_us_") and len(voice) > 6 and voice[6:].isdigit()):
