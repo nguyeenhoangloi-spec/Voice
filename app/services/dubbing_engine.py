@@ -362,6 +362,7 @@ def _refine_with_gemini_vision(segments: list, keyframes: dict, api_key: str):
     import requests
     import json
     import base64
+    import re
 
     # Filter segments needing refinement (no translation yet)
     pending = [(i, seg) for i, seg in enumerate(segments) if not seg.get("translation")]
@@ -384,17 +385,18 @@ def _refine_with_gemini_vision(segments: list, keyframes: dict, api_key: str):
                 "Lưu ý đặc biệt về tên nhân vật hoạt hình: "
                 "Nobita/大雄 -> 'Nô Bi Ta', Shizuka/静香 -> 'Xu Ka', Suneo/小夫 -> 'Xê Kô', "
                 "Jaian/胖虎 -> 'Chai En', Doraemon/哆啦A梦 -> 'Đô Rê Mon', Conan/柯南 -> 'Cô Nan'.\n\n"
-                f"Trả về CHÍNH XÁC một mảng JSON gồm {len(batch)} phần tử, mỗi phần tử là object có 2 trường:\n"
+                f"Trả về CHÍNH XÁC một mảng JSON gồm {len(batch)} phần tử, mỗi phần tử là object có các trường sau:\n"
+                '- "index": số thứ tự của ảnh (bắt đầu từ 0 đến ' + str(len(batch)-1) + ' tương ứng)\n'
                 '- "text": chữ gốc đọc được trên ảnh (đã sửa lỗi OCR)\n'
                 '- "translation": bản dịch tiếng Việt\n'
-                'Ví dụ: [{"text": "大雄来了", "translation": "Nô Bi Ta đến rồi"}]\n'
+                'Ví dụ: [{"index": 0, "text": "大雄来了", "translation": "Nô Bi Ta đến rồi"}]\n'
                 "Không markdown, chỉ JSON thuần."
             )
             parts.append({"text": instruction})
 
             for idx_in_batch, (seg_idx, seg) in enumerate(batch):
                 ocr_text = seg.get("text", "")
-                parts.append({"text": f"\n--- Ảnh {idx_in_batch + 1} (OCR thô: \"{ocr_text}\") ---"})
+                parts.append({"text": f"\n--- Ảnh {idx_in_batch} (OCR thô: \"{ocr_text}\") ---"})
                 if seg_idx in keyframes:
                     parts.append({
                         "inline_data": {
@@ -415,20 +417,36 @@ def _refine_with_gemini_vision(segments: list, keyframes: dict, api_key: str):
             # Parse JSON array from response
             json_match = re.search(r'\[.*\]', res_text, re.DOTALL)
             if json_match:
-                refined_list = json.loads(json_match.group(0))
-                if len(refined_list) == len(batch):
+                try:
+                    refined_list = json.loads(json_match.group(0))
+                    # Tạo map theo index
+                    refined_map = {}
+                    for item in refined_list:
+                        if isinstance(item, dict) and "index" in item:
+                            try:
+                                idx = int(item["index"])
+                                refined_map[idx] = item
+                            except (ValueError, TypeError):
+                                pass
+                    
+                    # Ánh xạ lại các kết quả khớp index
+                    updated_count = 0
                     for idx_in_batch, (seg_idx, seg) in enumerate(batch):
-                        item = refined_list[idx_in_batch]
-                        if isinstance(item, dict):
+                        item = refined_map.get(idx_in_batch)
+                        if item:
                             if item.get("text"):
                                 seg["text"] = item["text"]
                             if item.get("translation"):
                                 seg["translation"] = item["translation"]
-                        elif isinstance(item, str):
-                            seg["translation"] = item
-                    logger.info(f"Gemini Vision batch {batch_idx + 1}/{len(batches)}: Tinh chỉnh thành công {len(batch)} segments.")
-                    continue
-            logger.warning(f"Gemini Vision batch {batch_idx + 1}: Không parse được JSON, giữ nguyên kết quả EasyOCR.")
+                            updated_count += 1
+                    
+                    if updated_count > 0:
+                        logger.info(f"Gemini Vision batch {batch_idx + 1}/{len(batches)}: Tinh chỉnh thành công {updated_count}/{len(batch)} segments dựa trên index.")
+                        continue
+                except Exception as parse_err:
+                    logger.warning(f"Lỗi khi xử lý dữ liệu JSON phản hồi của Gemini Vision: {parse_err}")
+            
+            logger.warning(f"Gemini Vision batch {batch_idx + 1}: Không parse được kết quả hợp lệ, giữ nguyên kết quả EasyOCR.")
         except Exception as e:
             logger.warning(f"Gemini Vision batch {batch_idx + 1} lỗi: {e}. Giữ nguyên kết quả EasyOCR.")
 
@@ -1068,8 +1086,9 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
 
     from app.config import settings
 
-    # Nếu tất cả các segment đều đã có sẵn bản dịch tiếng Việt, bypass dịch thuật để tiết kiệm API và tăng độ chính xác
-    if all(seg.get("translation") for seg in segments):
+    # Chỉ lọc các segment chưa có bản dịch để tránh ghi đè kết quả dịch chất lượng từ Gemini Vision
+    pending_items = [(idx, seg) for idx, seg in enumerate(segments) if not seg.get("translation")]
+    if not pending_items:
         logger.info("Tất cả segments đều đã có sẵn bản dịch (phụ đề tiếng Việt). Bỏ qua bước dịch thuật.")
         return segments
 
@@ -1102,18 +1121,17 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             # Rate limit: chờ 3s sau pre-scan để tránh 429 Too Many Requests
             _time.sleep(3)
 
-        # Chia nhỏ segments thành các batch để tránh timeout do prompt quá dài
+        # Chia nhỏ segments CHƯA CÓ BẢN DỊCH thành các batch để tránh timeout do prompt quá dài
         BATCH_SIZE = 15
         all_translated = True
-        batches = [segments[i:i + BATCH_SIZE] for i in range(0, len(segments), BATCH_SIZE)]
-        logger.info(f"Chia {len(segments)} segments thành {len(batches)} batch (mỗi batch tối đa {BATCH_SIZE} câu).")
+        batches = [pending_items[i:i + BATCH_SIZE] for i in range(0, len(pending_items), BATCH_SIZE)]
+        logger.info(f"Chia {len(pending_items)} segments cần dịch thành {len(batches)} batch (mỗi batch tối đa {BATCH_SIZE} câu).")
 
         # Cross-batch context: lưu câu dịch cuối mỗi batch để truyền sang batch sau
         previous_translations = []
 
         for batch_idx, batch in enumerate(batches):
-            batch_start_global = batch_idx * BATCH_SIZE
-            logger.info(f"Đang dịch batch {batch_idx + 1}/{len(batches)} ({len(batch)} câu, segment {batch_start_global}-{batch_start_global + len(batch) - 1})...")
+            logger.info(f"Đang dịch batch {batch_idx + 1}/{len(batches)} ({len(batch)} câu)...")
 
             batch_success = False
 
@@ -1154,8 +1172,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
 
             prompt += f"\nSegments (batch {batch_idx + 1}/{len(batches)}):\n"
 
-            for local_idx, seg in enumerate(batch):
-                global_idx = batch_start_global + local_idx
+            for local_idx, (global_idx, seg) in enumerate(batch):
                 duration = seg.get("end", 0.0) - seg.get("start", 0.0)
                 orig_text = seg.get("text", "").strip()
                 orig_words = len(orig_text.split()) if orig_text else 0
@@ -1165,10 +1182,8 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 max_words = max(max_words, max(1, int(duration * 2.6)))
                 max_words = min(max_words, max(1, int(duration * 3.2)))
 
-                # Include previous segment as context clue
-                if local_idx > 0:
-                    prev_text = batch[local_idx - 1].get("text", "").strip()
-                elif global_idx > 0:
+                # Include previous segment from original list as context clue
+                if global_idx > 0:
                     prev_text = segments[global_idx - 1].get("text", "").strip()
                 else:
                     prev_text = ""
@@ -1182,9 +1197,10 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             translated_list = _translate_batch_with_llm(prompt, len(batch))
             if translated_list:
                 for local_idx, trans in enumerate(translated_list):
-                    batch[local_idx]["translation"] = trans
+                    global_idx, seg = batch[local_idx]
+                    seg["translation"] = trans
                 # Lưu context cho batch tiếp theo
-                for seg in batch:
+                for global_idx, seg in batch:
                     previous_translations.append({
                         "original": seg.get("text", ""),
                         "translation": seg.get("translation", "")
@@ -1199,7 +1215,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 # Fallback từng câu trong batch thất bại sang Google Translate
                 from deep_translator import GoogleTranslator
                 translator = GoogleTranslator(source="auto", target=target_lang)
-                for seg in batch:
+                for global_idx, seg in batch:
                     if not seg.get("translation"):
                         try:
                             seg["translation"] = translator.translate(seg["text"])
@@ -1214,17 +1230,19 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
                 logger.info(f"Batch {batch_idx + 1}: Đã fallback {len(batch)} câu sang Google Translate.")
 
         if all_translated:
-            logger.info(f"Đã dịch thành công toàn bộ {len(segments)} câu bằng LLM API.")
+            logger.info(f"Đã dịch thành công toàn bộ {len(pending_items)} câu bằng LLM API.")
         else:
-            logger.info(f"Hoàn tất dịch {len(segments)} câu (một số batch dùng LLM, một số fallback Google Translate).")
+            logger.info(f"Hoàn tất dịch {len(pending_items)} câu (một số batch dùng LLM, một số fallback Google Translate).")
         return segments
 
-    # Fallback sang Google Translate
+    # Fallback sang Google Translate (chỉ dịch các câu chưa có bản dịch)
     from deep_translator import GoogleTranslator
 
     translator = GoogleTranslator(source="auto", target=target_lang)
 
     for seg in segments:
+        if seg.get("translation"):
+            continue
         try:
             if seg.get("language", "") == target_lang:
                 # Already in target language, skip
@@ -1235,7 +1253,7 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
             logger.warning(f"Translation failed for segment: {e}")
             seg["translation"] = seg["text"]  # fallback to original
 
-    logger.info(f"Translated {len(segments)} segments to {target_lang}")
+    logger.info(f"Translated pending segments to {target_lang}")
     return segments
 
 

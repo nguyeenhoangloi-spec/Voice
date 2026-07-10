@@ -223,3 +223,16 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
   3. Cập nhật `ffmpeg_utils.py` để tự động sao chép `ffprobe.exe` vào cùng thư mục với `ffmpeg.exe` của `imageio-ffmpeg` và đưa thư mục đó vào đầu `PATH` của session khi import, đảm bảo `pydub` và các tiến trình con luôn tìm thấy cả hai.
 - **Prevention**: Luôn đảm bảo cả `ffmpeg` và `ffprobe` đều có mặt đầy đủ trong `PATH` khi làm việc với thư viện xử lý âm thanh trong python (như `pydub`, `librosa`).
 - **Status**: Fixed
+
+---
+
+## [2026-07-10 20:30] - HTTP 401 Unauthorized loops on GET request for templates
+
+- **Type**: Security / UX
+- **Severity**: Medium
+- **File**: `app/main.py:18`
+- **Agent**: Voice
+- **Root Cause**: FastAPI dependency `get_current_user` ném ra ngoại lệ `HTTPException(status_code=401, detail="Not authenticated")` khi người dùng chưa đăng nhập nhưng cố gắng truy cập các trang HTML (ví dụ: `/dubbing/create`). Vì không có exception handler bắt lỗi này để redirect, trình duyệt nhận về JSON lỗi thô 401 Unauthorized dẫn đến việc lặp yêu cầu hoặc không thể chuyển hướng mượt mà đến trang đăng nhập.
+- **Fix Applied**: Thêm một custom exception handler cho `HTTPException` trong `app/main.py`. Nếu gặp mã lỗi 401 và request yêu cầu nhận HTML (`"text/html"` trong Accept header), hệ thống tự động redirect (303 Redirect) về trang đăng nhập `/auth/login` đồng thời xoá cookie `access_token` cũ để tránh lặp vô hạn.
+- **Prevention**: Luôn có cơ chế exception handler để chuyển hướng người dùng từ trang HTML cần đăng nhập về trang Login thay vì trả JSON lỗi thô 401.
+- **Status**: Fixed

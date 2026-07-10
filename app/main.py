@@ -1,8 +1,9 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse, JSONResponse
 from app.config import settings
 from app.database import Base, engine
 from app.routers import public, auth, dashboard, dubbing, admin
@@ -15,6 +16,22 @@ app = FastAPI(
     description="Hệ thống lồng tiếng video hoặc nội dung từ liên kết sang tiếng Việt bằng AI",
     version="1.0.0"
 )
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    """Bắt lỗi HTTPException để tự động chuyển hướng về trang đăng nhập nếu truy cập từ trình duyệt"""
+    if exc.status_code == 401:
+        accept_header = request.headers.get("accept", "")
+        if "text/html" in accept_header:
+            response = RedirectResponse(url="/auth/login", status_code=303)
+            # Xoá cookie access_token bị lỗi/hết hạn để tránh lặp vô hạn
+            response.delete_cookie("access_token")
+            return response
+            
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 # Cấu hình CORS
 app.add_middleware(

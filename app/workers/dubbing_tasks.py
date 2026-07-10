@@ -387,14 +387,23 @@ def run_dubbing_pipeline(job_id: str):
                     if isinstance(voice_config, str):
                         voice_config = json.loads(voice_config)
                     video_context = voice_config.get("video_context", "neutral")
+                    voice_profile = voice_config.get("voice_profile", "auto")
 
                     # Build voice_map for multi-speaker support
                     # User can override via voice_config["speaker_voice_map"]
                     custom_map = voice_config.get("speaker_voice_map", None)
                     if custom_map:
                         voice_map = custom_map
+                    elif voice_profile and voice_profile != "auto":
+                        # Người dùng chọn một giọng cụ thể -> ép tất cả các Speaker dùng chung giọng này
+                        voice_map = {
+                            "Speaker 1": voice_name,
+                            "Speaker 2": voice_name,
+                            "Speaker 3": voice_name,
+                            "Speaker 4": voice_name,
+                        }
                     else:
-                        # Auto-build: Speaker 1 uses chosen voice, Speaker 2 switches gender
+                        # Chế độ tự động ("auto") -> cho phép phân vai nhiều giọng (xen kẽ giới tính)
                         opposite_voice = (
                             "vi-VN-NamMinhNeural" if voice_name == "vi-VN-HoaiMyNeural"
                             else "vi-VN-HoaiMyNeural"
