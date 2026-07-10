@@ -11,7 +11,19 @@ from app.database import get_db
 from app.models.user import User
 
 # Khởi tạo Jinja2 templates
-templates = Jinja2Templates(directory="app/templates")
+class CustomJinja2Templates(Jinja2Templates):
+    def TemplateResponse(self, *args, **kwargs):
+        if args and isinstance(args[0], str):
+            name = args[0]
+            context = args[1] if len(args) > 1 else (kwargs.pop("context", {}) or {})
+            request = context.get("request")
+            new_args = [request, name]
+            new_kwargs = {k: v for k, v in kwargs.items()}
+            new_kwargs["context"] = context
+            return super().TemplateResponse(*new_args, **new_kwargs)
+        return super().TemplateResponse(*args, **kwargs)
+
+templates = CustomJinja2Templates(directory="app/templates")
 templates.env.globals["settings"] = settings
 
 # Cấu hình OAuth2
