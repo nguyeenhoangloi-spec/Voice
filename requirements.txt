@@ -28,6 +28,9 @@ imageio-ffmpeg==0.6.0
 pydub==0.25.1
 soundfile==0.12.1
 librosa==0.10.2
+demucs==4.0.1
+torchaudio==2.11.0
+
 
 # Testing
 pytest==8.2.2

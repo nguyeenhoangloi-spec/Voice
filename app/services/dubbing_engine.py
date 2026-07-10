@@ -1662,6 +1662,82 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
 
 
 
+def separate_vocals(audio_path: str, vocal_path: str, bg_music_path: str, job_id: str) -> bool:
+    """
+    Tách audio thành 2 track: vocal (giọng nói) và bg_music (nhạc nền) sử dụng Demucs.
+    Trả về True nếu tách bằng AI thành công, False nếu sử dụng fallback.
+    """
+    import shutil
+    import subprocess
+    import soundfile as sf
+    from pathlib import Path
+    
+    logger.info(f"Bắt đầu tách vocal/nhạc nền bằng Demucs cho file: {audio_path}")
+    
+    try:
+        from demucs.pretrained import get_model
+        from demucs.apply import apply_model
+        import torch
+        
+        logger.info("Loading Demucs pre-trained model (htdemucs)...")
+        model = get_model('htdemucs')
+        
+        logger.info(f"Loading audio file: {audio_path}")
+        wav_np, sr = sf.read(audio_path)
+        if len(wav_np.shape) == 1:
+            # Mono: (samples,) -> convert to stereo (2, samples) by duplicating channel
+            t = torch.tensor(wav_np, dtype=torch.float32).unsqueeze(0)
+            wav = torch.cat([t, t], dim=0)
+        else:
+            wav = torch.tensor(wav_np.T, dtype=torch.float32)
+            if wav.shape[0] == 1:
+                # Mono: (1, samples) -> stereo (2, samples)
+                wav = torch.cat([wav, wav], dim=0)
+                
+        logger.info(f"Input WAV shape: {wav.shape}, Sample Rate: {sr}")
+        
+        logger.info("Running separation on CPU...")
+        with torch.no_grad():
+            sources = apply_model(model, wav[None], device='cpu')[0]
+            
+        logger.info(f"Output sources shape: {sources.shape}")
+        
+        # stems order: ['drums', 'bass', 'other', 'vocals']
+        vocals_np = sources[3].cpu().numpy()
+        if len(vocals_np.shape) == 2:
+            vocals_np = vocals_np.T
+            
+        bg_tensor = sources[0] + sources[1] + sources[2]
+        bg_np = bg_tensor.cpu().numpy()
+        if len(bg_np.shape) == 2:
+            bg_np = bg_np.T
+            
+        logger.info("Saving separated files using soundfile...")
+        sf.write(vocal_path, vocals_np, sr)
+        sf.write(bg_music_path, bg_np, sr)
+        
+        logger.info("Tách nhạc nền và thoại thành công bằng AI (Demucs).")
+        return True
+        
+    except Exception as e:
+        logger.warning(f"Lỗi khi chạy Demucs AI: {e}. Tiến hành tự động fallback về cơ chế cũ.")
+        try:
+            shutil.copy(audio_path, vocal_path)
+            from app.utils.ffmpeg_utils import get_ffmpeg_path
+            cmd_silence = [
+                get_ffmpeg_path(), "-y", "-f", "lavfi", "-i",
+                "anullsrc=r=44100:cl=stereo", "-t", "1",
+                bg_music_path
+            ]
+            subprocess.run(cmd_silence, capture_output=True)
+            logger.info("Chế độ fallback: Tách thoại hoàn tất bằng cách sao chép file gốc.")
+        except Exception as fallback_err:
+            logger.error(f"Chế độ fallback cũng thất bại: {fallback_err}")
+            
+        return False
+
+
+
 def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                           output_video_path: str, output_audio_path: str,
                           keep_bg_music: bool = True,
@@ -1768,29 +1844,37 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     # Trim back to exact video duration (last segment may have run slightly over)
     mixed_audio = mixed_audio[:video_duration_ms]
 
-    # If keeping background music, try to extract and mix it from original
+    # If keeping background music, try to extract and mix it
     if keep_bg_music:
         try:
-            # Extract original audio from video
-            temp_orig_audio = output_audio_path.replace(".mp3", "_orig_temp.wav")
-            cmd_extract = [
-                ffmpeg, "-y", "-i", video_path,
-                "-vn", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2",
-                temp_orig_audio
-            ]
-            subprocess.run(cmd_extract, capture_output=True)
-
-            if os.path.exists(temp_orig_audio):
-                orig_audio = AudioSegment.from_file(temp_orig_audio)
-                # Apply user-configured volume reduction (default -18dB)
-                # Clamp to safe range: 0dB (full) to -40dB (nearly silent)
+            # Ưu tiên sử dụng track nhạc nền đã được tách thật bằng AI (Demucs) nếu tồn tại và có dung lượng hợp lệ
+            if bg_music_path and os.path.exists(bg_music_path) and os.path.getsize(bg_music_path) > 1000:
+                logger.info(f"Sử dụng nhạc nền đã tách thật bằng AI: {bg_music_path}")
+                bg_audio = AudioSegment.from_file(bg_music_path)
                 volume_reduction = max(-40, min(0, bg_volume_db))
-                orig_audio = orig_audio + volume_reduction  # pydub uses + to add dB offset
-                # Trim or extend to match video duration
-                orig_audio = orig_audio[:video_duration_ms]
-                mixed_audio = mixed_audio.overlay(orig_audio)
-                os.remove(temp_orig_audio)
-                logger.info(f"Mixed original audio as background at {volume_reduction}dB")
+                bg_audio = bg_audio + volume_reduction
+                bg_audio = bg_audio[:video_duration_ms]
+                mixed_audio = mixed_audio.overlay(bg_audio)
+                logger.info(f"Đã trộn nhạc nền tách thật thành công tại {volume_reduction}dB.")
+            else:
+                # Fallback: Trích xuất lại từ video gốc (sẽ dính giọng gốc)
+                logger.warning("Không tìm thấy nhạc nền tách sạch. Fallback trích xuất từ video gốc (dính giọng cũ).")
+                temp_orig_audio = output_audio_path.replace(".mp3", "_orig_temp.wav")
+                cmd_extract = [
+                    ffmpeg, "-y", "-i", video_path,
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2",
+                    temp_orig_audio
+                ]
+                subprocess.run(cmd_extract, capture_output=True)
+    
+                if os.path.exists(temp_orig_audio):
+                    orig_audio = AudioSegment.from_file(temp_orig_audio)
+                    volume_reduction = max(-40, min(0, bg_volume_db))
+                    orig_audio = orig_audio + volume_reduction
+                    orig_audio = orig_audio[:video_duration_ms]
+                    mixed_audio = mixed_audio.overlay(orig_audio)
+                    os.remove(temp_orig_audio)
+                    logger.info(f"Mixed original audio as background at {volume_reduction}dB (fallback)")
         except Exception as e:
             logger.warning(f"Failed to mix background audio: {e}")
 

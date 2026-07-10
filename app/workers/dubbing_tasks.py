@@ -239,19 +239,15 @@ def run_dubbing_pipeline(job_id: str):
                     extract_audio_from_video(source_path, extracted_audio)
                     step_record.log_message = f"Trich xuat audio WAV 16kHz mono thanh cong."
 
-                # ===================== STEP 7: Separate vocals (simplified) =====================
+                # ===================== STEP 7: Separate vocals (Demucs AI) =====================
                 elif step_num == 7:
-                    # In a full implementation, we'd use Demucs or Spleeter for vocal separation
-                    # For now, copy original audio as vocals (TTS will replace it anyway)
-                    shutil.copy(extracted_audio, vocal_audio)
-                    # Create empty bg music placeholder
-                    cmd_silence = [
-                        get_ffmpeg_path(), "-y", "-f", "lavfi", "-i",
-                        "anullsrc=r=44100:cl=stereo", "-t", "1",
-                        bg_music
-                    ]
-                    subprocess.run(cmd_silence, capture_output=True)
-                    step_record.log_message = "Tach loi thoai hoan tat (vocal track isolated)."
+                    from app.services.dubbing_engine import separate_vocals
+                    # Chạy tách nhạc nền bằng Demucs (có tự động fallback bên trong hàm)
+                    real_separation = separate_vocals(extracted_audio, vocal_audio, bg_music, job_id)
+                    if real_separation:
+                        step_record.log_message = "Tach loi thoai va nhac nen thanh cong bang AI (Demucs)."
+                    else:
+                        step_record.log_message = "Demucs khong kha dung. Da su dung phuong an du phong (giu nhac goc co tieng)."
 
                 # ===================== STEP 8: Speech recognition (ASR / Subtitle / OCR) =====================
                 elif step_num == 8:
