@@ -1,5 +1,6 @@
 import socket
 import ipaddress
+import re
 from urllib.parse import urlparse
 
 # Dải IP nội bộ và riêng tư cần chặn
@@ -14,12 +15,30 @@ PRIVATE_NETWORKS = [
     ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
 ]
 
+def extract_clean_url(text: str) -> str:
+    """
+    Trích xuất URL sạch đầu tiên trong văn bản thô (ví dụ văn bản chia sẻ của Douyin/TikTok).
+    Nếu không tìm thấy URL, trả về chính chuỗi văn bản ban đầu (sau khi loại bỏ khoảng trắng).
+    """
+    if not text:
+        return ""
+    # Tìm kiếm URL bắt đầu bằng http:// hoặc https:// (loại bỏ ký tự phi Latinh/tiếng Trung sát sau URL)
+    urls = re.findall(r'https?://[^\s\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+', text)
+    if urls:
+        url = urls[0]
+        # Loại bỏ các ký tự dấu câu thừa ở cuối URL nếu có
+        url = url.rstrip('.,;)]}「」“”\'"')
+        return url
+    return text.strip()
+
 def check_url_safety(url: str) -> tuple[bool, str]:
     """
     Kiểm tra xem URL có hợp lệ và an toàn (chống SSRF) không.
     Trả về (is_safe, error_message).
     """
     try:
+        # Tự động làm sạch và trích xuất URL thực tế
+        url = extract_clean_url(url)
         parsed_url = urlparse(url)
         
         # Chỉ cho phép giao thức http và https

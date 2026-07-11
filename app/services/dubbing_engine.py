@@ -14,6 +14,7 @@ import re
 import json
 import logging
 import tempfile
+import requests
 from pathlib import Path
 
 from app.utils.ffmpeg_utils import get_ffmpeg_path, get_ffprobe_path
@@ -26,8 +27,6 @@ def preprocess_text_for_tts(text: str) -> str:
     Normalize text before feeding to TTS to improve pronunciation accuracy.
     Handles: numbers, currency, units, special characters, foreign proper nouns.
     """
-    import re
-
     if not text or not text.strip():
         return text
 
@@ -364,10 +363,7 @@ def _refine_with_gemini_vision(segments: list, keyframes: dict, api_key: str):
     Requests an 'index' field from Gemini and maps results back to segments based on index.
     This prevents discarding the entire batch if Gemini misses or groups some images.
     """
-    import requests
-    import json
     import base64
-    import re
 
     # Filter segments needing refinement (no translation yet)
     pending = [(i, seg) for i, seg in enumerate(segments) if not seg.get("translation")]
@@ -689,59 +685,59 @@ def ocr_video_subtitles(video_path: str) -> list:
 
 def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     """
-    Transcribe audio using OpenAI Whisper (local model).
+    Transcribe audio using WhisperX (local model with word-level alignment).
     Returns list of segments with start, end, text, speaker.
-    Uses word_timestamps for more accurate timing.
-    Speaker changes are detected via silence gaps > 1.5s.
     """
     from app.utils.ffmpeg_utils import inject_ffmpeg_to_path
     inject_ffmpeg_to_path()
     
-    import whisper
+    import whisperx
     import torch
 
-    # Tự động dò tìm GPU để tăng tốc độ nhận dạng lên 10-20 lần
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # Chuẩn hóa tên model (đảm bảo không bị hoa/thường)
+    # ctranslate2 compute type on Windows/CPU must be float32, cuda can use float16
+    compute_type = "float16" if device == "cuda" else "float32"
+    
     model_name = whisper_model.strip().lower() if whisper_model else "base"
     if model_name not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]:
         model_name = "base"
 
-    logger.info(f"Loading Whisper model ({model_name}) on device: {device}...")
-    model = whisper.load_model(model_name, device=device)
+    logger.info(f"Loading WhisperX model ({model_name}) on device: {device} (compute: {compute_type})...")
+    model = whisperx.load_model(model_name, device, compute_type=compute_type)
 
-    logger.info(f"Transcribing with word_timestamps: {audio_path}")
-    # word_timestamps=True gives per-word timing for much more accurate sync
-    result = model.transcribe(
-        audio_path,
-        language=None,
-        task="transcribe",
-        word_timestamps=True,
-    )
+    logger.info(f"Transcribing audio with WhisperX: {audio_path}")
+    audio = whisperx.load_audio(audio_path)
+    result = model.transcribe(audio, batch_size=16)
+
+    # Align whisper segments for high precision timestamps
+    language_code = result.get("language", "en")
+    logger.info(f"Loading WhisperX alignment model for language: {language_code}...")
+    try:
+        model_a, metadata = whisperx.load_align_model(language_code=language_code, device=device)
+        logger.info("Aligning segments with Wav2Vec2 alignment model...")
+        aligned_result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+        segments_source = aligned_result.get("segments", [])
+    except Exception as e:
+        logger.warning(f"WhisperX alignment failed: {e}. Falling back to unaligned segments.")
+        segments_source = result.get("segments", [])
 
     segments = []
-    for seg in result.get("segments", []):
-        # Use word-level start/end if available for tighter timing
-        words = seg.get("words", [])
-        if words:
-            seg_start = round(words[0]["start"], 3)
-            seg_end   = round(words[-1]["end"], 3)
-        else:
-            seg_start = round(seg["start"], 2)
-            seg_end   = round(seg["end"], 2)
-
+    for seg in segments_source:
+        seg_start = round(seg.get("start", 0.0), 3)
+        seg_end = round(seg.get("end", seg_start + 1.0), 3)
+        
         segments.append({
             "start": seg_start,
             "end": seg_end,
-            "text": seg["text"].strip(),
-            "language": result.get("language", "en"),
+            "text": seg.get("text", "").strip(),
+            "language": language_code,
             "speaker": "Speaker 1",  # will be updated by speaker detection
         })
 
     # Simple speaker change detection based on silence gaps
     segments = _detect_speaker_changes(segments)
 
-    logger.info(f"Transcribed {len(segments)} segments, detected language: {result.get('language')} (device: {device})")
+    logger.info(f"Transcribed {len(segments)} segments with WhisperX, language: {language_code} (device: {device})")
     return _merge_adjacent_segments(segments)
 
 
@@ -801,9 +797,6 @@ def _prescan_video_context(segments: list, api_key: str) -> dict:
     """Pre-scan: Analyze transcript to auto-detect video type, character names,
     and Vietnamese phonetic mappings before translation begins.
     Returns a dict with video_type, characters, and tone info."""
-    import requests
-    import json
-
     # Sample up to 50 segments for analysis (enough to identify characters)
     sample_texts = []
     for seg in segments[:50]:
@@ -897,7 +890,6 @@ def _build_character_map_prompt(prescan: dict) -> str:
 
 def _call_gemini_api_http(prompt: str, api_key: str) -> str:
     """Gọi trực tiếp API REST của Gemini 2.5 Flash bằng thư viện requests"""
-    import requests
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     payload = {
@@ -913,7 +905,6 @@ def _call_gemini_api_http(prompt: str, api_key: str) -> str:
 
 def _call_groq_api_http(prompt: str, api_key: str) -> str:
     """Gọi trực tiếp API tương thích OpenAI của Groq bằng thư viện requests"""
-    import requests
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -932,7 +923,6 @@ def _call_groq_api_http(prompt: str, api_key: str) -> str:
 
 def _call_openrouter_api_http(prompt: str, api_key: str) -> str:
     """Gọi trực tiếp API của OpenRouter bằng thư viện requests"""
-    import requests
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -953,7 +943,6 @@ def _call_openrouter_api_http(prompt: str, api_key: str) -> str:
 
 def _call_github_api_http(prompt: str, api_key: str) -> str:
     """Gọi trực tiếp API GitHub Models bằng thư viện requests"""
-    import requests
     url = "https://models.inference.ai.azure.com/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -972,7 +961,6 @@ def _call_github_api_http(prompt: str, api_key: str) -> str:
 
 def _call_cohere_api_http(prompt: str, api_key: str) -> str:
     """Gọi trực tiếp API của Cohere bằng thư viện requests"""
-    import requests
     url = "https://api.cohere.com/v1/chat"
     headers = {
         "Authorization": f"Bearer {api_key}",

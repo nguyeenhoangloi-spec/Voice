@@ -178,7 +178,41 @@
             <p id="error-msg-detail" style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;"></p>
         </div>
 
-        <!-- Khung kết quả (Chỉ hiển thị khi hoàn thành) -->
+        <!-- Layer 3 Fallback: Upload thủ công khi tự động tải thất bại -->
+        <div id="waiting-upload-card" class="bento-card hidden" style="border-color: rgba(251, 191, 36, 0.35) !important; background: rgba(251, 191, 36, 0.04) !important;">
+            <h3 style="color: #f59e0b; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin: 0;">
+                <i data-lucide="cloud-upload" style="width: 22px; height: 22px;"></i>
+                Không thể tải video Douyin tự động
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; margin: 0;">
+                Hệ thống đã thử tất cả phương pháp (yt-dlp → cobalt.tools) nhưng đều thất bại.<br>
+                <strong style="color: var(--text-primary);">Giải pháp:</strong> Tải video về máy từ
+                <a href="https://snaptik.app" target="_blank" rel="noopener" style="color: #38bdf8;">snaptik.app</a>
+                hoặc <a href="https://ssstik.io" target="_blank" rel="noopener" style="color: #38bdf8;">ssstik.io</a>,
+                sau đó upload file MP4 vào đây để tiếp tục.
+            </p>
+            <div style="margin-top: 8px;">
+                <label
+                    for="fallback-upload-input"
+                    id="fallback-upload-label"
+                    class="btn"
+                    style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; padding: 10px 20px; font-size: 14px; font-weight: 700;"
+                >
+                    <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
+                    Chọn file video MP4 để tiếp tục
+                </label>
+                <input
+                    type="file"
+                    id="fallback-upload-input"
+                    accept=".mp4,.webm,.mkv,.mov,.avi"
+                    class="hidden"
+                    onchange="handleFallbackUpload(this)"
+                >
+                <span id="fallback-upload-status" style="display: none; font-size: 13px; color: var(--text-secondary); margin-left: 12px;"></span>
+            </div>
+        </div>
+
+
         <div id="results-card" class="bento-card hidden" style="gap: var(--space-md);">
             <h2 style="font-size: 18px; font-weight: 800; color: var(--color-success); border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: var(--space-xs); margin: 0; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="party-popper" style="width: 20px; height: 20px; color: var(--color-success);"></i>
@@ -382,10 +416,17 @@
                 statusTitle.style.color = "var(--color-danger)";
                 eventSource.close();
                 clearInterval(timer);
-                
+
                 errorCard.classList.remove("hidden");
                 errorMsgDetail.innerText = data.error_message || "Lỗi không xác định trong quá trình sinh âm thanh hoặc FFmpeg render.";
                 btnRestart.classList.remove("hidden");
+            } else if (data.status === "waiting_upload") {
+                statusTitle.innerText = "⏸ Chờ người dùng upload video thủ công";
+                statusTitle.style.color = "#f59e0b";
+                eventSource.close();
+                clearInterval(timer);
+                document.getElementById("waiting-upload-card").classList.remove("hidden");
+                lucide.createIcons();
             }
 
             // Gọi API status phụ để cập nhật danh sách 20 bước và log
@@ -438,6 +479,13 @@
                 errorCard.classList.remove("hidden");
                 errorMsgDetail.innerText = data.error_message;
                 btnRestart.classList.remove("hidden");
+            } else if (data.status === "waiting_upload") {
+                statusTitle.innerText = "⏸ Chờ upload video thủ công";
+                statusTitle.style.color = "#f59e0b";
+                clearInterval(pollingInterval);
+                clearInterval(timer);
+                document.getElementById("waiting-upload-card").classList.remove("hidden");
+                lucide.createIcons();
             }
             renderStepsAndLogs(data.steps);
         }
@@ -447,6 +495,53 @@
             if (res.ok) {
                 const data = await res.json();
                 renderStepsAndLogs(data.steps);
+            }
+        }
+
+        async function handleFallbackUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const statusSpan = document.getElementById("fallback-upload-status");
+            const label = document.getElementById("fallback-upload-label");
+
+            statusSpan.style.display = "inline";
+            statusSpan.innerText = `⏳ Đang tải lên ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)...`;
+            label.style.opacity = "0.6";
+            label.style.pointerEvents = "none";
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const resp = await fetch(`/dubbing/job/${jobId}/upload-fallback`, {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await resp.json();
+
+                if (resp.ok && result.success) {
+                    statusSpan.innerText = `✅ Upload thành công (${result.file_size_kb} KB). Pipeline đang tiếp tục...`;
+                    statusSpan.style.color = "var(--color-success)";
+                    // Hide the waiting_upload card and reload after 1.5s
+                    setTimeout(() => {
+                        document.getElementById("waiting-upload-card").classList.add("hidden");
+                        document.getElementById("status-title").innerText = "Đang xử lý tiếp...";
+                        document.getElementById("status-title").style.color = "var(--color-primary)";
+                        // Reconnect SSE
+                        location.reload();
+                    }, 1500);
+                } else {
+                    statusSpan.innerText = `❌ Lỗi: ${result.detail || "Upload thất bại"}`;
+                    statusSpan.style.color = "var(--color-danger)";
+                    label.style.opacity = "1";
+                    label.style.pointerEvents = "auto";
+                }
+            } catch (err) {
+                statusSpan.innerText = `❌ Lỗi kết nối: ${err.message}`;
+                statusSpan.style.color = "var(--color-danger)";
+                label.style.opacity = "1";
+                label.style.pointerEvents = "auto";
             }
         }
 

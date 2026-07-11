@@ -14,7 +14,7 @@ from app.database import get_db
 from app.dependencies import templates, get_current_user
 from app.models.job import DubbingJob, JobStep, TranscriptSegment, Export
 from app.schemas.job import LinkCheckRequest, JobCreateRequest, TimelineEditRequest
-from app.services.link_checker import check_url_safety
+from app.services.link_checker import check_url_safety, extract_clean_url
 from app.services.link_adapters import get_adapter_for_url
 from app.services.media_probe import probe_media_file
 
@@ -60,7 +60,7 @@ def get_create_job_page(request: Request, user=Depends(get_current_user)):
 @router.post("/check-link")
 def api_check_link(req: LinkCheckRequest, user=Depends(get_current_user)):
     """API kiểm tra an toàn URL và trích xuất thông tin sơ bộ (Metadata)"""
-    url = req.url
+    url = extract_clean_url(req.url)
     
     # 1. Kiểm tra an toàn chống SSRF
     is_safe, error_msg = check_url_safety(url)
@@ -143,6 +143,90 @@ def api_upload_file(file: UploadFile = File(...), user=Depends(get_current_user)
             detail=f"Lỗi khi xử lý file tải lên: {str(e)}"
         )
 
+@router.post("/job/{job_id}/upload-fallback")
+def api_upload_fallback(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Layer 3 Fallback: Nhận file MP4 thủ công từ người dùng khi job ở trạng thái
+    'waiting_upload' (tức là cả yt-dlp và cobalt.tools đều đã thất bại).
+    Copies file vào source_path và resume pipeline từ Step 4 (Tải nội dung).
+    """
+    job = db.query(DubbingJob).filter(
+        DubbingJob.id == job_id,
+        DubbingJob.user_id == user.id
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ lồng tiếng.")
+
+    if job.status != "waiting_upload":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tác vụ không ở trạng thái chờ upload (hiện tại: {job.status})."
+        )
+
+    # Validate file extension
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    if file_ext not in [".mp4", ".webm", ".mkv", ".mov", ".avi"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Chỉ chấp nhận file video: .mp4, .webm, .mkv, .mov, .avi"
+        )
+
+    # Save uploaded file to temp source path expected by pipeline
+    source_path = str(settings.TEMP_DIR / f"{job_id}_source.mp4")
+    try:
+        with open(source_path, "wb") as f_out:
+            shutil.copyfileobj(file.file, f_out)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi lưu file tải lên: {str(e)}"
+        )
+
+    if not os.path.exists(source_path) or os.path.getsize(source_path) < 1000:
+        raise HTTPException(
+            status_code=400,
+            detail="File tải lên bị rỗng hoặc quá nhỏ. Vui lòng thử lại."
+        )
+
+    file_size_kb = os.path.getsize(source_path) // 1024
+
+    # Update job: override source to use the uploaded file, resume from step 4
+    job.source_type = "upload"
+    job.source_url = source_path  # point to the freshly uploaded file
+    job.status = "processing"
+    job.current_step = 4  # resume at download step (will just copy file now)
+    job.error_message = None
+
+    # Mark step 4 as pending again so it re-runs
+    step4 = db.query(JobStep).filter(
+        JobStep.job_id == job_id,
+        JobStep.step_number == 4
+    ).first()
+    if step4:
+        step4.status = "pending"
+        step4.log_message = f"Nguoi dung da upload thu cong ({file_size_kb} KB). Dang chay lai."
+        step4.completed_at = None
+
+    db.commit()
+    logger.info(f"Job {job_id} resumed from waiting_upload with manual upload ({file_size_kb} KB)")
+
+    # Resume pipeline in background from step 4
+    from app.workers.dubbing_tasks import run_dubbing_pipeline
+    background_tasks.add_task(run_dubbing_pipeline, job_id)
+
+    return {
+        "success": True,
+        "message": f"Đã nhận file ({file_size_kb} KB). Pipeline đang tiếp tục xử lý...",
+        "job_id": job_id,
+        "file_size_kb": file_size_kb
+    }
+
 @router.post("/create")
 def api_create_job(
     req: JobCreateRequest,
@@ -172,7 +256,7 @@ def api_create_job(
     new_job = DubbingJob(
         id=job_id,
         user_id=user.id,
-        source_url=req.source_url,
+        source_url=extract_clean_url(req.source_url),
         source_type=req.source_type,
         status="pending",
         progress_percent=0,
@@ -830,7 +914,6 @@ def pre_generate_all_samples():
     """Hàm chạy ngầm tuần tự sinh trước toàn bộ các file mẫu nghe thử nếu bị thiếu"""
     def _run():
         import time
-        from app.config import settings
         from app.services.dubbing_engine import generate_tts_audio
         
         # Đợi 3 giây cho server uvicorn khởi động ổn định
@@ -879,7 +962,6 @@ def pre_generate_all_samples():
                     logger.warning(f"[Voice Sample Pre-gen] Lỗi sinh mẫu cho {voice_id}: {e}. Cố gắng sinh fallback Edge TTS.")
                     try:
                         import edge_tts
-                        import asyncio
                         
                         if voice_id in ["north_male", "south_male", "charlie", "george", "callum", "will"]:
                             edge_voice = "vi-VN-NamMinhNeural"
@@ -896,6 +978,8 @@ def pre_generate_all_samples():
                         logger.error(f"[Voice Sample Pre-gen] Thất bại hoàn toàn khi sinh mẫu cho {voice_id}: {edge_err}")
 
         logger.info("[Voice Sample Pre-gen] Hoàn thành việc chuẩn bị toàn bộ file mẫu nghe thử!")
+
+    _run()
 
 import threading
 threading.Thread(target=pre_generate_all_samples, daemon=True).start()
