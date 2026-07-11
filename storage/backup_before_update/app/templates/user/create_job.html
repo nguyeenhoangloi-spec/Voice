@@ -1,0 +1,900 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<style>
+    /* CSS Bento Grid & Glassmorphism 2.0 */
+    .bento-card {
+        background: rgba(13, 18, 30, 0.45) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        transition: all var(--transition-normal);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    }
+    
+    :root[data-theme="light"] .bento-card {
+        background: rgba(255, 255, 255, 0.7) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+    }
+
+    .bento-card:hover {
+        border-color: rgba(56, 189, 248, 0.35) !important;
+        box-shadow: 0 12px 40px 0 rgba(56, 189, 248, 0.06), var(--shadow-glow);
+        transform: translateY(-2px);
+    }
+
+    /* Nâng cấp hiệu ứng cho vùng kéo thả */
+    .drop-zone-premium {
+        border: 2px dashed rgba(56, 189, 248, 0.25) !important;
+        background: rgba(56, 189, 248, 0.01) !important;
+        border-radius: var(--radius-lg);
+        padding: 36px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-normal) !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .drop-zone-premium:hover, .drop-zone-premium.drag-over {
+        border-color: var(--color-primary) !important;
+        background: rgba(56, 189, 248, 0.04) !important;
+        transform: scale(0.995);
+    }
+    
+    /* Thiết kế thẻ bước tự động */
+    .step-number-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: var(--radius-full);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+        color: white;
+        font-size: 11px;
+        font-weight: 800;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+    
+    /* Transition mượt mà cho form control */
+    .form-control {
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: rgba(0, 0, 0, 0.2) !important;
+        color: var(--text-primary) !important;
+        border-radius: var(--radius-md) !important;
+        padding: 10px 14px !important;
+        transition: all var(--transition-fast) !important;
+    }
+    
+    :root[data-theme="light"] .form-control {
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .form-control:focus {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+        background-color: rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Shiny gradient button */
+    .shiny-btn {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+        color: white !important;
+        font-weight: 700;
+        border: none !important;
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3) !important;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .shiny-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .shiny-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45) !important;
+    }
+
+    .shiny-btn:hover::before {
+        left: 100%;
+    }
+
+    .shiny-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none !important;
+        background: #334155 !important;
+    }
+
+    /* Info Badge dynamic description */
+    .info-badge-premium {
+        padding: 10px 14px;
+        background: rgba(56,189,248,0.05);
+        border: 1px dashed rgba(56,189,248,0.2);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        color: var(--color-primary);
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        transition: all var(--transition-normal);
+    }
+</style>
+
+<div class="page-header" style="margin-bottom: var(--space-md);">
+    <div>
+        <h1 class="hero-title" style="font-size: 32px; margin-bottom: 6px; background: linear-gradient(to right, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Lồng tiếng tự động AI</h1>
+        <p style="font-size: 15px; color: var(--text-secondary); margin: 0;">Trải nghiệm công nghệ dịch thuật và lồng giọng đa phương tiện thông minh thế hệ mới.</p>
+    </div>
+</div>
+
+<div class="grid-split" style="grid-template-columns: 1.4fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+    <div style="display: flex; flex-direction: column; gap: var(--space-lg);">
+        
+        <!-- Nhập nguồn (Thẻ Bento 1) -->
+        <div class="bento-card">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span class="step-number-badge">1</span> Nhập nguồn nội dung
+            </h2>
+            
+            <div style="display: flex; gap: var(--space-xs); width: 100%;">
+                <div style="position: relative; flex: 1;">
+                    <input type="text" id="source-url" class="form-control" placeholder="Dán link YouTube hoặc đường dẫn media trực tiếp..." style="padding-right: 110px; width: 100%;">
+                    <button id="btn-paste" class="btn btn-secondary hover-scale" style="position: absolute; right: 4px; top: 4px; bottom: 4px; padding: 4px 12px; font-size: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05);" type="button">
+                        <i data-lucide="clipboard" style="width: 14px; height: 14px; margin-right: 2px;"></i> Dán
+                    </button>
+                </div>
+                <button id="btn-check" class="btn btn-primary hover-scale" style="padding: 0 24px;">Kiểm tra</button>
+            </div>
+            
+            <div style="text-align: center; margin: var(--space-2xs) 0; color: var(--text-tertiary); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.8;">Hoặc kéo thả file trực tiếp</div>
+            
+            <div id="drop-zone" class="drop-zone-premium">
+                <i data-lucide="upload-cloud" style="width: 44px; height: 44px; color: var(--color-primary); margin-bottom: var(--space-xs); opacity: 0.85;"></i>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0 0 4px 0;">Kéo và thả tệp video/audio tại đây</h4>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px 0; max-width: 340px; line-height: 1.4;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <button type="button" class="btn btn-secondary hover-scale" style="font-size: 12px; padding: 6px 14px;">Chọn tệp từ máy tính</button>
+                <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+            </div>
+        </div>
+
+        <!-- Cấu hình lồng tiếng (Thẻ Bento 2) -->
+        <div class="bento-card">
+            <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span class="step-number-badge">2</span> Cấu hình lồng tiếng
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md);">
+                <div class="form-group">
+                    <label for="tts-engine" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Công nghệ lồng tiếng (TTS)</label>
+                    <select id="tts-engine" class="form-control">
+                        <option value="edge" selected>Microsoft Edge TTS (Miễn phí)</option>
+                        <option value="vieneu">VieNeu-TTS (Chạy offline, Tiếng Việt chuẩn)</option>
+                        <option value="kokoro">Kokoro AI (Chạy offline, 50 giọng mẫu)</option>
+                        <option value="tiktok">CapCut / TikTok TTS (Giọng viral, miễn phí)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="asr-method" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Phương thức lấy lời thoại</label>
+                    <select id="asr-method" class="form-control" onchange="toggleAsrMethod(this.value)">
+                        <option value="whisper" selected>Nhận diện giọng nói (ASR)</option>
+                        <option value="softsub">Tải phụ đề có sẵn (YouTube CC)</option>
+                        <option value="ocr">Quét chữ trên màn hình (OCR)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="whisper-model-group">
+                    <label for="whisper-model" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Độ chính xác nhận dạng</label>
+                    <select id="whisper-model" class="form-control">
+                        <option value="base" selected>Base (Nhanh - Vừa)</option>
+                        <option value="small">Small (Cân bằng - Tốt)</option>
+                        <option value="medium">Medium (Chậm - Cao)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Dynamic Asr Mode Explanation Card -->
+            <div id="asr-explanation" class="info-badge-premium">
+                <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; color: var(--color-primary);"></i>
+                <span id="asr-explanation-text">Sử dụng AI Whisper nhận diện giọng nói gốc trong video thành văn bản. Khuyên dùng khi video không có phụ đề gốc.</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+                <div class="form-group">
+                    <label for="voice-profile" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Giọng đọc chính (Lồng tiếng)</label>
+                    <select id="voice-profile" class="form-control">
+                        <option value="auto" selected>-- Tự động chọn --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video-context" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Nhịp độ lồng tiếng</label>
+                    <select id="video-context" class="form-control" title="Ảnh hưởng tốc độ đọc SSML">
+                        <option value="neutral" selected>Bình thường</option>
+                        <option value="fast">Nhanh / Hào hứng</option>
+                        <option value="slow">Chậm / Trầm lắng</option>
+                        <option value="teaching">Giảng dạy / Giải thích</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Trường Chủ đề/Tác phẩm Video bổ sung cho Gemini ASR/Translation -->
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="video-topic" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Chủ đề / Tác phẩm của Video (Để AI dịch &amp; phiên âm chuẩn)</label>
+                <input type="text" id="video-topic" class="form-control" placeholder="Ví dụ: Phim hoạt hình Doraemon, Phim rạp Conan, Review phim Harry Potter, Tin tức Apple..." title="Giúp AI nhận diện đúng nhân vật và tự động viết phiên âm tiếng Việt dễ đọc cho bộ đọc AI.">
+            </div>
+
+            <div class="info-badge-premium" style="background: rgba(56,189,248,0.03); border-color: rgba(56,189,248,0.12);">
+                <i data-lucide="users" style="width: 16px; height: 16px; flex-shrink:0; color: var(--color-primary);"></i>
+                <span>Phân vai nhân vật: Hệ thống sẽ tự động phát hiện số lượng người nói và xen kẽ giọng Nam / Nữ phù hợp.</span>
+            </div>
+
+            <!-- Hidden gender selectors for backend compatibility -->
+            <select id="voice-gender" class="form-control" style="display:none;">
+                <option value="male">Giọng Nam</option>
+                <option value="female" selected>Giọng Nữ</option>
+            </select>
+            <select id="voice-region" class="form-control" style="display:none;">
+                <option value="north" selected>Miền Bắc</option>
+                <option value="south">Miền Nam</option>
+            </select>
+
+            <!-- Cấu hình Nâng cao (Thẻ bento con) -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-xs); border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-md);">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="keep-bg-music" checked style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                    Giữ lại nhạc nền &amp; hiệu ứng âm thanh (Audio separation)
+                </label>
+                
+                <!-- Slider âm lượng giọng gốc -->
+                <div id="bg-volume-section" style="padding: var(--space-sm); background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xs);">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">🔊 Âm lượng âm thanh gốc</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="bg-volume-label" style="font-size: 12px; font-weight: 800; color: var(--color-primary);">Nhỏ (-18dB)</span>
+                            <button type="button" onclick="resetBgVolume()" title="Về mặc định (-18dB)" class="btn btn-secondary hover-scale" style="font-size: 10px; padding: 3px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.03);">
+                                ↺ Reset
+                            </button>
+                        </div>
+                    </div>
+                    <input type="range" id="bg-volume" min="-40" max="0" value="-18" step="2" style="width: 100%; accent-color: var(--color-primary); cursor: pointer;" oninput="updateBgVolumeLabel(this.value)">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+                        <span>Tắt hoàn toàn (-40dB)</span>
+                        <span>Đầy đủ (0dB)</span>
+                    </div>
+                </div>
+
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" id="generate-subtitles" checked style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                    Tự động tạo phụ đề tiếng Việt (SRT &amp; VTT)
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-primary); margin-top: 8px;" title="Vẽ một dải đen mờ dưới đáy để che phụ đề tiếng Anh cũ, rồi ghi đè phụ đề tiếng Việt mới lên.">
+                    <input type="checkbox" id="burn-subtitles" style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                    Che phụ đề cũ &amp; Vẽ cứng phụ đề mới vào video (Hardsub)
+                </label>
+            </div>
+            
+            <button id="btn-submit" class="shiny-btn btn" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
+                🚀 Bắt đầu lồng tiếng
+            </button>
+        </div>
+    </div>
+
+    <!-- Cột bên phải: Preview thông tin (Bento Card 3) -->
+    <div id="preview-panel" class="bento-card" style="opacity: 0.5; pointer-events: none; position: sticky; top: var(--space-md);">
+        <h3 style="font-size: 18px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: var(--space-xs); margin: 0; color: var(--text-primary);">Xem trước nội dung</h3>
+        
+        <div id="preview-empty" style="text-align: center; padding: var(--space-xl) 0; color: var(--text-tertiary); display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);">
+            <i data-lucide="video-off" style="width: 44px; height: 44px; opacity: 0.6;"></i>
+            <p style="font-size: 13px; margin: 0; line-height: 1.5; color: var(--text-secondary);">Chưa có nội dung xem trước.<br>Hãy điền URL hoặc tải file để kiểm tra.</p>
+        </div>
+
+        <div id="preview-content" class="hidden" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+            <div id="preview-thumb-container" style="position: relative; width: 100%; border-radius: var(--radius-md); overflow: hidden; background-color: #070a13; aspect-ratio: 16/9; border: 1px solid rgba(255,255,255,0.1);" class="flex-center">
+                <img id="preview-thumb" src="" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+                <div id="preview-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.15); color: white; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 700; font-family: monospace;">00:00</div>
+            </div>
+            
+            <h4 id="preview-title" style="font-size: 15px; font-weight: 800; line-height: 1.4; color: var(--text-primary); margin: 4px 0 0 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">Tiêu đề video</h4>
+            
+            <div style="font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-xs); margin-top: var(--space-2xs);">
+                <div style="display: flex; justify-content: space-between;"><span>Nguồn:</span> <span id="preview-source" style="font-weight: 700; color: var(--color-primary); text-transform: uppercase;">YouTube</span></div>
+                <div id="preview-author-div" style="display: flex; justify-content: space-between;"><span>Tác giả:</span> <span id="preview-author" style="font-weight: 700; color: var(--text-primary);">Uploader</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal xác nhận bắt đầu lồng tiếng -->
+<div id="confirm-modal" class="modal-container">
+    <div class="modal-content glass" style="max-width: 480px; padding: var(--space-xl); gap: var(--space-md); border-color: var(--color-primary); box-shadow: 0 0 35px rgba(56, 189, 248, 0.15); border-radius: var(--radius-lg);">
+        <h3 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="shield-question" style="width: 24px; height: 24px; color: var(--color-primary);"></i>
+            Xác nhận tạo tác vụ
+        </h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Bạn đang chuẩn bị gửi yêu cầu lồng tiếng. Hệ thống sẽ kích hoạt quy trình xử lý tự động bao gồm các bước: tải dữ liệu, trích xuất nhạc nền, dịch thuật lời thoại và ghép luồng âm thanh mới.
+        </p>
+        <div style="font-size: 12px; color: var(--color-warning); background: rgba(251, 191, 36, 0.08); border-left: 3px solid var(--color-warning); padding: 10px 14px; border-radius: var(--radius-sm); margin: 4px 0;">
+            ⚠️ Lưu ý: Đảm bảo bạn có quyền sử dụng hợp pháp đối với liên kết hoặc tệp tin đa phương tiện này.
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-sm); margin-top: var(--space-sm);">
+            <button id="modal-cancel" class="btn btn-secondary hover-scale" style="padding: 10px 20px;">Hủy bỏ</button>
+            <button id="modal-confirm" class="btn btn-primary hover-scale" style="padding: 10px 24px;">Xác nhận &amp; Bắt đầu</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* CSS Drop-zone Premium */
+    .drop-zone-premium {
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl) var(--space-md);
+        text-align: center;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.08);
+        transition: all var(--transition-normal);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    :root[data-theme="light"] .drop-zone-premium {
+        background: rgba(255, 255, 255, 0.4);
+    }
+    
+    .drop-zone-premium:hover {
+        border-color: var(--color-primary);
+        background: rgba(56, 189, 248, 0.04);
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.05);
+    }
+    
+    /* Animation quay cho SVG */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Cấu hình danh sách đầy đủ các giọng đọc của engine
+        const ttsEngineSelect = document.getElementById("tts-engine");
+        const voiceGenderSelect = document.getElementById("voice-gender");
+        const voiceRegionSelect = document.getElementById("voice-region");
+        const voiceRegionWrapper = document.getElementById("voice-region-wrapper");
+                const voiceProfileSelect = document.getElementById("voice-profile");
+        
+        const voicesConfig = {
+            edge: [
+                { value: "vi-VN-HoaiMyNeural", gender: "female", region: "north", text: "Microsoft Edge Nữ (Hoài My - Neural)" },
+                { value: "vi-VN-NamMinhNeural", gender: "male", region: "north", text: "Microsoft Edge Nam (Nam Minh - Neural)" }
+            ],
+            kokoro: [
+                // American English
+                { value: "af_heart", gender: "female", region: "us", text: "Kokoro Heart (Nữ Mỹ)" },
+                { value: "af_bella", gender: "female", region: "us", text: "Kokoro Bella (Nữ Mỹ)" },
+                { value: "af_sarah", gender: "female", region: "us", text: "Kokoro Sarah (Nữ Mỹ)" },
+                { value: "af_alloy", gender: "female", region: "us", text: "Kokoro Alloy (Nữ Mỹ)" },
+                { value: "af_aoede", gender: "female", region: "us", text: "Kokoro Aoede (Nữ Mỹ)" },
+                { value: "af_jessica", gender: "female", region: "us", text: "Kokoro Jessica (Nữ Mỹ)" },
+                { value: "af_kore", gender: "female", region: "us", text: "Kokoro Kore (Nữ Mỹ)" },
+                { value: "af_nicole", gender: "female", region: "us", text: "Kokoro Nicole (Nữ Mỹ)" },
+                { value: "af_nova", gender: "female", region: "us", text: "Kokoro Nova (Nữ Mỹ)" },
+                { value: "af_river", gender: "female", region: "us", text: "Kokoro River (Nữ Mỹ)" },
+                { value: "af_sky", gender: "female", region: "us", text: "Kokoro Sky (Nữ Mỹ)" },
+                { value: "am_adam", gender: "male", region: "us", text: "Kokoro Adam (Nam Mỹ)" },
+                { value: "am_echo", gender: "male", region: "us", text: "Kokoro Echo (Nam Mỹ)" },
+                { value: "am_eric", gender: "male", region: "us", text: "Kokoro Eric (Nam Mỹ)" },
+                { value: "am_fenrir", gender: "male", region: "us", text: "Kokoro Fenrir (Nam Mỹ)" },
+                { value: "am_liam", gender: "male", region: "us", text: "Kokoro Liam (Nam Mỹ)" },
+                { value: "am_michael", gender: "male", region: "us", text: "Kokoro Michael (Nam Mỹ)" },
+                { value: "am_onyx", gender: "male", region: "us", text: "Kokoro Onyx (Nam Mỹ)" },
+                { value: "am_puck", gender: "male", region: "us", text: "Kokoro Puck (Nam Mỹ)" },
+                { value: "am_santa", gender: "male", region: "us", text: "Kokoro Santa (Nam Mỹ)" },
+                // British English
+                { value: "bf_alice", gender: "female", region: "uk", text: "Kokoro Alice (Nữ Anh)" },
+                { value: "bf_emma", gender: "female", region: "uk", text: "Kokoro Emma (Nữ Anh)" },
+                { value: "bf_isabella", gender: "female", region: "uk", text: "Kokoro Isabella (Nữ Anh)" },
+                { value: "bf_lily", gender: "female", region: "uk", text: "Kokoro Lily (Nữ Anh)" },
+                { value: "bm_daniel", gender: "male", region: "uk", text: "Kokoro Daniel (Nam Anh)" },
+                { value: "bm_fable", gender: "male", region: "uk", text: "Kokoro Fable (Nam Anh)" },
+                { value: "bm_george", gender: "male", region: "uk", text: "Kokoro George (Nam Anh)" },
+                { value: "bm_lewis", gender: "male", region: "uk", text: "Kokoro Lewis (Nam Anh)" },
+                // Spanish
+                { value: "ef_dora", gender: "female", region: "es", text: "Kokoro Dora (Nữ TBN)" },
+                { value: "em_alex", gender: "male", region: "es", text: "Kokoro Alex (Nam TBN)" },
+                { value: "em_santa", gender: "male", region: "es", text: "Kokoro Santa (Nam TBN)" },
+                // French
+                { value: "ff_siwis", gender: "female", region: "fr", text: "Kokoro Siwis (Nữ Pháp)" },
+                // Hindi
+                { value: "hf_alpha", gender: "female", region: "in", text: "Kokoro Alpha (Nữ Ấn)" },
+                { value: "hf_beta", gender: "female", region: "in", text: "Kokoro Beta (Nữ Ấn)" },
+                { value: "hm_omega", gender: "male", region: "in", text: "Kokoro Omega (Nam Ấn)" },
+                { value: "hm_psi", gender: "male", region: "in", text: "Kokoro Psi (Nam Ấn)" },
+                // Italian
+                { value: "if_sara", gender: "female", region: "it", text: "Kokoro Sara (Nữ Ý)" },
+                { value: "im_nicola", gender: "male", region: "it", text: "Kokoro Nicola (Nam Ý)" },
+                // Portuguese
+                { value: "pf_dora", gender: "female", region: "pt", text: "Kokoro Dora (Nữ BĐN)" },
+                { value: "pm_alex", gender: "male", region: "pt", text: "Kokoro Alex (Nam BĐN)" },
+                { value: "pm_santa", gender: "male", region: "pt", text: "Kokoro Santa (Nam BĐN)" },
+                // Japanese
+                { value: "jf_alpha", gender: "female", region: "jp", text: "Kokoro Alpha (Nữ Nhật)" },
+                { value: "jf_gongitsune", gender: "female", region: "jp", text: "Kokoro Gongitsune (Nữ Nhật)" },
+                { value: "jf_nezumi", gender: "female", region: "jp", text: "Kokoro Nezumi (Nữ Nhật)" },
+                { value: "jf_tebukuro", gender: "female", region: "jp", text: "Kokoro Tebukuro (Nữ Nhật)" },
+                { value: "jm_kumo", gender: "male", region: "jp", text: "Kokoro Kumo (Nam Nhật)" },
+                // Chinese
+                { value: "zf_xiaobei", gender: "female", region: "cn", text: "Kokoro Xiaobei (Nữ Trung)" },
+                { value: "zf_xiaoni", gender: "female", region: "cn", text: "Kokoro Xiaoni (Nữ Trung)" },
+                { value: "zf_xiaoxiao", gender: "female", region: "cn", text: "Kokoro Xiaoxiao (Nữ Trung)" },
+                { value: "zf_xiaoyi", gender: "female", region: "cn", text: "Kokoro Xiaoyi (Nữ Trung)" }
+            ],
+            vieneu: [
+                { value: "vieneu_Trúc Ly", gender: "female", region: "north", text: "VieNeu Trúc Ly (Nữ - Bắc)" },
+                { value: "vieneu_Phạm Tuyên", gender: "male", region: "north", text: "VieNeu Phạm Tuyên (Nam - Bắc)" },
+                { value: "vieneu_Thái Sơn", gender: "male", region: "south", text: "VieNeu Thái Sơn (Nam - Nam)" },
+                { value: "vieneu_Xuân Vĩnh", gender: "male", region: "south", text: "VieNeu Xuân Vĩnh (Nam - Nam)" },
+                { value: "vieneu_Thanh Bình", gender: "male", region: "north", text: "VieNeu Thanh Bình (Nam - Bắc)" },
+                { value: "vieneu_Minh Đức", gender: "male", region: "north", text: "VieNeu Minh Đức (Nam - Bắc)" },
+                { value: "vieneu_Ngọc Linh", gender: "female", region: "north", text: "VieNeu Ngọc Linh (Nữ - Bắc)" },
+                { value: "vieneu_Đoan Trang", gender: "female", region: "north", text: "VieNeu Đoan Trang (Nữ - Bắc)" },
+                { value: "vieneu_Mai Anh", gender: "female", region: "north", text: "VieNeu Mai Anh (Nữ - Bắc)" },
+                { value: "vieneu_Thục Đoan", gender: "female", region: "south", text: "VieNeu Thục Đoan (Nữ - Nam)" },
+                { value: "vieneu_Minh Triết", gender: "male", region: "south", text: "VieNeu Minh Triết (Nam - Nam)" },
+                { value: "vieneu_Thùy Dung", gender: "female", region: "south", text: "VieNeu Thùy Dung (Nữ - Nam)" },
+                { value: "vieneu_Quang Sơn", gender: "male", region: "central", text: "VieNeu Quang Sơn (Nam - Trung)" },
+                { value: "vieneu_Ngọc Trân", gender: "female", region: "central", text: "VieNeu Ngọc Trân (Nữ - Trung)" }
+            ],
+            tiktok: [
+                { value: "vi_vn_002", gender: "female", region: "vietnam", text: "Cô Gái Hoạt Ngôn (CapCut Việt)" },
+                { value: "vi_vn_001", gender: "male", region: "vietnam", text: "Chàng Trai Kể Chuyện (CapCut Việt)" },
+                { value: "en_us_001", gender: "female", region: "us", text: "CapCut Nữ (Mỹ)" },
+                { value: "en_us_006", gender: "male", region: "us", text: "CapCut Nam (Mỹ)" },
+                { value: "en_us_ghostface", gender: "male", region: "us", text: "CapCut Ghostface (Scream)" }
+            ]
+        };
+
+        // 1. Load tất cả giọng đọc khả dụng vào dropdown
+        function initVoiceProfileDropdown() {
+            voiceProfileSelect.innerHTML = '<option value="auto">-- Tự động chọn (Theo giới tính) --</option>';
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
+            engineVoices.forEach(voice => {
+                const opt = document.createElement("option");
+                opt.value = voice.value;
+                opt.textContent = voice.text;
+                voiceProfileSelect.appendChild(opt);
+            });
+            // Giữ "auto" làm mặc định — user tự chọn giọng cụ thể nếu muốn
+        }
+
+        // Lắng nghe thay đổi TTS Engine để reload voices
+        ttsEngineSelect.addEventListener("change", () => {
+            initVoiceProfileDropdown();
+            syncFromFilters();
+        });
+
+        // Flag để tránh vòng lặp kích hoạt lẫn nhau
+        let isSyncing = false;
+
+        // 2. Chiều DƯỚI → TRÊN: Chọn giọng cụ thể → cập nhật Giới tính cho khớp
+        voiceProfileSelect.addEventListener("change", () => {
+            if (isSyncing) return;
+            const val = voiceProfileSelect.value;
+            if (val === "auto") return;
+
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
+            const matchedVoice = engineVoices.find(v => v.value === val);
+
+            if (matchedVoice) {
+                isSyncing = true;
+                voiceGenderSelect.value = matchedVoice.gender;
+                isSyncing = false;
+            }
+        });
+
+        // 3. Chiều TRÊN → DƯỚI: Đổi Giới tính → tự động chọn giọng phù hợp nhất ở dưới
+        function syncFromFilters() {
+            if (isSyncing) return;
+            const selectedGender = voiceGenderSelect.value;
+            const engine = ttsEngineSelect.value;
+            const engineVoices = voicesConfig[engine.toLowerCase()] || [];
+
+            // Tìm giọng khớp gender
+            const bestMatch = engineVoices.find(v =>
+                (selectedGender === "all" || v.gender === selectedGender)
+            );
+
+            isSyncing = true;
+            if (bestMatch) {
+                voiceProfileSelect.value = bestMatch.value;
+            } else {
+                // Không tìm thấy → fallback về auto
+                voiceProfileSelect.value = "auto";
+            }
+            isSyncing = false;
+        }
+
+        voiceGenderSelect.addEventListener("change", syncFromFilters);
+
+        // Khởi động
+        initVoiceProfileDropdown();
+        // Sync lần đầu để chọn sẵn giọng mặc định phù hợp
+        syncFromFilters();
+
+
+
+        const btnPaste = document.getElementById("btn-paste");
+
+        const btnCheck = document.getElementById("btn-check");
+        const btnSubmit = document.getElementById("btn-submit");
+        const sourceUrl = document.getElementById("source-url");
+        
+        const previewPanel = document.getElementById("preview-panel");
+        const previewEmpty = document.getElementById("preview-empty");
+        const previewContent = document.getElementById("preview-content");
+        const previewThumb = document.getElementById("preview-thumb");
+        const previewDuration = document.getElementById("preview-duration");
+        const previewTitle = document.getElementById("preview-title");
+        const previewSource = document.getElementById("preview-source");
+        const previewAuthor = document.getElementById("preview-author");
+        
+        const confirmModal = document.getElementById("confirm-modal");
+        const modalCancel = document.getElementById("modal-cancel");
+        const modalConfirm = document.getElementById("modal-confirm");
+        
+        let checkedData = null;
+
+        // 1. Tương tác với clipboard (Dán liên kết)
+        if (btnPaste) {
+            btnPaste.addEventListener("click", async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    sourceUrl.value = text;
+                    showToast("Đã dán liên kết từ bộ nhớ tạm!", "success");
+                    // Tự động kiểm tra liên kết sau khi dán
+                    btnCheck.click();
+                } catch (err) {
+                    showToast("Không thể đọc clipboard. Vui lòng cấp quyền hoặc dán thủ công.", "warning");
+                }
+            });
+        }
+
+        // Bắt sự kiện phím tắt paste (Ctrl + V)
+        sourceUrl.addEventListener("paste", () => {
+            // Đợi input nhận giá trị rồi bấm check
+            setTimeout(() => btnCheck.click(), 100);
+        });
+
+        // 2. Gọi API kiểm tra liên kết
+        btnCheck.addEventListener("click", async () => {
+            const url = sourceUrl.value.trim();
+            if (!url) {
+                showToast("Vui lòng nhập liên kết hợp lệ.", "warning");
+                return;
+            }
+
+            btnCheck.innerHTML = `<span class="flex-center" style="gap: 6px;"><svg class="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Đang quét...</span>`;
+            btnCheck.disabled = true;
+
+            try {
+                const response = await fetch("/dubbing/check-link", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const resData = await response.json();
+                
+                if (response.ok && resData.success) {
+                    checkedData = resData.data;
+                    
+                    // Hiển thị panel preview
+                    previewEmpty.classList.add("hidden");
+                    previewContent.classList.remove("hidden");
+                    previewPanel.style.opacity = "1";
+                    previewPanel.style.pointerEvents = "auto";
+                    
+                    // Gán các giá trị preview
+                    previewTitle.innerText = checkedData.title;
+                    previewSource.innerText = checkedData.source.toUpperCase();
+                    previewThumb.src = checkedData.thumbnail || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60";
+                    
+                    if (checkedData.author) {
+                        document.getElementById("preview-author-div").style.display = "block";
+                        previewAuthor.innerText = checkedData.author;
+                    } else {
+                        document.getElementById("preview-author-div").style.display = "none";
+                    }
+
+                    // Format duration (hh:mm:ss)
+                    const secs = checkedData.duration;
+                    const h = Math.floor(secs / 3600);
+                    const m = Math.floor((secs % 3600) / 60);
+                    const s = Math.floor(secs % 60);
+                    previewDuration.innerText = [
+                        h > 0 ? h : null,
+                        m.toString().padStart(2, '0'),
+                        s.toString().padStart(2, '0')
+                    ].filter(Boolean).join(':');
+
+                    btnSubmit.disabled = false;
+                    showToast("Liên kết được hỗ trợ và sẵn sàng lồng tiếng!", "success");
+                } else {
+                    showToast(resData.error || "Liên kết không hợp lệ hoặc không an toàn.", "danger");
+                    resetPreview();
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối với server kiểm tra link.", "danger");
+                resetPreview();
+            } finally {
+                btnCheck.innerHTML = "Kiểm tra";
+                btnCheck.disabled = false;
+            }
+        });
+
+        // Kéo thả file upload
+        const dropZone = document.getElementById("drop-zone");
+        const fileInput = document.getElementById("file-input");
+        
+        dropZone.addEventListener("click", () => fileInput.click());
+        
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "var(--color-primary)";
+            dropZone.style.background = "var(--bg-tertiary)";
+        });
+        
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.style.borderColor = "var(--border-color)";
+            dropZone.style.background = "transparent";
+        });
+        
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "var(--border-color)";
+            dropZone.style.background = "transparent";
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const maxMB = parseInt("{{ settings.MAX_UPLOAD_SIZE_MB }}");
+            if (file.size > maxMB * 1024 * 1024) {
+                showToast(`Kích thước file vượt quá giới hạn ${maxMB} MB.`, "danger");
+                return;
+            }
+            
+            // Show upload loading indicator
+            dropZone.innerHTML = `
+                <div class="flex-center" style="flex-direction: column; gap: var(--space-xs);">
+                    <svg class="animate-spin" width="32" height="32" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <h4 style="font-size: 14px;">Đang tải tệp lên server...</h4>
+                </div>
+            `;
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            try {
+                const response = await fetch("/dubbing/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                
+                const resData = await response.json();
+                if (response.ok && resData.success) {
+                    checkedData = {
+                        title: file.name,
+                        source: "file_upload",
+                        thumbnail: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60",
+                        duration: resData.duration,
+                        author: "Local Upload",
+                        filepath: resData.filepath
+                    };
+
+                    previewEmpty.classList.add("hidden");
+                    previewContent.classList.remove("hidden");
+                    previewPanel.style.opacity = "1";
+                    previewPanel.style.pointerEvents = "auto";
+                    
+                    previewTitle.innerText = checkedData.title;
+                    previewSource.innerText = "LOCAL FILE";
+                    previewThumb.src = checkedData.thumbnail;
+                    
+                    // format duration
+                    const secs = checkedData.duration;
+                    const m = Math.floor(secs / 60);
+                    const s = Math.floor(secs % 60);
+                    previewDuration.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                    
+                    document.getElementById("preview-author-div").style.display = "block";
+                    previewAuthor.innerText = checkedData.author;
+                    
+                    btnSubmit.disabled = false;
+                    showToast("Tải tệp lên thành công và sẵn sàng lồng tiếng!", "success");
+                } else {
+                    showToast(resData.detail || "Không thể xử lý tệp tin tải lên.", "danger");
+                    resetUploadZone();
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối khi tải tệp lên.", "danger");
+                resetUploadZone();
+            }
+        }
+
+        function resetUploadZone() {
+            resetPreview();
+            dropZone.innerHTML = `
+                <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--text-tertiary); margin-bottom: var(--space-xs);"></i>
+                <h4 style="font-size: 15px; font-weight: 600;">Chọn tệp video hoặc âm thanh của bạn</h4>
+                <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">Hỗ trợ MP4, WebM, MP3, WAV (Tối đa {{ settings.MAX_UPLOAD_SIZE_MB }} MB, thời lượng tối đa {{ settings.MAX_VIDEO_DURATION_MINUTES }} phút)</p>
+                <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+            `;
+            if (typeof lucide !== "undefined") {
+                lucide.createIcons();
+            }
+        }
+
+        function resetPreview() {
+            checkedData = null;
+            btnSubmit.disabled = true;
+            previewEmpty.classList.remove("hidden");
+            previewContent.classList.add("hidden");
+            previewPanel.style.opacity = "0.6";
+            previewPanel.style.pointerEvents = "none";
+        }
+
+        // 3. Popup Xác nhận & Gửi lồng tiếng
+        btnSubmit.addEventListener("click", () => {
+            confirmModal.classList.add("active");
+        });
+        
+        modalCancel.addEventListener("click", () => {
+            confirmModal.classList.remove("active");
+        });
+        
+        modalConfirm.addEventListener("click", async () => {
+            confirmModal.classList.remove("active");
+            
+            // Ở Giai đoạn 1/2, chúng ta giả lập phản hồi thành công và chuyển hướng về dashboard
+            showToast("Đang tạo tác vụ lồng tiếng...", "info");
+            
+            try {
+                const response = await fetch("/dubbing/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        source_url: checkedData.source === "file_upload" ? checkedData.filepath : sourceUrl.value.trim(),
+                        source_type: checkedData.source === "file_upload" ? "upload" : "link",
+                        title: checkedData.title,
+                        duration: checkedData.duration,
+                        thumbnail: checkedData.thumbnail,
+                        voice_gender: document.getElementById("voice-gender").value,
+                        voice_region: document.getElementById("voice-region").value,
+                        voice_profile: document.getElementById("voice-profile").value,
+                        keep_bg_music: document.getElementById("keep-bg-music").checked,
+                        bg_volume_db: parseInt(document.getElementById("bg-volume").value),
+                        generate_subtitles: document.getElementById("generate-subtitles").checked,
+                        burn_subtitles: document.getElementById("burn-subtitles").checked,
+                        video_context: document.getElementById("video-context").value,
+                        video_topic: document.getElementById("video-topic").value.trim(),
+                        whisper_model: document.getElementById("whisper-model").value,
+                        asr_method: document.getElementById("asr-method").value
+                    })
+
+                });
+                
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showToast("Tác vụ lồng tiếng đã được tạo thành công!", "success");
+                    // Chuyển hướng đến trang theo dõi tiến trình
+                    setTimeout(() => {
+                        window.location.href = `/dubbing/job/${result.job_id}`;
+                    }, 1000);
+                } else {
+                    showToast(result.error || "Không thể tạo tác vụ.", "danger");
+                }
+            } catch (err) {
+                showToast("Lỗi kết nối khi gửi tác vụ.", "danger");
+            }
+        });
+    });
+
+    // Đồng bộ checkbox burn_subtitles và generate_subtitles
+    document.getElementById("burn-subtitles").addEventListener("change", function() {
+        if (this.checked) {
+            document.getElementById("generate-subtitles").checked = true;
+        }
+    });
+
+    // Toggle Asr Method to hide/show Whisper settings and update explanations
+    function toggleAsrMethod(val) {
+        const group = document.getElementById("whisper-model-group");
+        const expText = document.getElementById("asr-explanation-text");
+        
+        if (val === "whisper") {
+            group.style.display = "block";
+            expText.textContent = "Sử dụng AI Whisper nhận diện giọng nói gốc trong video thành văn bản. Khuyên dùng khi video không có phụ đề gốc.";
+        } else if (val === "softsub") {
+            group.style.display = "none";
+            expText.textContent = "Tải trực tiếp phụ đề tiếng Anh có sẵn của video YouTube. Khớp thời lượng 100%, tốc độ xử lý nhanh và độ chính xác tuyệt đối.";
+        } else if (val === "ocr") {
+            group.style.display = "none";
+            expText.textContent = "Sử dụng mô hình EasyOCR quét và nhận diện chữ phụ đề hiển thị trực tiếp trên khung hình video. Khuyên dùng cho video chèn cứng sub.";
+        }
+    }
+
+    // Update bg volume label realtime
+    function updateBgVolumeLabel(val) {
+        const v = parseInt(val);
+        const label = document.getElementById('bg-volume-label');
+        if (v === 0)        label.textContent = 'Toàn bộ (0dB)';
+        else if (v >= -6)   label.textContent = `To (${v}dB)`;
+        else if (v >= -18)  label.textContent = `Nhỏ (${v}dB)`;
+        else if (v >= -30)  label.textContent = `Rất nhỏ (${v}dB)`;
+        else                label.textContent = `Gần tắt (${v}dB)`;
+    }
+
+    // Reset slider về mặc định -18dB
+    function resetBgVolume() {
+        const slider = document.getElementById('bg-volume');
+        slider.value = -18;
+        updateBgVolumeLabel(-18);
+    }
+
+    // Show/hide slider when checkbox toggled
+    document.getElementById('keep-bg-music').addEventListener('change', function() {
+        const section = document.getElementById('bg-volume-section');
+        section.style.display = this.checked ? 'block' : 'none';
+    });
+</script>
+
+<style>
+    /* Quay vòng quay CSS */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+

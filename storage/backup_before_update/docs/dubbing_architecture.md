@@ -24,20 +24,6 @@ graph TD
 
 ## ⚡ 2. Các Cơ Chế Cải Tiến Cốt Lõi
 
-### 2.0. Luồng xử lý link Douyin
-
-Khi người dùng dán link Douyin, hệ thống không phụ thuộc duy nhất vào
-metadata của yt-dlp. Adapter thực hiện theo thứ tự:
-
-1. Chuẩn hóa link rút gọn nhưng vẫn giữ link gốc nếu Douyin không cho chuyển hướng.
-2. Thử endpoint chi tiết công khai của Douyin để lấy URL media trực tiếp.
-3. Thử yt-dlp với cookies.txt, mobile user-agent và các cấu hình dự phòng.
-4. Thử cobalt.tools nếu hai lớp trên bị chặn.
-
-Metadata chỉ dùng để tạo phần xem trước. Nếu Douyin yêu cầu cookie và chưa lấy
-được metadata, người dùng vẫn có thể tạo tác vụ; lỗi thật sẽ được xử lý ở bước
-4 (Tải nội dung), tránh việc nút lồng tiếng bị khóa ngay từ bước kiểm tra link.
-
 ### 2.1. Cơ Chế Chịu Lỗi Lớp 2 (Fault-Tolerant Index Mapping)
 - **Tập tin liên quan**: `_refine_with_gemini_vision` trong [dubbing_engine.py](file:///d:/Voice_AI/app/services/dubbing_engine.py).
 - **Nguyên lý hoạt động**: Khi gửi lô 10 ảnh lên Gemini Vision, prompt yêu cầu trả về mảng JSON chứa trường `"index"` (từ `0` đến `9`). Sau đó, code tạo một dictionary map dựa trên trường `"index"` để cập nhật trực tiếp vào segment tương ứng. 

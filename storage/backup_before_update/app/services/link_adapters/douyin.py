@@ -51,18 +51,15 @@ def normalize_douyin_url(url: str) -> str:
     để yt-dlp nhận diện chính xác và tránh lỗi "Unsupported URL".
     """
     try:
-        url = (url or "").strip()
-        # 1. Theo vết chuyển hướng nếu là link rút gọn v.douyin.com.
-        # Không ép mọi link về www.douyin.com/video/{id}: Douyin thường thay
-        # đổi cơ chế chống bot và link rút gọn đôi khi chỉ hoạt động ở dạng gốc.
+        # 1. Theo vết chuyển hướng nếu là link rút gọn v.douyin.com
         if "v.douyin.com" in url:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Referer': 'https://www.douyin.com/',
             }
             # Sử dụng requests.head hoặc requests.get để lấy URL thật
-            r = requests.get(url, allow_redirects=True, headers=headers, timeout=8, stream=True)
-            url = r.url or url
+            r = requests.head(url, allow_redirects=True, headers=headers, timeout=5)
+            url = r.url
             logger.info(f"Redirected v.douyin.com to: {url}")
 
         # 2. Tìm ID video trong URL thực tế
@@ -80,190 +77,165 @@ def normalize_douyin_url(url: str) -> str:
     return url
 
 
-def _extract_douyin_id(url: str) -> str | None:
-    """Extract an aweme/video id from both short and full Douyin URLs."""
-    match = re.search(r"(?:video|note|share/video|item)/(\d{8,})", url or "")
-    return match.group(1) if match else None
+# ---------------------------------------------------------------------------
+# Layer 2: Third-party API fallback helpers
+# Tries multiple public APIs in sequence until one works.
+# ---------------------------------------------------------------------------
 
-
-def _douyin_api_headers() -> dict:
-    return {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.douyin.com/",
-        "Origin": "https://www.douyin.com",
-    }
-
-
-def _api_extract_media(url: str) -> dict | None:
-    """Read Douyin's public detail endpoint as a downloader fallback.
-
-    yt-dlp can fail when Douyin changes its web extractor or requests fresh
-    cookies. The detail response still commonly contains a playable mp4 URL.
+def _try_tikwm_api(url: str, output_path: str | None = None) -> dict | None:
     """
-    video_id = _extract_douyin_id(url)
-    if not video_id:
-        return None
-    endpoint = "https://www.douyin.com/aweme/v1/web/aweme/detail/"
+    tikwm.com API — public, free, no key, supports Douyin/TikTok.
+    Returns metadata dict or downloads file to output_path.
+    API docs: https://tikwm.com/
+    """
     try:
-        response = requests.get(
-            endpoint,
-            params={"aweme_id": video_id, "aid": "6383", "version_name": "23.5.0"},
-            headers=_douyin_api_headers(),
-            timeout=15,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        detail = payload.get("aweme_detail") or payload.get("data", {}).get("aweme_detail")
-        if not detail:
+        api_url = "https://www.tikwm.com/api/"
+        payload = {"url": url, "hd": 1}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://www.tikwm.com/",
+        }
+        resp = requests.post(api_url, data=payload, headers=headers, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"tikwm.com returned HTTP {resp.status_code}")
             return None
-        video = detail.get("video") or {}
-        play_addr = video.get("play_addr") or video.get("download_addr") or {}
-        urls = play_addr.get("url_list") or []
-        direct_url = next((item for item in urls if item), None)
+
+        data = resp.json()
+        if data.get("code") != 0:
+            logger.warning(f"tikwm.com error: {data.get('msg')}")
+            return None
+
+        video_data = data.get("data", {})
+        if not video_data:
+            return None
+
+        # Pick best video URL (HD > play > wmplay)
+        direct_url = (
+            video_data.get("hdplay")
+            or video_data.get("play")
+            or video_data.get("wmplay")
+        )
         if not direct_url:
             return None
+
+        logger.info(f"tikwm.com API success. Video URL: {direct_url[:60]}...")
+
+        # Download mode
+        if output_path is not None:
+            with requests.get(direct_url, stream=True, timeout=120, allow_redirects=True,
+                              headers={"Referer": "https://www.tikwm.com/"}) as r:
+                r.raise_for_status()
+                with open(output_path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
+            if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+                raise FileNotFoundError("tikwm.com download produced empty file")
+            logger.info(f"tikwm.com download OK: {os.path.getsize(output_path) // 1024} KB")
+            return {"downloaded": True, "path": output_path}
+
+        # Metadata mode
         return {
-            "direct_url": direct_url,
-            "title": detail.get("desc") or "Douyin Video",
-            "thumbnail": (video.get("cover") or {}).get("url_list", [""])[0],
-            "duration": (video.get("duration") or 0) / 1000,
-            "author": (detail.get("author") or {}).get("nickname") or "Unknown",
+            "success": True,
+            "title": video_data.get("title", "Douyin Video"),
+            "thumbnail": video_data.get("cover", ""),
+            "duration": video_data.get("duration", 0),
+            "source": "douyin",
+            "author": (video_data.get("author") or {}).get("nickname", "Unknown"),
+            "description": video_data.get("title", "")[:200],
         }
-    except Exception as exc:
-        logger.warning("Douyin detail API failed: %s", exc)
-        return None
 
-
-def _download_direct_media(direct_url: str, output_path: str) -> str:
-    """Download a direct Douyin media URL atomically and validate its size."""
-    partial_path = output_path + ".part"
-    try:
-        with requests.get(
-            direct_url,
-            headers=_douyin_api_headers(),
-            stream=True,
-            timeout=(15, 180),
-            allow_redirects=True,
-        ) as response:
-            response.raise_for_status()
-            with open(partial_path, "wb") as target:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        target.write(chunk)
-        if not os.path.exists(partial_path) or os.path.getsize(partial_path) < 1000:
-            raise IOError("direct media response is empty")
-        os.replace(partial_path, output_path)
-        return output_path
-    except Exception:
-        if os.path.exists(partial_path):
-            try:
-                os.remove(partial_path)
-            except OSError:
-                pass
-        raise
-
-
-# ---------------------------------------------------------------------------
-# cobalt.tools fallback helpers (Layer 2)
-# ---------------------------------------------------------------------------
-
-COBALT_API_URL = "https://cobalt.tools/api/json"
-COBALT_HEADERS = {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-}
-
-
-def _call_cobalt_api(url: str) -> dict | None:
-    """
-    Call cobalt.tools API to get a direct video download URL.
-    Returns the parsed JSON response or None on failure.
-    Layer 2 fallback - no user cookies required, managed by cobalt.tools backend.
-    """
-    try:
-        payload = {"url": url, "vQuality": "max"}
-        resp = requests.post(
-            COBALT_API_URL,
-            json=payload,
-            headers=COBALT_HEADERS,
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            logger.warning(f"cobalt.tools returned HTTP {resp.status_code}")
-            return None
-        data = resp.json()
-        logger.info(f"cobalt.tools response status: {data.get('status')}")
-        return data
     except Exception as e:
-        logger.warning(f"cobalt.tools API call failed: {e}")
+        logger.warning(f"tikwm.com API failed: {e}")
         return None
 
 
-def _cobalt_extract_metadata(url: str) -> dict | None:
+def _try_cobalt_api_v2(url: str, output_path: str | None = None) -> dict | None:
     """
-    Attempt to extract metadata via cobalt.tools.
-    Returns a metadata dict compatible with extract_metadata() contract, or None.
+    cobalt.tools API v10+ — new endpoint is POST / on api.cobalt.tools.
+    Tries the new endpoint format after the old /api/json was deprecated.
     """
-    data = _call_cobalt_api(url)
-    if not data:
-        return None
+    try:
+        api_url = "https://api.cobalt.tools/"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        payload = {"url": url, "vQuality": "max"}
+        resp = requests.post(api_url, json=payload, headers=headers, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"cobalt api.cobalt.tools returned HTTP {resp.status_code}")
+            return None
 
-    status = data.get("status")
-    # cobalt returns "redirect" or "stream" with a direct URL
-    if status in ("redirect", "stream", "picker") and data.get("url"):
-        direct_url = data["url"]
+        data = resp.json()
+        status = data.get("status")
+        direct_url = data.get("url")
+
+        if status not in ("redirect", "stream", "tunnel", "picker") or not direct_url:
+            logger.warning(f"cobalt v2 unexpected status: {status}")
+            return None
+
+        logger.info(f"cobalt v2 API success. URL: {direct_url[:60]}...")
+
+        if output_path is not None:
+            with requests.get(direct_url, stream=True, timeout=120, allow_redirects=True) as r:
+                r.raise_for_status()
+                with open(output_path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
+            if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+                raise FileNotFoundError("cobalt v2 download produced empty file")
+            return {"downloaded": True, "path": output_path}
+
         return {
             "success": True,
             "title": data.get("filename", "Douyin Video"),
             "thumbnail": "",
-            "duration": 0,  # cobalt.tools does not expose duration; will be probed later
+            "duration": 0,
             "source": "douyin",
             "author": "Unknown",
             "description": "",
-            "_cobalt_direct_url": direct_url,  # internal key for download step
         }
+    except Exception as e:
+        logger.warning(f"cobalt v2 API failed: {e}")
+        return None
+
+
+def _layer2_extract_metadata(url: str) -> dict | None:
+    """Try all Layer 2 APIs for metadata in order."""
+    # 1. tikwm.com (most reliable for Douyin)
+    result = _try_tikwm_api(url)
+    if result:
+        return result
+    # 2. cobalt.tools v2 (new endpoint)
+    result = _try_cobalt_api_v2(url)
+    if result:
+        return result
     return None
 
 
-def _cobalt_download(url: str, output_path: str) -> str:
-    """
-    Download video via cobalt.tools direct URL.
-    Returns output_path on success, raises Exception on failure.
-    """
-    data = _call_cobalt_api(url)
-    if not data:
-        raise Exception("cobalt.tools API returned no data")
-
-    status = data.get("status")
-    direct_url = data.get("url")
-
-    if status not in ("redirect", "stream", "picker") or not direct_url:
-        raise Exception(f"cobalt.tools unexpected status: {status} | url: {direct_url}")
-
-    logger.info(f"Downloading via cobalt.tools direct URL: {direct_url[:80]}...")
-    try:
-        with requests.get(direct_url, stream=True, timeout=120, allow_redirects=True) as r:
-            r.raise_for_status()
-            with open(output_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        f.write(chunk)
-
-        if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
-            raise FileNotFoundError("cobalt.tools download produced empty file")
-
-        logger.info(f"cobalt.tools download success: {output_path} ({os.path.getsize(output_path) // 1024} KB)")
+def _layer2_download(url: str, output_path: str) -> str:
+    """Try all Layer 2 APIs for download in order. Returns output_path on success."""
+    # 1. tikwm.com
+    result = _try_tikwm_api(url, output_path=output_path)
+    if result and result.get("downloaded"):
         return output_path
-    except Exception as e:
-        # Clean up partial file
-        if os.path.exists(output_path):
-            try:
-                os.remove(output_path)
-            except Exception:
-                pass
-        raise Exception(f"cobalt.tools download stream failed: {e}")
+    # Clean partial file before next attempt
+    if os.path.exists(output_path):
+        try:
+            os.remove(output_path)
+        except Exception:
+            pass
+
+    # 2. cobalt.tools v2
+    result = _try_cobalt_api_v2(url, output_path=output_path)
+    if result and result.get("downloaded"):
+        return output_path
+
+    raise Exception("All Layer 2 APIs (tikwm, cobalt v2) failed")
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -344,40 +316,17 @@ class DouyinAdapter(BaseAdapter):
                 logger.warning(f"Douyin metadata strategy {idx + 1} failed: {e}")
                 continue
 
-        # API fallback is independent of the yt-dlp extractor and can also
-        # provide the real duration used by the UI and pipeline.
-        api_media = _api_extract_media(url)
-        if api_media:
-            return {
-                "success": True,
-                "title": api_media["title"],
-                "thumbnail": api_media["thumbnail"],
-                "duration": api_media["duration"],
-                "source": "douyin",
-                "author": api_media["author"],
-                "description": "",
-            }
+        # --- LAYER 2: Third-party APIs fallback (tikwm, cobalt v2) ---
+        logger.warning(f"All yt-dlp strategies failed. Trying Layer 2 APIs fallback for: {url}")
+        layer2_meta = _layer2_extract_metadata(url)
+        if layer2_meta:
+            logger.info("Layer 2 API metadata extraction succeeded.")
+            return layer2_meta
 
-        # --- LAYER 2: cobalt.tools API fallback ---
-        logger.warning(f"All yt-dlp strategies failed. Trying cobalt.tools API fallback for: {url}")
-        cobalt_meta = _cobalt_extract_metadata(url)
-        if cobalt_meta:
-            logger.info("cobalt.tools metadata extraction succeeded.")
-            return cobalt_meta
-
-        # Metadata is only a preview. Do not prevent the user from creating a
-        # dubbing job when Douyin has hidden metadata behind a cookie wall;
-        # step 4 will make the actual download attempt and report its result.
         return {
-            "success": True,
-            "title": "Douyin Video",
-            "thumbnail": "",
-            "duration": 0,
-            "source": "douyin",
-            "author": "Unknown",
-            "description": "Douyin không trả metadata công khai; hệ thống sẽ thử tải video khi bắt đầu lồng tiếng.",
-            "metadata_degraded": True,
-            "download_ready": True,
+            "success": False,
+            "error": f"Douyin metadata error: {str(last_error)}",
+            "fallback_needed": True,  # Signal to UI that upload fallback is needed
         }
 
     def download(self, url: str, output_path: str) -> str:
@@ -414,18 +363,6 @@ class DouyinAdapter(BaseAdapter):
             pass
 
         last_error = None
-
-        # Try the public detail endpoint first. This avoids the common
-        # "Fresh cookies are needed" extractor failure.
-        api_media = _api_extract_media(url)
-        if api_media:
-            try:
-                logger.info("Downloading Douyin through detail API media URL")
-                return _download_direct_media(api_media["direct_url"], output_path)
-            except Exception as api_error:
-                last_error = api_error
-                logger.warning("Douyin detail API download failed: %s", api_error)
-
         for idx, ydl_opts in enumerate(strategies):
             try:
                 ydl_opts_copy = ydl_opts.copy()
@@ -480,15 +417,15 @@ class DouyinAdapter(BaseAdapter):
                 logger.warning(f"Douyin download strategy {idx + 1} failed: {e}")
                 continue
 
-        # --- LAYER 2: cobalt.tools API fallback ---
-        logger.warning(f"All yt-dlp download strategies failed. Trying cobalt.tools API fallback for: {url}")
+        # --- LAYER 2: Third-party APIs fallback (tikwm, cobalt v2) ---
+        logger.warning(f"All yt-dlp download strategies failed. Trying Layer 2 APIs fallback for: {url}")
         try:
-            return _cobalt_download(url, output_path)
-        except Exception as cobalt_error:
-            logger.error(f"cobalt.tools download also failed: {cobalt_error}")
+            return _layer2_download(url, output_path)
+        except Exception as layer2_error:
+            logger.error(f"Layer 2 download also failed: {layer2_error}")
             # Raise a special sentinel exception that the pipeline worker catches
             # to set job status = "waiting_upload" instead of "failed"
             raise Exception(
                 f"DOWNLOAD_FAILED_NEED_UPLOAD|All Douyin download strategies failed. "
-                f"yt-dlp error: {last_error} | cobalt.tools error: {cobalt_error}"
+                f"yt-dlp error: {last_error} | Layer 2 error: {layer2_error}"
             )
