@@ -10,3 +10,4 @@ www.douyin.com	FALSE	/	TRUE	1815297863	__ac_signature	_02B4Z6wo00f01Zm9DmAAAIDBG
 www.douyin.com	FALSE	/	FALSE	2099122067	device_web_cpu_core	8
 www.douyin.com	FALSE	/	FALSE	2099122067	device_web_memory_size	8
 www.douyin.com	FALSE	/	FALSE	2099122067	architecture	amd64
+www.douyin.com	FALSE	/	FALSE	1783786949	__ac_nonce	06a5266bc0042d06d5eb4

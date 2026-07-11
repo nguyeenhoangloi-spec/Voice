@@ -4,7 +4,7 @@ import glob
 import logging
 import requests
 import re
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 from app.services.link_adapters.base import BaseAdapter
 
 logger = logging.getLogger(__name__)
@@ -65,16 +65,6 @@ def normalize_douyin_url(url: str) -> str:
             url = r.url or url
             logger.info(f"Redirected v.douyin.com to: {url}")
 
-        # Douyin share links copied from the Discover/精选 page often look
-        # like /jingxuan?modal_id=123... and are not accepted by yt-dlp.
-        # Convert the query id into the canonical video URL before extraction.
-        parsed = urlparse(url)
-        modal_id = (parse_qs(parsed.query).get("modal_id") or [None])[0]
-        if modal_id and re.fullmatch(r"\d{8,}", modal_id):
-            normalized = f"https://www.douyin.com/video/{modal_id}"
-            logger.info(f"Normalized Douyin modal link to: {normalized}")
-            return normalized
-
         # 2. Tìm ID video trong URL thực tế
         # Thường có dạng: /video/7377884841961672002 hoặc /share/video/7377884841961672002
         match = re.search(r'(?:video|note|share/video)/(\d+)', url)
@@ -93,11 +83,7 @@ def normalize_douyin_url(url: str) -> str:
 def _extract_douyin_id(url: str) -> str | None:
     """Extract an aweme/video id from both short and full Douyin URLs."""
     match = re.search(r"(?:video|note|share/video|item)/(\d{8,})", url or "")
-    if match:
-        return match.group(1)
-    parsed = urlparse(url or "")
-    modal_id = (parse_qs(parsed.query).get("modal_id") or [None])[0]
-    return modal_id if modal_id and re.fullmatch(r"\d{8,}", modal_id) else None
+    return match.group(1) if match else None
 
 
 def _douyin_api_headers() -> dict:
@@ -322,10 +308,13 @@ class DouyinAdapter(BaseAdapter):
         strategies.append(_get_ydl_douyin_mobile_opts(platform="android"))
         strategies.append(_get_ydl_douyin_mobile_opts(platform="ios"))
 
-        # Standard desktop fallback. Browser cookie extraction is deliberately
-        # not automatic: Windows DPAPI/browser profile locks frequently make
-        # yt-dlp fail before it even contacts Douyin.
-        strategies.append(_get_ydl_douyin_opts())
+        # Fallback strategies
+        strategies.extend([
+            _get_ydl_douyin_opts(),  # Standard desktop no cookies
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('chrome',)},  # Chrome
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('edge',)},  # Edge
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('firefox',)},  # Firefox
+        ])
 
         last_error = None
         for idx, ydl_opts in enumerate(strategies):
@@ -408,9 +397,13 @@ class DouyinAdapter(BaseAdapter):
         strategies.append(_get_ydl_douyin_mobile_opts(platform="android"))
         strategies.append(_get_ydl_douyin_mobile_opts(platform="ios"))
 
-        # Standard desktop fallback. Do not scan browser profiles implicitly;
-        # users can still provide cookies.txt explicitly when needed.
-        strategies.append(_get_ydl_douyin_opts())
+        # Fallbacks
+        strategies.extend([
+            _get_ydl_douyin_opts(),
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('chrome',)},
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('edge',)},
+            {**_get_ydl_douyin_opts(), 'cookiesfrombrowser': ('firefox',)},
+        ])
 
         # Inject FFmpeg path if available
         ffmpeg_dir = None
