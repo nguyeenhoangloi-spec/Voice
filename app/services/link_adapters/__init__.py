@@ -1,12 +1,10 @@
 from app.services.link_adapters.youtube import YouTubeAdapter
-from app.services.link_adapters.douyin import DouyinAdapter
 from app.services.link_adapters.direct_media import DirectMediaAdapter
 from app.services.link_adapters.webpage import WebpageAdapter
 
 # Đăng ký các adapter theo thứ tự ưu tiên kiểm tra
 ADAPTER_REGISTRY = [
     YouTubeAdapter(),
-    DouyinAdapter(),
     DirectMediaAdapter(),
     WebpageAdapter() # Webpage là fallback cuối cùng
 ]

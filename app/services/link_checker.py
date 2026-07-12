@@ -17,7 +17,7 @@ PRIVATE_NETWORKS = [
 
 def extract_clean_url(text: str) -> str:
     """
-    Trích xuất URL sạch đầu tiên trong văn bản thô (ví dụ văn bản chia sẻ của Douyin/TikTok).
+    Trích xuất URL sạch đầu tiên trong văn bản thô (ví dụ văn bản chia sẻ của TikTok).
     Nếu không tìm thấy URL, trả về chính chuỗi văn bản ban đầu (sau khi loại bỏ khoảng trắng).
     """
     if not text:

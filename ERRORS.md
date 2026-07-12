@@ -236,3 +236,39 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Fix Applied**: Thêm một custom exception handler cho `HTTPException` trong `app/main.py`. Nếu gặp mã lỗi 401 và request yêu cầu nhận HTML (`"text/html"` trong Accept header), hệ thống tự động redirect (303 Redirect) về trang đăng nhập `/auth/login` đồng thời xoá cookie `access_token` cũ để tránh lặp vô hạn.
 - **Prevention**: Luôn có cơ chế exception handler để chuyển hướng người dùng từ trang HTML cần đăng nhập về trang Login thay vì trả JSON lỗi thô 401.
 - **Status**: Fixed
+
+## [2026-07-11 16:12] - Douyin Download Failed (Job ID: 49c4eeb6)
+
+- **Type**: Integration
+- **Severity**: Medium
+- **File**: `app/services/link_adapters/douyin.py`
+- **Agent**: dubbing_tasks.run_dubbing_pipeline (Step 4)
+- **Root Cause**: yt-dlp va cobalt.tools deu that bai voi URL Douyin nay
+- **Error Message**:
+  ```
+  URL: https://www.douyin.com/jingxuan?modal_id=7657132831633673499
+  All Douyin download strategies failed. yt-dlp error: [0;31mERROR:[0m [Douyin] 7657132831633673499: Fresh cookies (not necessarily logged in) are needed | cobalt.tools error: cobalt.tools API returned no data
+  ```
+- **Fix Applied**: Job chuyen sang trang thai `waiting_upload`. Nguoi dung se duoc yeu cau upload file MP4 thu cong.
+- **Prevention**: Cap nhat cookies.txt dinh ky hoac tinh chinh cobalt.tools endpoint
+- **Status**: Auto-handled
+
+---
+
+## [2026-07-11 16:13] - Douyin Download Failed (Job ID: f720ff66)
+
+- **Type**: Integration
+- **Severity**: Medium
+- **File**: `app/services/link_adapters/douyin.py`
+- **Agent**: dubbing_tasks.run_dubbing_pipeline (Step 4)
+- **Root Cause**: yt-dlp va cobalt.tools deu that bai voi URL Douyin nay
+- **Error Message**:
+  ```
+  URL: https://v.douyin.com/ipyi7oAF82I/
+  All Douyin download strategies failed. yt-dlp error: [0;31mERROR:[0m [Douyin] 7648491723722607898: Fresh cookies (not necessarily logged in) are needed | cobalt.tools error: cobalt.tools API returned no data
+  ```
+- **Fix Applied**: Job chuyen sang trang thai `waiting_upload`. Nguoi dung se duoc yeu cau upload file MP4 thu cong.
+- **Prevention**: Cap nhat cookies.txt dinh ky hoac tinh chinh cobalt.tools endpoint
+- **Status**: Auto-handled
+
+---

@@ -21,38 +21,6 @@ from app.utils.ffmpeg_utils import get_ffmpeg_path, inject_ffmpeg_to_path
 logger = logging.getLogger(__name__)
 
 
-def _log_download_failure_to_errors_md(job_id: str, source_url: str, detail: str) -> None:
-    """
-    Append a structured error entry to ERRORS.md when Douyin auto-download fails
-    (both yt-dlp and cobalt.tools layers failed) and job is moved to waiting_upload.
-    Follows the error-logging.md format standard.
-    """
-    try:
-        # Find project root (d:\Voice_AI)
-        project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
-        errors_path = os.path.join(project_root, "ERRORS.md")
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-        entry = (
-            f"\n## [{timestamp}] - Douyin Download Failed (Job ID: {job_id[:8]})\n\n"
-            f"- **Type**: Integration\n"
-            f"- **Severity**: Medium\n"
-            f"- **File**: `app/services/link_adapters/douyin.py`\n"
-            f"- **Agent**: dubbing_tasks.run_dubbing_pipeline (Step 4)\n"
-            f"- **Root Cause**: yt-dlp va cobalt.tools deu that bai voi URL Douyin nay\n"
-            f"- **Error Message**:\n  ```\n  URL: {source_url}\n  {detail[:400]}\n  ```\n"
-            f"- **Fix Applied**: Job chuyen sang trang thai `waiting_upload`. "
-            f"Nguoi dung se duoc yeu cau upload file MP4 thu cong.\n"
-            f"- **Prevention**: Cap nhat cookies.txt dinh ky hoac tinh chinh cobalt.tools endpoint\n"
-            f"- **Status**: Auto-handled\n\n---\n"
-        )
-        with open(errors_path, "a", encoding="utf-8") as f:
-            f.write(entry)
-        logger.info(f"Download failure logged to ERRORS.md for job {job_id}")
-    except Exception as log_err:
-        logger.warning(f"Failed to write to ERRORS.md: {log_err}")
-
 
 def _ensure_source_video(job, source_path: str) -> None:
     """
@@ -246,30 +214,7 @@ def run_dubbing_pipeline(job_id: str):
                 elif step_num == 4:
                     if job.source_type == "link":
                         adapter = get_adapter_for_url(job.source_url)
-                        try:
-                            adapter.download(job.source_url, source_path)
-                        except Exception as dl_err:
-                            err_str = str(dl_err)
-                            # Check sentinel: all layers failed -> ask user to upload
-                            if err_str.startswith("DOWNLOAD_FAILED_NEED_UPLOAD|"):
-                                detail = err_str.split("|", 1)[1]
-                                logger.warning(f"Download failed for job {job_id}, switching to waiting_upload: {detail}")
-                                # Update step log
-                                if step_record:
-                                    step_record.status = "warning"
-                                    step_record.completed_at = datetime.utcnow()
-                                    step_record.log_message = (
-                                        "Tu dong tai that bai (Layer 1 yt-dlp + Layer 2 cobalt.tools). "
-                                        "Dang cho nguoi dung upload file MP4 thu cong."
-                                    )
-                                # Set job status to waiting_upload (not failed)
-                                job.status = "waiting_upload"
-                                job.error_message = detail[:500]
-                                db.commit()
-                                # Write to ERRORS.md
-                                _log_download_failure_to_errors_md(job_id, job.source_url, detail)
-                                return  # Stop pipeline, wait for user action
-                            raise dl_err  # Other errors propagate normally
+                        adapter.download(job.source_url, source_path)
                         if not os.path.exists(source_path):
                             raise FileNotFoundError(f"Download that bai: file khong ton tai tai {source_path}")
                         file_size = os.path.getsize(source_path)
@@ -603,11 +548,9 @@ def run_dubbing_pipeline(job_id: str):
         try:
             job = fresh_db.query(DubbingJob).filter(DubbingJob.id == job_id).first()
             if job:
-                # Do NOT override waiting_upload — it was set intentionally by step 4
-                if job.status != "waiting_upload":
-                    job.status = "failed"
-                    job.error_message = str(e)[:500]
-                    fresh_db.commit()
+                job.status = "failed"
+                job.error_message = str(e)[:500]
+                fresh_db.commit()
         except Exception as db_err:
             logger.error(f"Failed to update job status to failed: {db_err}")
         finally:
