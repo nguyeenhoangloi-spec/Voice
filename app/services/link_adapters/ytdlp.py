@@ -24,13 +24,32 @@ def _extract_youtube_id(url: str) -> str:
 
 
 def _get_ytdlp_base_opts() -> dict:
-    """Base options for yt-dlp: quiet, no playlist."""
-    return {
+    """Base options for yt-dlp: quiet, no playlist, challenge solver config."""
+    import shutil
+    import os
+
+    opts = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "ignoreconfig": True,
+        "remote_components": ["ejs:github"],
     }
+
+    # Try to find Node.js runtime to solve YouTube signature/cipher challenge (EJS)
+    node_path = shutil.which("node")
+    if not node_path:
+        # Fallback common paths on Windows
+        for p in [r"D:\nodejs\node.exe", r"C:\Program Files\nodejs\node.exe"]:
+            if os.path.exists(p):
+                node_path = p
+                break
+
+    if node_path:
+        opts["js_runtimes"] = {"node": {"path": node_path}}
+
+    return opts
+
 
 
 # Direct media file extensions — let DirectMediaAdapter handle
@@ -141,6 +160,8 @@ class YTDLPAdapter(BaseAdapter):
                 except Exception as e:
                     last_err = e
                     logger.info(f"[YTDLPAdapter] Metadata strategy {strategy} failed: {e}")
+                    if "unsupported url" in str(e).lower():
+                        break
                     continue
             return {"success": False, "error": f"Khong lay duoc thong tin video: {last_err}"}
 

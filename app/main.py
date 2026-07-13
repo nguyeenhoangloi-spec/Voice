@@ -4,6 +4,20 @@ import sys
 # Khắc phục lỗi DLL load failed (WinError 127) và lỗi crash duplicate MKL trên Windows
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# Monkeypatch torch.load to bypass PyTorch 2.6+ weights_only restriction for trusted local checkpoints
+try:
+    import torch
+    import functools
+    orig_load = torch.load
+    @functools.wraps(orig_load)
+    def patched_load(*args, **kwargs):
+        kwargs['weights_only'] = False
+        return orig_load(*args, **kwargs)
+    torch.load = patched_load
+except ImportError:
+    pass
+
+
 # Lọc sạch PATH để loại bỏ CUDA Toolkit hệ thống (tránh xung đột phiên bản CUDA DLL)
 path_list = os.environ.get("PATH", "").split(os.pathsep)
 cleaned_paths = []

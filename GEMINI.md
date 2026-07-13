@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-# GEMINI.md - Cấu hình Agent Voice v5.1
+# GEMINI.md - Cấu hình Agent Voice v5.2
 # NOTE FOR AGENT: Parse instructions in ENGLISH. Respond in VIETNAMESE.
 
 ---
@@ -104,6 +104,8 @@ Mọi nhiệm vụ phải đi theo quy trình:
 - Tái sử dụng component, style, function và convention hiện có.
 - Không sửa code không liên quan, không thêm dependency hoặc abstraction khi chưa cần thiết.
 - Bảo toàn khả năng tương thích và hành vi hiện có ngoài phạm vi yêu cầu.
+- Ưu tiên chỉnh sửa hoặc thay thế implementation hiện có tại đúng vị trí; không mặc định nối thêm code mới ở cuối file.
+- Khi implementation mới thay thế hoàn toàn implementation cũ, phải xóa code cũ, selector cũ, import không còn dùng và nhánh logic không còn được gọi.
 
 ### 5. VERIFY — Kiểm chứng bằng thực tế
 
@@ -118,6 +120,27 @@ Mọi nhiệm vụ phải đi theo quy trình:
 - Báo rõ vấn đề còn tồn tại, giới hạn hoặc bước người dùng cần thực hiện tiếp theo.
 
 Không tiết lộ suy luận nội bộ hoặc chuỗi suy nghĩ riêng tư. Chỉ cung cấp bản phân tích có cấu trúc gồm kết luận quan trọng, giả định, rủi ro, bằng chứng và lý do lựa chọn giải pháp để người dùng có thể kiểm tra.
+
+---
+
+## 🧹 REPLACE, CLEANUP & NO APPEND-ONLY PATCHING
+
+Khi sửa hoặc nâng cấp chức năng hiện có, không được chỉ thêm lớp code mới để che hoặc ghi đè code cũ.
+
+1. **Edit in place**: Tìm implementation hiện tại và chỉnh sửa trực tiếp tại nơi nó được định nghĩa.
+2. **Replace completely**: Nếu giải pháp mới thay thế giải pháp cũ, xóa phần cũ trong cùng thay đổi sau khi đã xác minh không còn nơi sử dụng.
+3. **No duplicate logic**: Không tạo thêm function, route, event listener, component hoặc biến mới có chức năng trùng với phần đang tồn tại.
+4. **No CSS override pile**: Không nối selector mới ở cuối file chỉ để ghi đè selector cũ. Cập nhật rule gốc; xóa declaration hoặc selector không còn cần thiết.
+5. **Remove obsolete code**: Dọn import, biến, helper, comment, feature flag, template block và asset reference đã trở nên dư thừa do thay đổi vừa thực hiện.
+6. **Preserve shared code**: Trước khi xóa, tìm toàn bộ nơi tham chiếu. Không xóa code vẫn được trang, module hoặc luồng khác sử dụng.
+7. **No artificial deletion**: Không xóa code chỉ để tạo nhiều dòng `-` trong diff. Chỉ xóa khi phần đó dư thừa, bị thay thế hoặc không còn được sử dụng.
+8. **Review the diff**: Trước khi hoàn thành, kiểm tra diff để phát hiện code được thêm trùng lặp, override tạm thời, file phình to bất thường hoặc phần cũ đáng lẽ phải được loại bỏ.
+
+Mỗi báo cáo hoàn thành phải nêu rõ:
+
+- Phần nào được chỉnh sửa tại chỗ.
+- Phần code cũ nào đã được xóa hoặc giữ lại và lý do.
+- Cách đã kiểm tra để bảo đảm việc xóa không làm hỏng chức năng khác.
 
 ---
 
@@ -168,4 +191,4 @@ Workflow files nằm trong `.agent/workflows/`. Khi user gọi `/command` → đ
 ---
 
 
-*Được tối ưu bởi Antigravity IDE — Voice v5.1*
+*Được tối ưu bởi Antigravity IDE — Voice v5.2*

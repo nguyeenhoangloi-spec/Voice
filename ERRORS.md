@@ -288,3 +288,43 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Status**: Fixed
 
 ---
+
+## [2026-07-13 08:22] - Pipeline step 8 failed: [WinError 127] / UnpicklingError (torchaudio/torch DLL mismatch & weights_only constraint)
+
+- **Type**: Runtime
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:744`
+- **Agent**: Voice
+- **Root Cause**: 
+  1. Thư viện `torchaudio` cài đặt phiên bản `2.11.0` không đồng bộ với `torch` phiên bản `2.8.0` trên Windows, dẫn đến việc không thể load DLL C++ extension của torchaudio (`[WinError 127] The specified procedure could not be found`).
+  2. Sau khi hạ cấp `torchaudio` về bản `2.8.0` tương thích, PyTorch 2.6+ kích hoạt cơ chế an toàn `weights_only=True` mặc định khi gọi `torch.load` trong Pyannote VAD (sử dụng bởi WhisperX), từ chối unpickle các lớp của `omegaconf` và kiểu dữ liệu chuẩn (`list`, `int`, v.v.), gây ra lỗi `UnpicklingError`.
+- **Error Message**: 
+  ```text
+  OSError: [WinError 127] The specified procedure could not be found
+  _pickle.UnpicklingError: Weights only load failed. Unsupported global: GLOBAL omegaconf.listconfig.ListConfig was not an allowed global by default.
+  ```
+- **Fix Applied**: 
+  1. Gỡ cài đặt và cài đặt lại `torchaudio==2.8.0` để khớp với `torch==2.8.0`, đồng thời cập nhật `requirements.txt`.
+  2. Thực hiện monkeypatch hàm `torch.load` toàn cục tại `app/main.py` và `app/services/dubbing_engine.py` (trong hàm `transcribe_audio`) để thiết lập `weights_only=False`, cho phép WhisperX/Pyannote tải model weights cục bộ một cách bình thường.
+- **Prevention**: Đồng bộ hóa phiên bản `torch` và `torchaudio` khi định nghĩa các dependencies. Thiết lập monkeypatch hoặc whitelist đối với cơ chế `weights_only` mới của PyTorch khi sử dụng các mô hình checkpoint cũ hơn (như WhisperX/Pyannote VAD).
+- **Status**: Fixed
+
+---
+
+## [2026-07-13 09:00] - YouTube Link check fails with "This video is not available" (yt-dlp EJS Signature Challenge failure)
+
+- **Type**: Integration
+- **Severity**: High
+- **File**: `app/services/link_adapters/ytdlp.py:26`
+- **Agent**: Voice
+- **Root Cause**: 
+  1. Thư viện `yt-dlp` phiên bản mới yêu cầu trình dịch JavaScript (Node.js/Deno) để giải mã chữ ký (signature cipher challenge) của YouTube đối với một số video nhất định.
+  2. Conda environment chạy FastAPI server không tìm thấy Node.js trên PATH do môi trường bị cô lập, và thiếu cấu hình `--remote-components ejs:github` để tải script giải mã tự động từ GitHub.
+  3. Lỗi này khiến `yt-dlp` trả về thông báo sai lệch `"This video is not available"` làm hệ thống hiểu lầm và trả về lỗi `400 Bad Request`.
+- **Fix Applied**: 
+  1. Cập nhật `_get_ytdlp_base_opts` trong `app/services/link_adapters/ytdlp.py` để tự động phát hiện đường dẫn cài đặt Node.js (`shutil.which` hoặc các đường dẫn phổ biến trên Windows) và cấu hình khóa `js_runtimes` & `remote_components` vào các tham số khởi tạo mặc định của `YoutubeDL`.
+  2. Bổ sung cơ chế ngắt sớm (early break) trong `extract_metadata` khi nhận được lỗi `"unsupported url"`, giúp bỏ qua các bước thử nạp cookie trình duyệt không cần thiết (Edge/Chrome) vốn gây ra hàng loạt cảnh báo DPAPI/Cookie phiền phức trên terminal Windows.
+- **Prevention**: Khi làm việc với các thư viện đóng gói phụ thuộc vào binary hoặc CLI bên ngoài (như `yt-dlp`), cần cấu hình rõ ràng đường dẫn runtime phụ thuộc và cập nhật các cơ chế giải quyết challenge mới nhất của bên thứ ba. Đồng thời, cấu hình bộ lọc ngoại lệ để ngừng thử lại (fallback) ngay khi phát hiện định dạng đầu vào không hợp lệ.
+- **Status**: Fixed
+
+

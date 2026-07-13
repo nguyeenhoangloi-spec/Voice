@@ -743,6 +743,15 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
 
     import whisperx
     import torch
+    import functools
+    
+    # Monkeypatch torch.load to bypass PyTorch 2.6+ weights_only restriction for trusted local checkpoints
+    orig_load = torch.load
+    @functools.wraps(orig_load)
+    def patched_load(*args, **kwargs):
+        kwargs['weights_only'] = False
+        return orig_load(*args, **kwargs)
+    torch.load = patched_load
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     # ctranslate2 compute type on Windows/CPU must be float32, cuda can use float16
