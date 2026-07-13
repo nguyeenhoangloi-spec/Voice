@@ -1028,78 +1028,7 @@ def _call_gemini_api_http(prompt: str, api_key: str) -> str:
     return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
-def _call_groq_api_http(prompt: str, api_key: str) -> str:
-    """Gọi trực tiếp API tương thích OpenAI của Groq bằng thư viện requests"""
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.2
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
-    response.raise_for_status()
-    res_data = response.json()
-    return res_data["choices"][0]["message"]["content"].strip()
 
-
-def _call_openrouter_api_http(prompt: str, api_key: str) -> str:
-    """Gọi trực tiếp API của OpenRouter bằng thư viện requests"""
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/nguyeenhoangloi-spec/Voice",
-        "X-Title": "Voice AI Platform"
-    }
-    payload = {
-        "model": "meta-llama/llama-3-8b-instruct:free",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.2
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
-    response.raise_for_status()
-    res_data = response.json()
-    return res_data["choices"][0]["message"]["content"].strip()
-
-
-def _call_github_api_http(prompt: str, api_key: str) -> str:
-    """Gọi trực tiếp API GitHub Models bằng thư viện requests"""
-    url = "https://models.inference.ai.azure.com/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.2
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
-    response.raise_for_status()
-    res_data = response.json()
-    return res_data["choices"][0]["message"]["content"].strip()
-
-
-def _call_cohere_api_http(prompt: str, api_key: str) -> str:
-    """Gọi trực tiếp API của Cohere bằng thư viện requests"""
-    url = "https://api.cohere.com/v1/chat"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "command-r-plus",
-        "message": prompt,
-        "temperature": 0.2
-    }
-    response = requests.post(url, headers=headers, json=payload, timeout=45.0)
-    response.raise_for_status()
-    res_data = response.json()
-    return res_data["text"].strip()
 
 
 def _translate_batch_with_llm(prompt: str, expected_count: int) -> list:
@@ -1113,14 +1042,6 @@ def _translate_batch_with_llm(prompt: str, expected_count: int) -> list:
     providers = []
     if settings.GEMINI_API_KEY.strip():
         providers.append(("gemini", settings.GEMINI_API_KEY.strip()))
-    if settings.GROQ_API_KEY.strip():
-        providers.append(("groq", settings.GROQ_API_KEY.strip()))
-    if settings.OPENROUTER_API_KEY.strip():
-        providers.append(("openrouter", settings.OPENROUTER_API_KEY.strip()))
-    if settings.GITHUB_API_KEY.strip():
-        providers.append(("github", settings.GITHUB_API_KEY.strip()))
-    if settings.COHERE_API_KEY.strip():
-        providers.append(("cohere", settings.COHERE_API_KEY.strip()))
 
     if not providers:
         logger.warning("Không có API Key nào được cấu hình trong settings. Bỏ qua dịch LLM.")
@@ -1142,14 +1063,6 @@ def _translate_batch_with_llm(prompt: str, expected_count: int) -> list:
                             contents=prompt,
                         )
                         res_text = response.text.strip()
-                elif provider_name == "groq":
-                    res_text = _call_groq_api_http(prompt, api_key)
-                elif provider_name == "openrouter":
-                    res_text = _call_openrouter_api_http(prompt, api_key)
-                elif provider_name == "github":
-                    res_text = _call_github_api_http(prompt, api_key)
-                elif provider_name == "cohere":
-                    res_text = _call_cohere_api_http(prompt, api_key)
 
                 # Trích xuất mảng JSON từ phản hồi của LLM
                 json_match = re.search(r'\[\s*".*"\s*\]', res_text, re.DOTALL) or re.search(r'\[.*\]', res_text, re.DOTALL)
@@ -1200,10 +1113,6 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         from app.config import settings
         # Cập nhật lại giá trị các API KEY trong settings đối tượng
         settings.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-        settings.GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-        settings.OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
-        settings.GITHUB_API_KEY = os.getenv("GITHUB_API_KEY", "").strip()
-        settings.COHERE_API_KEY = os.getenv("COHERE_API_KEY", "").strip()
 
     from app.config import settings
 
@@ -1215,14 +1124,8 @@ def translate_segments(segments: list, target_lang: str = "vi", video_context: s
         logger.info("Tất cả segments đều đã có sẵn bản dịch (phụ đề tiếng Việt). Bỏ qua bước dịch thuật.")
         return segments
 
-    # Sử dụng LLM API nếu có bất kỳ API Key nào khả dụng
-    has_llm_key = (
-        settings.GEMINI_API_KEY.strip() or
-        settings.GROQ_API_KEY.strip() or
-        settings.OPENROUTER_API_KEY.strip() or
-        settings.GITHUB_API_KEY.strip() or
-        settings.COHERE_API_KEY.strip()
-    )
+    # Sử dụng LLM API nếu có API Key khả dụng
+    has_llm_key = bool(settings.GEMINI_API_KEY.strip())
     if has_llm_key:
         import time as _time
         logger.info("Sử dụng LLM API dịch thuật...")

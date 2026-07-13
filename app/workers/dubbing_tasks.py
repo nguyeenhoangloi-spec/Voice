@@ -360,11 +360,8 @@ def run_dubbing_pipeline(job_id: str):
                     segments_data = []
                     method_used = asr_method
                     
-                    # ─── AUTO-SOFTSUB: Try to download YouTube subtitles first if in fast/balanced mode ───
-                    # to skip WhisperX transcription and save CPU/time.
-                    try_softsub_first = (asr_method == "softsub") or (
-                        perf_mode in ("fast", "balanced") and job.source_type == "link" and job.source_url
-                    )
+                    # Chỉ tự động tải phụ đề nếu người dùng lựa chọn asr_method == "softsub"
+                    try_softsub_first = (asr_method == "softsub")
 
                     if try_softsub_first:
                         if job.source_type == "link" and job.source_url:
@@ -378,10 +375,12 @@ def run_dubbing_pipeline(job_id: str):
                                     if asr_method == "softsub":
                                         raise ValueError("Không tìm thấy dữ liệu phụ đề tiếng Anh.")
                             except Exception as e:
-                                logger.warning(f"Failed to load YouTube subtitles: {e}.")
                                 if asr_method == "softsub":
+                                    logger.warning(f"Failed to load YouTube subtitles: {e}.")
                                     logger.warning("Fallback to Whisper ASR...")
-                                    method_used = "whisper"
+                                else:
+                                    logger.info(f"Auto-subtitle download not available: {e}. Proceeding with selected ASR method (Whisper).")
+                                method_used = "whisper"
                         else:
                             if asr_method == "softsub":
                                 logger.warning("Softsub only works with links. Fallback to Whisper ASR...")

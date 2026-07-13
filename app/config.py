@@ -28,10 +28,6 @@ class Settings:
     AI_MODE: str = os.getenv("AI_MODE", "mock").lower() # mock | real
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-    GITHUB_API_KEY: str = os.getenv("GITHUB_API_KEY", "")
-    COHERE_API_KEY: str = os.getenv("COHERE_API_KEY", "")
 
     # TTS Settings (Chỉ sử dụng Edge TTS miễn phí ổn định lâu dài)
     TTS_ENGINE: str = "edge"

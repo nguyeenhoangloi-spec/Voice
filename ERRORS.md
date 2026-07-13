@@ -327,4 +327,40 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Prevention**: Khi làm việc với các thư viện đóng gói phụ thuộc vào binary hoặc CLI bên ngoài (như `yt-dlp`), cần cấu hình rõ ràng đường dẫn runtime phụ thuộc và cập nhật các cơ chế giải quyết challenge mới nhất của bên thứ ba. Đồng thời, cấu hình bộ lọc ngoại lệ để ngừng thử lại (fallback) ngay khi phát hiện định dạng đầu vào không hợp lệ.
 - **Status**: Fixed
 
+---
+
+## [2026-07-13 17:09] - ReferenceError: data is not defined in job_progress.html script
+
+- **Type**: Agent (UI / JS)
+- **Severity**: High
+- **File**: `app/templates/user/job_progress.html:517`
+- **Agent**: Voice
+- **Root Cause**: Trong phiên làm việc trước, khi thêm tính năng hiển thị thời gian chạy của từng bước (`step-time`), code JS đã gọi kiểm tra `data.performance_stats` nhưng biến `data` không nằm trong phạm vi truy cập (scope) của hàm `renderStepsAndLogs(steps)`. Lỗi này làm Javascript bị crash lập tức ở bước đầu tiên, khiến danh sách các bước lồng tiếng trên UI trống trơn và Console Logs bị kẹt ở trạng thái khởi tạo.
+- **Error Message**: 
+  ```text
+  ReferenceError: data is not defined
+      at renderStepsAndLogs (job_progress.html:517:29)
+      at updateStepsList (job_progress.html:452:17)
+  ```
+- **Fix Applied**: 
+  1. Thêm tham số `performanceStats` vào hàm `renderStepsAndLogs(steps, performanceStats)` và thay thế toàn bộ tham chiếu `data.performance_stats` tương ứng.
+  2. Cập nhật các nơi gọi hàm `renderStepsAndLogs` để truyền đúng giá trị `data.performance_stats`.
+  3. Thêm lệnh gọi `updateStepsList()` ngay khi trang được tải xong để hiển thị lập tức mà không cần chờ gói tin SSE đầu tiên.
+- **Prevention**: Luôn kiểm tra kỹ phạm vi hoạt động (scope) của các biến khi tích hợp code từ các đoạn code khác nhau vào một hàm Javascript dùng chung.
+- **Status**: Fixed
+
+---
+
+## [2026-07-13 17:15] - Ghi đè tự động tùy chọn ASR khi chạy ở chế độ hiệu năng Fast/Balanced
+
+- **Type**: Agent (Logic)
+- **Severity**: Medium
+- **File**: `app/workers/dubbing_tasks.py:365`
+- **Agent**: Voice
+- **Root Cause**: Hệ thống tự động kích hoạt tải phụ đề YouTube (softsub) khi video nguồn là một liên kết và chế độ hiệu năng là Fast hoặc Balanced, kể cả khi người dùng đã lựa chọn rõ ràng phương thức nhận dạng giọng nói là "Nhận dạng giọng nói (ASR - Whisper)". Điều này vi phạm tính nhất quán trong các lựa chọn cấu hình của người dùng.
+- **Fix Applied**: Sửa đổi biến kiểm tra `try_softsub_first` trong file `dubbing_tasks.py` để chỉ bằng `True` khi người dùng chọn rõ ràng `asr_method == "softsub"`.
+- **Prevention**: Luôn tuân thủ tuyệt đối các tùy chọn tường minh được người dùng cấu hình trên UI (Explicit overrides Implicit optimizations).
+- **Status**: Fixed
+---
+
 

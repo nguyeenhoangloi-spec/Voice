@@ -346,6 +346,9 @@
             showToast("Đã sao chép toàn bộ nhật ký vào bộ nhớ tạm!", "success");
         });
 
+        // Gọi ngay lập tức để render dữ liệu ban đầu tránh màn hình trống
+        updateStepsList();
+
         // 1. Kết nối Server-Sent Events (SSE) để đồng bộ trạng thái realtime
         const eventSource = new EventSource(`/dubbing/job/${jobId}/events`);
         
@@ -442,14 +445,14 @@
                 errorMsgDetail.innerText = data.error_message;
                 btnRestart.classList.remove("hidden");
             }
-            renderStepsAndLogs(data.steps);
+            renderStepsAndLogs(data.steps, data.performance_stats);
         }
 
         async function updateStepsList() {
             const res = await fetch(`/dubbing/job/${jobId}/status`);
             if (res.ok) {
                 const data = await res.json();
-                renderStepsAndLogs(data.steps);
+                renderStepsAndLogs(data.steps, data.performance_stats);
             }
         }
 
@@ -466,7 +469,7 @@
         // Milestone active states tracker to avoid auto-opening if user closed it manually
         const userToggledMilestones = {};
 
-        function renderStepsAndLogs(steps) {
+        function renderStepsAndLogs(steps, performanceStats) {
             let logText = "";
             
             // Khởi tạo các mảng kiểm tra trạng thái Milestone
@@ -514,8 +517,8 @@
                     // Render duration benchmark
                     const timeSpan = document.getElementById(`step-time-${step.step_number}`);
                     if (timeSpan) {
-                        if (data.performance_stats && data.performance_stats[step.step_number]) {
-                            const duration = data.performance_stats[step.step_number].duration_seconds;
+                        if (performanceStats && performanceStats[step.step_number]) {
+                            const duration = performanceStats[step.step_number].duration_seconds;
                             timeSpan.innerText = `(${duration}s)`;
                         } else {
                             timeSpan.innerText = "";

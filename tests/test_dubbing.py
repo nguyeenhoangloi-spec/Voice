@@ -106,11 +106,7 @@ def test_translate_segments_with_video_topic():
     segments = [{"start": 0.0, "end": 2.0, "text": "Nobita and Shizuka went to Suneo's house."}]
 
     # Case 1: Google Translator Fallback (khi không có API key)
-    with patch("app.config.settings.GEMINI_API_KEY", ""), \
-         patch("app.config.settings.GROQ_API_KEY", ""), \
-         patch("app.config.settings.OPENROUTER_API_KEY", ""), \
-         patch("app.config.settings.GITHUB_API_KEY", ""), \
-         patch("app.config.settings.COHERE_API_KEY", ""):
+    with patch("app.config.settings.GEMINI_API_KEY", ""):
         with patch("deep_translator.GoogleTranslator.translate") as mock_trans:
             mock_trans.return_value = "Nobita và Shizuka đi đến nhà Suneo."
             res = translate_segments([dict(s) for s in segments], target_lang="vi", video_context="neutral", video_topic="Doraemon")
