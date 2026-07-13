@@ -25,7 +25,7 @@ def test_check_link_unsafe(logged_in_client):
     assert response.json()["success"] is False
     assert "bị cấm" in response.json()["error"]
 
-@patch("app.services.link_adapters.youtube.YouTubeAdapter.extract_metadata")
+@patch("app.services.link_adapters.ytdlp.YTDLPAdapter.extract_metadata")
 def test_check_link_youtube_success(mock_extract, logged_in_client):
     # Mock kết quả trích xuất metadata
     mock_extract.return_value = {
@@ -285,7 +285,7 @@ def test_ocr_video_subtitles_multilingual(mock_reader_cls, mock_video_capture, m
     
     # Mock EasyOCR Reader
     mock_reader = MagicMock()
-    mock_reader.readtext.side_effect = [
+    mock_reader.readtext_batched.return_value = [
         ["Chào", "Nô", "Bi", "Ta"],  # frame 0
         [],                           # frame 1
         ["静香"]                      # frame 2
