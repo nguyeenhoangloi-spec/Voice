@@ -1453,7 +1453,7 @@ def optimize_translation_constraints(segments: list, gemini_key: str = "") -> tu
         )
 
         # Level 1: Use Gemini if available and quota not exhausted
-        if gemini_key and llm_calls < MAX_LLM_CALLS_PER_RUN and overrun_ratio > 1.8:
+        if gemini_key and llm_calls < MAX_LLM_CALLS_PER_RUN and overrun_ratio > 1.15:
             shortened = _smart_shorten_with_llm(translation, target_words, gemini_key)
             if shortened != translation and len(shortened.split()) <= target_words * 1.15:
                 seg["translation"] = shortened
@@ -1956,6 +1956,19 @@ def separate_vocals(audio_path: str, vocal_path: str, bg_music_path: str, job_id
 
 
 
+def _trim_silence(sound, silence_threshold=-50.0, chunk_size=10):
+    """Trim leading and trailing silence from AudioSegment using pydub."""
+    from pydub.silence import detect_leading_silence
+    start_trim = detect_leading_silence(sound, silence_threshold, chunk_size)
+    end_trim = detect_leading_silence(sound.reverse(), silence_threshold, chunk_size)
+    duration = len(sound)
+    # Ensure we don't completely wipe out the audio if it's all silent
+    if start_trim + end_trim >= duration:
+        return sound, 0, 0
+    trimmed_sound = sound[start_trim:duration-end_trim]
+    return trimmed_sound, start_trim, end_trim
+
+
 def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                           output_video_path: str, output_audio_path: str,
                           keep_bg_music: bool = True,
@@ -1999,6 +2012,10 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             continue
         try:
             tts_audio = AudioSegment.from_file(seg["audio_path"])
+            
+            # Trim silence at start and end to get exact voicing duration
+            tts_audio, s_trim, e_trim = _trim_silence(tts_audio, silence_threshold=-45.0)
+            
             start_ms = int(seg["start"] * 1000)
 
             # Tính thời lượng tối đa cho phép cho câu thoại này
@@ -2006,9 +2023,9 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             slot_end_ms = int(seg.get("end", seg["start"] + 3.0) * 1000)
             max_duration_ms = slot_end_ms - start_ms
 
-            # Nếu audio dài hơn slot → ưu tiên nén bằng ffmpeg atempo (tối đa 1.5x)
+            # Nếu audio dài hơn slot → ưu tiên nén bằng ffmpeg atempo (tối đa 1.3x)
             # trước khi cắt, để đảm bảo đọc hết câu mà không mất chữ cuối.
-            MAX_ATEMPO = 1.5
+            MAX_ATEMPO = 1.3
             if max_duration_ms > 0 and len(tts_audio) > max_duration_ms:
                 original_len = len(tts_audio)
                 speed_factor = original_len / max_duration_ms  # e.g. 1.2 nếu dài hơn 20%
@@ -2019,6 +2036,7 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                     _adjust_audio_speed(audio_path, speed_factor)
                     try:
                         tts_audio = AudioSegment.from_file(audio_path)
+                        tts_audio, _, _ = _trim_silence(tts_audio, silence_threshold=-45.0)
                         logger.info(
                             f"Seg {idx}: atempo {speed_factor:.2f}x → {original_len}ms → "
                             f"{len(tts_audio)}ms (khớp slot {max_duration_ms}ms)"
@@ -2026,11 +2044,12 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                     except Exception as reload_err:
                         logger.warning(f"Seg {idx}: Không đọc lại audio sau atempo: {reload_err}")
                 else:
-                    # Trường hợp 2: Quá dài ngay cả ở 1.5x → nén tối đa rồi để tràn nhẹ
+                    # Trường hợp 2: Quá dài ngay cả ở 1.3x → nén tối đa rồi để tràn nhẹ
                     audio_path = seg["audio_path"]
                     _adjust_audio_speed(audio_path, MAX_ATEMPO)
                     try:
                         tts_audio = AudioSegment.from_file(audio_path)
+                        tts_audio, _, _ = _trim_silence(tts_audio, silence_threshold=-45.0)
                     except Exception:
                         pass
                     logger.warning(
@@ -2038,13 +2057,13 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                         f"ngay cả ở {MAX_ATEMPO}x. Cho phép tràn nhẹ để không mất chữ."
                     )
 
-            # Nếu sau atempo vẫn còn dài hơn 120% slot → cắt cứng với fade-out 100ms (dự phòng)
-            hard_cut_limit = int(max_duration_ms * 1.2) if max_duration_ms > 0 else len(tts_audio)
-            if max_duration_ms > 0 and len(tts_audio) > hard_cut_limit:
-                fade_ms = min(100, hard_cut_limit // 4)
-                tts_audio = tts_audio[:hard_cut_limit].fade_out(fade_ms)
-                logger.info(
-                    f"Seg {idx}: cắt dự phòng xuống {hard_cut_limit}ms + fade-out {fade_ms}ms"
+            # Thay thế hard-cut: Cho phép tràn nhẹ lên đến 1.35x slot gốc trước khi áp dụng fade out graceful
+            allowed_limit_ms = int(max_duration_ms * 1.35) if max_duration_ms > 0 else len(tts_audio)
+            if max_duration_ms > 0 and len(tts_audio) > allowed_limit_ms:
+                fade_ms = min(150, allowed_limit_ms // 4)
+                tts_audio = tts_audio[:allowed_limit_ms].fade_out(fade_ms)
+                logger.warning(
+                    f"Seg {idx}: Tràn quá giới hạn 1.35x. Cắt dự phòng và fade-out {fade_ms}ms để bảo toàn ý."
                 )
 
             # Fade-in 50ms to prevent click noise at segment start
