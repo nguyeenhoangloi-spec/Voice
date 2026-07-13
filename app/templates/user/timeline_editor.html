@@ -121,6 +121,150 @@
     .video-neon-border:hover {
         border-color: rgba(56, 189, 248, 0.25);
     }
+
+    /* ── TTS Preview Button ── */
+    .btn-preview-tts {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        background: rgba(139, 92, 246, 0.1);
+        color: #a78bfa;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        white-space: nowrap;
+    }
+    .btn-preview-tts:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.22);
+        border-color: rgba(167, 139, 250, 0.6);
+        box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
+        transform: translateY(-1px);
+    }
+    .btn-preview-tts:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-preview-tts.loading { animation: pulse-purple 1s infinite; }
+    @keyframes pulse-purple {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.5; }
+    }
+    .btn-preview-tts.playing {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: rgba(16, 185, 129, 0.5);
+        color: #34d399;
+    }
+
+    /* ── Mini Audio Player ── */
+    .preview-player-wrap {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        background: rgba(139, 92, 246, 0.08);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        margin-top: 4px;
+        animation: fadeSlideIn 0.25s ease;
+    }
+    .preview-player-wrap.visible { display: flex; }
+    @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .preview-player-wrap audio { flex: 1; height: 28px; border-radius: 4px; outline: none; }
+    .btn-close-preview {
+        background: none; border: none;
+        color: var(--text-tertiary); cursor: pointer;
+        padding: 2px; line-height: 1;
+        border-radius: 4px; transition: color 0.2s; flex-shrink: 0;
+    }
+    .btn-close-preview:hover { color: var(--text-primary); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .icon-spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
+    /* ── AI Translate Button ── */
+    .btn-ai-translate {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        background: rgba(16, 185, 129, 0.08);
+        color: #34d399;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        white-space: nowrap;
+    }
+    .btn-ai-translate:hover:not(:disabled) {
+        background: rgba(16, 185, 129, 0.18);
+        border-color: rgba(52, 211, 153, 0.6);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        transform: translateY(-1px);
+    }
+    .btn-ai-translate:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn-ai-translate.translating {
+        background: rgba(16, 185, 129, 0.12);
+        border-color: rgba(52, 211, 153, 0.4);
+        animation: shimmer-green 1.2s infinite;
+    }
+    @keyframes shimmer-green {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.55; }
+    }
+    .btn-ai-translate.done {
+        background: rgba(16, 185, 129, 0.18);
+        border-color: rgba(52, 211, 153, 0.6);
+        color: #6ee7b7;
+    }
+
+    /* ── Slot Usage Bar ── */
+    .slot-usage-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .slot-usage-bar {
+        flex: 1;
+        height: 4px;
+        border-radius: 99px;
+        background: rgba(255,255,255,0.07);
+        overflow: hidden;
+    }
+    .slot-usage-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 0.3s ease, background 0.3s ease;
+        background: #34d399;
+    }
+    .slot-usage-fill.warn  { background: #f59e0b; }
+    .slot-usage-fill.over  { background: #ef4444; }
+    .slot-usage-label {
+        font-size: 10px;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        min-width: 32px;
+        text-align: right;
+    }
+    .slot-usage-label.warn  { color: #f59e0b; }
+    .slot-usage-label.over  { color: #ef4444; }
+
+    /* ── Duration Badge ── */
+    .duration-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 99px;
+        background: rgba(255,255,255,0.05);
+        color: var(--text-tertiary);
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        border: 1px solid rgba(255,255,255,0.06);
+    }
 </style>
 
 <div class="page-header" style="margin-bottom: var(--space-md);">
@@ -153,7 +297,7 @@
             </div>
             <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-top: 2px; display: flex; gap: 6px;">
                 <i data-lucide="lightbulb" style="width: 16px; height: 16px; color: #f59e0b; flex-shrink: 0;"></i>
-                <span>Bạn có thể click vào nút phát thời gian của từng đoạn dịch ở cột bên phải để tua nhanh video đến vị trí đó!</span>
+                <span>Click ▶ mốc thời gian để tua video. Dùng nút <span style="color:#a78bfa;font-weight:700;">🎧 Nghe thử</span> để nghe giọng lồng tiếng từng câu ngay trên đây!</span>
             </div>
         </div>
 
@@ -169,6 +313,19 @@
                 <div>Cảm xúc: <span style="font-weight: 700; color: var(--text-primary);">{{ job.voice_config.voice_emotion }}</span></div>
                 <div>Nhạc nền: <span style="font-weight: 700; color: var(--text-primary);">{% if job.voice_config.keep_bg_music %}Giữ lại{% else %}Tắt hoàn toàn{% endif %}</span></div>
             </div>
+            <!-- Giọng đọc dùng cho Preview TTS -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: var(--space-sm); margin-top: 2px;">
+                <label style="font-size: 11px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">
+                    <i data-lucide="headphones" style="width: 12px; height: 12px; display: inline; vertical-align: -2px; margin-right: 4px;"></i>Giọng Nghe thử:
+                </label>
+                <select id="preview-voice-select" class="glass-input" style="width: 100%; padding: 6px 8px; font-size: 12px;">
+                    <option value="vi-VN-HoaiMyNeural">🇻🇳 Hoài My (Nữ - Edge Neural)</option>
+                    <option value="vi-VN-NamMinhNeural">🇻🇳 Nam Minh (Nam - Edge Neural)</option>
+                    <option value="vi_vn_002">CapCut vi_vn_002 (Nữ hoạt ngôn)</option>
+                    <option value="vi_vn_001">CapCut vi_vn_001 (Nam trầm)</option>
+                </select>
+                <p style="font-size: 11px; color: var(--text-tertiary); margin: 4px 0 0 0; line-height: 1.4;">Chọn giọng để nghe thử từng câu. Giọng lồng tiếng cuối cùng do cấu hình tác vụ quyết định.</p>
+            </div>
         </div>
     </div>
 
@@ -179,9 +336,15 @@
                 <i data-lucide="align-left" style="width: 20px; height: 20px; color: var(--color-primary);"></i>
                 Danh sách phân đoạn ({{ segments|length }})
             </h3>
-            <button id="btn-add-segment" class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px; border: 1px solid rgba(255,255,255,0.05);">
-                <i data-lucide="plus" style="width: 16px; height: 16px; margin-right: 2px;"></i> Thêm đoạn thoại
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="btn-translate-all" class="btn-ai-translate" title="Dịch AI tất cả câu chưa có bản dịch"  style="padding: 7px 13px; font-size: 12.5px;"  type="button">
+                    <i data-lucide="languages" style="width: 14px; height: 14px;"></i>
+                    <span id="translate-all-label">Dịch AI tất cả</span>
+                </button>
+                <button id="btn-add-segment" class="btn btn-secondary hover-scale" style="padding: 8px 16px; font-size: 13px; border: 1px solid rgba(255,255,255,0.05);"  type="button">
+                    <i data-lucide="plus" style="width: 16px; height: 16px; margin-right: 2px;"></i> Thêm đoạn thoại
+                </button>
+            </div>
         </div>
 
         <form id="timeline-form" style="display: flex; flex-direction: column; gap: var(--space-md);">
@@ -192,8 +355,8 @@
                     
                     <!-- Metadata của câu: Thời gian và Người nói -->
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: var(--space-xs);">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-weight: 800; color: var(--color-primary); font-size: 14px;">#{{ loop.index }}</span>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-weight: 800; color: var(--color-primary); font-size: 14px;"  class="seg-index-badge">#{{ loop.index }}</span>
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <input type="number" step="0.1" class="glass-input start-time" value="{{ seg.start_time }}" style="width: 70px; text-align: center;" required>
                                 <span style="color: var(--text-tertiary);">→</span>
@@ -201,9 +364,10 @@
                                 <button type="button" class="btn btn-secondary btn-seek hover-scale" data-time="{{ seg.start_time }}" style="padding: 5px 8px; border: 1px solid rgba(255,255,255,0.05);" title="Tua video tới mốc này">
                                     <i data-lucide="play" style="width: 12px; height: 12px; fill: currentColor;"></i>
                                 </button>
+                                <span class="duration-badge" id="dur-{{ seg.id }}">{{ "%.1f"|format(seg.end_time - seg.start_time) }}s</span>
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <select class="glass-input speaker-select" onchange="updateSpeakerBorder(this, '{{ seg.id }}')" style="width: 105px; padding: 4px 6px;">
                                 <option value="Speaker 1" {% if seg.speaker == 'Speaker 1' %}selected{% endif %}>Speaker 1</option>
                                 <option value="Speaker 2" {% if seg.speaker == 'Speaker 2' %}selected{% endif %}>Speaker 2</option>
@@ -215,6 +379,16 @@
                                 <option value="sad" {% if seg.emotional_tag == 'sad' %}selected{% endif %}>Ấm áp</option>
                                 <option value="angry" {% if seg.emotional_tag == 'angry' %}selected{% endif %}>Mạnh mẽ</option>
                             </select>
+                            <!-- ✨ Nút Dịch AI -->
+                            <button type="button" class="btn-ai-translate" data-seg-id="{{ seg.id }}" title="Dịch AI từng câu ngay tại đây">
+                                <i data-lucide="languages" style="width: 13px; height: 13px;"></i>
+                                <span class="translate-label">Dịch AI</span>
+                            </button>
+                            <!-- 🎧 Nút Nghe thử TTS Preview -->
+                            <button type="button" class="btn-preview-tts" data-seg-id="{{ seg.id }}" title="Nghe thử bản dịch bằng giọng AI">
+                                <i data-lucide="headphones" style="width: 13px; height: 13px;"></i>
+                                <span class="preview-label">Nghe thử</span>
+                            </button>
                             <button type="button" class="btn btn-secondary hover-scale btn-delete-seg" style="padding: 6px; border: 1px solid rgba(248, 113, 113, 0.15); background: rgba(248, 113, 113, 0.02); color: var(--color-danger);" onclick="deleteSegmentRow('{{ seg.id }}')" title="Xóa phân đoạn">
                                 <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                             </button>
@@ -229,8 +403,24 @@
                         </div>
                         <div>
                             <label style="font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Bản dịch tiếng Việt:</label>
-                            <textarea class="glass-input text-trans" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;" required>{{ seg.translation }}</textarea>
+                            <textarea class="glass-input text-trans" rows="2" style="width: 100%; resize: vertical; padding: 8px; line-height: 1.5;"
+                                data-start="{{ seg.start_time }}" data-end="{{ seg.end_time }}" required>{{ seg.translation }}</textarea>
+                            <!-- Slot Usage Bar -->
+                            <div class="slot-usage-wrap">
+                                <div class="slot-usage-bar">
+                                    <div class="slot-usage-fill" id="usage-fill-{{ seg.id }}" style="width: 0%;"></div>
+                                </div>
+                                <span class="slot-usage-label" id="usage-label-{{ seg.id }}">—</span>
+                            </div>
                         </div>
+                    </div>
+                    <!-- Mini Audio Player (ẩn mặc định, hiện khi bấm Nghe thử) -->
+                    <div class="preview-player-wrap" id="preview-wrap-{{ seg.id }}">
+                        <i data-lucide="volume-2" style="width: 14px; height: 14px; color: #a78bfa; flex-shrink: 0;"></i>
+                        <audio id="preview-audio-{{ seg.id }}" controls preload="none" style="flex: 1; height: 28px;"></audio>
+                        <button class="btn-close-preview" onclick="closePreview('{{ seg.id }}')" title="Đóng">
+                            <i data-lucide="x" style="width: 13px; height: 13px;"></i>
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
@@ -244,6 +434,294 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const jobId = "{{ job.id }}";
+        const previewVoiceSelect = document.getElementById("preview-voice-select");
+
+        // Track currently playing preview (to stop old one when starting new)
+        let currentlyPlayingAudio = null;
+        let currentlyPlayingSegId = null;
+
+        // ── TTS PREVIEW LOGIC ─────────────────────────────────────────
+        async function previewSegmentTTS(segId, btn) {
+            const card = document.getElementById(`seg-card-${segId}`);
+            if (!card) return;
+
+            const translation = (card.querySelector(".text-trans") || {}).value || "";
+            if (!translation.trim()) {
+                showToast("Vui lòng nhập bản dịch tiếng Việt trước khi nghe thử.", "warning");
+                return;
+            }
+
+            const voice = previewVoiceSelect ? previewVoiceSelect.value : "vi-VN-HoaiMyNeural";
+
+            // Stop previous preview audio
+            if (currentlyPlayingAudio && !currentlyPlayingAudio.paused) {
+                currentlyPlayingAudio.pause();
+            }
+            if (currentlyPlayingSegId && currentlyPlayingSegId !== String(segId)) {
+                const oldWrap = document.getElementById(`preview-wrap-${currentlyPlayingSegId}`);
+                const oldBtn  = document.querySelector(`.btn-preview-tts[data-seg-id="${currentlyPlayingSegId}"]`);
+                if (oldWrap) oldWrap.classList.remove("visible");
+                if (oldBtn)  resetPreviewBtn(oldBtn);
+            }
+
+            // Set loading state
+            btn.disabled = true;
+            btn.classList.add("loading");
+            btn.innerHTML = `<span class="icon-spin">⟳</span> <span class="preview-label">Đang sinh...</span>`;
+
+            try {
+                const resp = await fetch(`/dubbing/job/${jobId}/preview-tts`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        translation: translation.trim(),
+                        voice: voice,
+                        rate: "+0%",
+                        segment_id: String(segId)
+                    })
+                });
+
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || `HTTP ${resp.status}`);
+                }
+
+                const blob = await resp.blob();
+                const audioUrl = URL.createObjectURL(blob);
+
+                const audioEl = document.getElementById(`preview-audio-${segId}`);
+                const wrapEl  = document.getElementById(`preview-wrap-${segId}`);
+
+                if (audioEl && wrapEl) {
+                    if (audioEl.dataset.blobUrl) URL.revokeObjectURL(audioEl.dataset.blobUrl);
+                    audioEl.src = audioUrl;
+                    audioEl.dataset.blobUrl = audioUrl;
+                    wrapEl.classList.add("visible");
+
+                    btn.disabled = false;
+                    btn.classList.remove("loading");
+                    btn.classList.add("playing");
+                    btn.innerHTML = `<i data-lucide="volume-2" style="width:13px;height:13px;"></i> <span class="preview-label">Đang phát</span>`;
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+
+                    audioEl.play().catch(() => {});
+                    currentlyPlayingAudio = audioEl;
+                    currentlyPlayingSegId = String(segId);
+
+                    audioEl.onended = () => { resetPreviewBtn(btn); currentlyPlayingAudio = null; currentlyPlayingSegId = null; };
+                    audioEl.onpause = () => { if (!audioEl.ended) resetPreviewBtn(btn); };
+                }
+            } catch (err) {
+                showToast(`Lỗi nghe thử: ${err.message}`, "danger");
+                resetPreviewBtn(btn);
+            }
+        }
+
+        function resetPreviewBtn(btn) {
+            btn.disabled = false;
+            btn.classList.remove("loading", "playing");
+            btn.innerHTML = `<i data-lucide="headphones" style="width:13px;height:13px;"></i> <span class="preview-label">Nghe thử</span>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+
+        // Delegated click for preview buttons (works for dynamically added segments)
+        document.addEventListener("click", (e) => {
+            const previewBtn = e.target.closest(".btn-preview-tts");
+            if (previewBtn) {
+                previewSegmentTTS(previewBtn.dataset.segId, previewBtn);
+            }
+        });
+        // ── AI TRANSLATE LOGIC ──────────────────────────────────
+        // Chẃng sát context của job từ voice_config
+        const jobContext = "{{ job.voice_config.video_context or 'neutral' }}";
+
+        async function translateSegmentAI(segId, btn) {
+            const card = document.getElementById(`seg-card-${segId}`);
+            if (!card) return;
+
+            const srcTA = card.querySelector(".text-src");
+            const transTA = card.querySelector(".text-trans");
+            const text = (srcTA ? srcTA.value : "").trim();
+
+            if (!text) {
+                showToast("Vui lòng nhập câu tiếng Anh gốc trước khi dịch.", "warning");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add("translating");
+            btn.innerHTML = `<span class="icon-spin">⟳</span> <span class="translate-label">Đang dịch...</span>`;
+
+            try {
+                const resp = await fetch(`/dubbing/job/${jobId}/translate-segment`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text, context: jobContext })
+                });
+
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || `HTTP ${resp.status}`);
+                }
+
+                const data = await resp.json();
+                if (transTA && data.translation) {
+                    transTA.value = data.translation;
+                    transTA.dispatchEvent(new Event("input"));
+                    // Flash green to indicate success
+                    transTA.style.transition = "border-color 0.3s";
+                    transTA.style.borderColor = "rgba(52, 211, 153, 0.6)";
+                    setTimeout(() => { transTA.style.borderColor = ""; }, 1200);
+                }
+
+                btn.classList.remove("translating");
+                btn.classList.add("done");
+                const engineLabel = data.engine === "gemini" ? "✨ Gemini" : data.engine === "cache" ? "⚡ Cache" : "✓ Google";
+                btn.innerHTML = `<i data-lucide="check" style="width:13px;height:13px;"></i> <span class="translate-label">${engineLabel}</span>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+
+                // Reset button after 2s
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.remove("done");
+                    btn.innerHTML = `<i data-lucide="languages" style="width:13px;height:13px;"></i> <span class="translate-label">Dịch AI</span>`;
+                    if (typeof lucide !== "undefined") lucide.createIcons();
+                }, 2000);
+
+            } catch (err) {
+                showToast(`Lỗi dịch: ${err.message}`, "danger");
+                btn.disabled = false;
+                btn.classList.remove("translating", "done");
+                btn.innerHTML = `<i data-lucide="languages" style="width:13px;height:13px;"></i> <span class="translate-label">Dịch AI</span>`;
+                if (typeof lucide !== "undefined") lucide.createIcons();
+            }
+        }
+
+        // Delegated click for AI translate buttons
+        document.addEventListener("click", (e) => {
+            const aiBtn = e.target.closest(".btn-ai-translate[data-seg-id]");
+            if (aiBtn) {
+                translateSegmentAI(aiBtn.dataset.segId, aiBtn);
+            }
+        });
+
+        // Bulk translate: dịch lần lượt tất cả câu (delay 350ms giữa các câu)
+        const btnTranslateAll = document.getElementById("btn-translate-all");
+        const translateAllLabel = document.getElementById("translate-all-label");
+
+        btnTranslateAll.addEventListener("click", async () => {
+            const allCards = [...document.querySelectorAll(".segment-card")];
+            const pending = allCards.filter(card => {
+                const trans = card.querySelector(".text-trans");
+                return trans && trans.value.trim() === "";
+            });
+
+            if (pending.length === 0) {
+                showToast("Tất cả câu đã có bản dịch. Để dịch lại, hãy xóa bản dịch cũ trước.", "info");
+                return;
+            }
+
+            btnTranslateAll.disabled = true;
+            btnTranslateAll.classList.add("translating");
+
+            for (let i = 0; i < pending.length; i++) {
+                const card = pending[i];
+                const segId = card.dataset.id;
+                translateAllLabel.textContent = `Đang dịch ${i + 1}/${pending.length}...`;
+
+                const aiBtn = card.querySelector(".btn-ai-translate[data-seg-id]");
+                if (aiBtn) {
+                    await translateSegmentAI(segId, aiBtn);
+                } else {
+                    // Inline translate without button (for new added segments)
+                    const srcTA = card.querySelector(".text-src");
+                    const transTA = card.querySelector(".text-trans");
+                    const text = (srcTA ? srcTA.value : "").trim();
+                    if (text) {
+                        try {
+                            const resp = await fetch(`/dubbing/job/${jobId}/translate-segment`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ text, context: jobContext })
+                            });
+                            if (resp.ok) {
+                                const data = await resp.json();
+                                if (transTA && data.translation) {
+                                    transTA.value = data.translation;
+                                    transTA.dispatchEvent(new Event("input"));
+                                }
+                            }
+                        } catch(err) {
+                            // Silently continue bulk translation
+                        }
+                    }
+                }
+
+                if (i < pending.length - 1) await new Promise(r => setTimeout(r, 350));
+            }
+
+            btnTranslateAll.disabled = false;
+            btnTranslateAll.classList.remove("translating");
+            translateAllLabel.textContent = `✓ Hoàn thành ${pending.length} câu`;
+            showToast(`Dịch xong ${pending.length} phân đoạn bằng AI!`, "success");
+            setTimeout(() => { translateAllLabel.textContent = "Dịch AI tất cả"; }, 3000);
+        });
+        // ── END AI TRANSLATE LOGIC ──────────────────────────
+
+        // ── SLOT USAGE BAR ──────────────────────────────────
+        // ~12 chữ / giây — nhịp đọc trung bình tiếng Việt
+        const CHARS_PER_SEC = 12;
+
+        function updateSlotBar(transTA) {
+            const card = transTA.closest(".segment-card");
+            if (!card) return;
+            const segId = card.dataset.id;
+            const fillEl  = document.getElementById(`usage-fill-${segId}`);
+            const labelEl = document.getElementById(`usage-label-${segId}`);
+            if (!fillEl || !labelEl) return;
+
+            const start = parseFloat((card.querySelector(".start-time") || {}).value || 0);
+            const end   = parseFloat((card.querySelector(".end-time")   || {}).value || 0);
+            const slotSec = end - start;
+
+            if (slotSec <= 0) { fillEl.style.width = "0%"; labelEl.textContent = "—"; return; }
+
+            const charLen = transTA.value.trim().length;
+            const estSec  = charLen / CHARS_PER_SEC;
+            const ratio   = Math.min(estSec / slotSec, 1.5); // cap at 150% for display
+            const pct     = Math.min(ratio * 100, 100);
+
+            fillEl.style.width = `${pct}%`;
+
+            if (ratio > 1.0) {
+                fillEl.className = "slot-usage-fill over";
+                labelEl.className = "slot-usage-label over";
+                labelEl.textContent = `+${Math.round((ratio - 1) * 100)}%`;
+            } else if (ratio > 0.8) {
+                fillEl.className = "slot-usage-fill warn";
+                labelEl.className = "slot-usage-label warn";
+                labelEl.textContent = `${Math.round(pct)}%`;
+            } else {
+                fillEl.className = "slot-usage-fill";
+                labelEl.className = "slot-usage-label";
+                labelEl.textContent = `${Math.round(pct)}%`;
+            }
+        }
+
+        // Init all existing bars and wire realtime input
+        document.querySelectorAll(".text-trans").forEach(ta => {
+            updateSlotBar(ta);
+            ta.addEventListener("input", () => updateSlotBar(ta));
+        });
+        // Also update bar when start/end time changes
+        document.addEventListener("change", (e) => {
+            if (e.target.classList.contains("start-time") || e.target.classList.contains("end-time")) {
+                const card = e.target.closest(".segment-card");
+                if (card) { const ta = card.querySelector(".text-trans"); if (ta) updateSlotBar(ta); }
+            }
+        });
+        // ── END SLOT USAGE BAR ─────────────────────────────────
+
         const videoPlayer = document.getElementById("editor-video-player");
         const segmentsContainer = document.getElementById("segments-container");
         const btnSave = document.getElementById("btn-save-timeline");
@@ -434,6 +912,28 @@
         if (card) {
             card.remove();
             showToast("Đã xóa phân đoạn.", "info");
+        }
+    }
+
+    // Đóng mini audio player và dọn dẹp Blob URL
+    function closePreview(segId) {
+        const wrap    = document.getElementById(`preview-wrap-${segId}`);
+        const audioEl = document.getElementById(`preview-audio-${segId}`);
+        const btn     = document.querySelector(`.btn-preview-tts[data-seg-id="${segId}"]`);
+        if (wrap)    wrap.classList.remove("visible");
+        if (audioEl) {
+            audioEl.pause();
+            if (audioEl.dataset.blobUrl) {
+                URL.revokeObjectURL(audioEl.dataset.blobUrl);
+                audioEl.dataset.blobUrl = "";
+            }
+            audioEl.src = "";
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove("loading", "playing");
+            btn.innerHTML = `<i data-lucide="headphones" style="width:13px;height:13px;"></i> <span class="preview-label">Nghe thử</span>`;
+            if (typeof lucide !== "undefined") lucide.createIcons();
         }
     }
 </script>

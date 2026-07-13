@@ -272,3 +272,19 @@ Dưới đây là ghi nhận lịch sử các lỗi phát sinh trong quá trình
 - **Status**: Auto-handled
 
 ---
+
+
+## [2026-07-12 20:30] - Pipeline step 8 failed: [WinError 127] (ctranslate2 DLL load issue)
+
+- **Type**: Runtime
+- **Severity**: Critical
+- **File**: `app/services/dubbing_engine.py:716`
+- **Agent**: Voice
+- **Root Cause**: Khi nạp thư viện `whisperx` (sử dụng `faster_whisper` và `ctranslate2` ở tầng dưới), Windows cố gắng load các file DLL của Intel MKL hoặc CUDA có sẵn trong PATH hệ thống nhưng bị xung đột phiên bản. Do Uvicorn ở chế độ dev reload sinh tiến trình con chạy ứng dụng thực tế bỏ qua file khởi chạy `run.py`, biến môi trường PATH cấu hình tại `run.py` không được truyền cho tiến trình con.
+- **Fix Applied**: 
+  1. Thêm đoạn mã tự động phát hiện và chèn thư mục `Library\bin` của conda environment `voiceai` vào đầu biến môi trường `PATH` ngay dòng đầu tiên của `app/main.py`.
+  2. Bật cấu hình `os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"` ngay từ dòng đầu tiên của `app/main.py` để tránh lỗi crash access violation khi load trùng lặp DLL MKL.
+- **Prevention**: Luôn nạp các biến môi trường cấu hình đường dẫn DLL và bỏ qua trùng lặp thư viện MKL ngay tại điểm khởi đầu thực sự của ứng dụng FastAPI (`app/main.py`) thay vì chỉ định nghĩa ở file entrypoint start script (`run.py`) để các tiến trình con được spawn ra kế thừa trọn vẹn cấu hình.
+- **Status**: Fixed
+
+---

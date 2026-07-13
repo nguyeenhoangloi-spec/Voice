@@ -12,6 +12,9 @@ class DubbingJob(Base):
     
     source_url = Column(String, nullable=True) # URL of YouTube or media file
     source_type = Column(String, nullable=False) # 'link' or 'upload'
+    clip_start = Column(String, nullable=True)  # "HH:MM:SS" — clip start time for partial download
+    clip_end = Column(String, nullable=True)    # "HH:MM:SS" — clip end time for partial download
+
     
     # Trạng thái: pending | processing | completed | failed | cancelled
     status = Column(String, default="pending", nullable=False)

@@ -291,9 +291,70 @@
                 </label>
             </div>
             
-            <button id="btn-submit" class="shiny-btn btn" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
-                🚀 Bắt đầu lồng tiếng
-            </button>
+                <!-- Clip time range section -->
+                <div id="clip-section" style="background: rgba(255,165,0,0.06); border: 1px solid rgba(255,165,0,0.2); border-radius: var(--radius-md); padding: 14px; margin-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text-primary); cursor: pointer;">
+                            <input type="checkbox" id="enable-clip" style="width: 16px; height: 16px; accent-color: orange;" onchange="toggleClipInputs(this.checked)">
+                            ✂️ Chỉ lồng tiếng một đoạn (Cắt video online)
+                        </label>
+                        <span style="font-size: 11px; color: var(--text-tertiary);">Tiết kiệm thời gian tải và xử lý</span>
+                    </div>
+                    <div id="clip-inputs" style="display:none; gap: 12px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block;">Từ (HH:MM:SS)</label>
+                            <input type="text" id="clip-start" placeholder="00:00:00" maxlength="8"
+                                style="width: 100%; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px; font-family: monospace;"
+                                oninput="formatHMS(this)">
+                        </div>
+                        <div style="color: var(--text-tertiary); font-size: 18px; padding-top: 16px;">→</div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block;">Đến (HH:MM:SS)</label>
+                            <input type="text" id="clip-end" placeholder="00:05:00" maxlength="8"
+                                style="width: 100%; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px; font-family: monospace;"
+                                oninput="formatHMS(this)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bento Card Con: Cấu hình tải video (yt-dlp) -->
+                <div id="download-settings-section" style="background: rgba(14, 165, 233, 0.04); border: 1px solid rgba(14, 165, 233, 0.18); border-radius: var(--radius-md); padding: 14px; margin-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--text-primary);">
+                            <i data-lucide="download" style="width: 16px; height: 16px; color: var(--color-primary); display: inline-block; vertical-align: -2px;"></i>
+                            Cấu hình tải video (YouTube / Web)
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label for="download-quality" class="form-label" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Chất lượng video tải xuống</label>
+                            <select id="download-quality" class="form-control" style="width: 100%;">
+                                <option value="1080p">1080p (FHD - Yêu cầu cấu hình mạnh)</option>
+                                <option value="720p" selected>720p (HD - Khuyên dùng)</option>
+                                <option value="480p">480p (SD - Tải nhanh)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; margin-bottom: 6px;">
+                                <input type="checkbox" id="enable-cookie" style="width: 16px; height: 16px; accent-color: var(--color-primary);" onchange="toggleCookieInput(this.checked)">
+                                Sử dụng Cookies (Để tải video giới hạn/private)
+                            </label>
+                            
+                            <div id="cookie-input-wrapper" style="display: none; flex-direction: column; gap: 6px; margin-top: 8px;">
+                                <textarea id="cookie-content" class="form-control" rows="3" placeholder="# Netscape HTTP Cookie File&#10;# Export from Cookie-Editor extension (Text format)..." style="width: 100%; font-family: monospace; font-size: 11px; resize: vertical; background: rgba(0,0,0,0.3) !important;"></textarea>
+                                <span style="font-size: 11px; color: var(--text-tertiary); line-height: 1.4;">
+                                    💡 Cài tiện ích **Cookie Editor** → Mở YouTube → Chọn Export dạng **Header/Netscape/Text** → Dán vào đây.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-submit" class="shiny-btn btn" style="width: 100%; margin-top: var(--space-sm); padding: 14px; font-size: 15px;" disabled>
+                    🚀 Bắt đầu lồng tiếng
+                </button>
+
         </div>
     </div>
 
@@ -815,8 +876,13 @@
                         video_context: document.getElementById("video-context").value,
                         video_topic: document.getElementById("video-topic").value.trim(),
                         whisper_model: document.getElementById("whisper-model").value,
-                        asr_method: document.getElementById("asr-method").value
+                        asr_method: document.getElementById("asr-method").value,
+                        clip_start: document.getElementById("enable-clip").checked ? (document.getElementById("clip-start").value.trim() || null) : null,
+                        clip_end: document.getElementById("enable-clip").checked ? (document.getElementById("clip-end").value.trim() || null) : null,
+                        download_quality: document.getElementById("download-quality").value,
+                        cookie_content: document.getElementById("enable-cookie").checked ? (document.getElementById("cookie-content").value.trim() || null) : null,
                     })
+
 
                 });
                 
@@ -883,7 +949,29 @@
         const section = document.getElementById('bg-volume-section');
         section.style.display = this.checked ? 'block' : 'none';
     });
+
+    // Toggle clip time-range inputs visibility
+    function toggleClipInputs(checked) {
+        const el = document.getElementById('clip-inputs');
+        el.style.display = checked ? 'flex' : 'none';
+    }
+
+    // Auto-format HH:MM:SS as user types
+    function formatHMS(input) {
+        let v = input.value.replace(/[^0-9]/g, '');
+        if (v.length > 6) v = v.slice(0, 6);
+        if (v.length >= 5) v = v.slice(0,2) + ':' + v.slice(2,4) + ':' + v.slice(4);
+        else if (v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2);
+        input.value = v;
+    }
+
+    // Toggle cookie textarea wrapper
+    function toggleCookieInput(checked) {
+        const el = document.getElementById('cookie-input-wrapper');
+        el.style.display = checked ? 'flex' : 'none';
+    }
 </script>
+
 
 <style>
     /* Quay vòng quay CSS */

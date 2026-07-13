@@ -53,7 +53,7 @@ class DirectMediaAdapter(BaseAdapter):
                 "error": f"Lỗi lấy thông tin file media: {str(e)}"
             }
 
-    def download(self, url: str, output_path: str) -> str:
+    def download(self, url: str, output_path: str, **kwargs) -> str:
         # Tải file trực tiếp qua HTTP
         with httpx.Client(timeout=300.0, follow_redirects=True) as client:
             with client.stream("GET", url) as response:

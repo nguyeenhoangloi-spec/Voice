@@ -25,6 +25,11 @@ class JobCreateRequest(BaseModel):
     video_topic: Optional[str] = ""            # e.g. "Doraemon cartoon", "Harry Potter movie"
     whisper_model: Optional[str] = "base"      # base | small | medium
     asr_method: Optional[str] = "whisper"      # whisper | softsub | ocr
+    clip_start: Optional[str] = None           # "HH:MM:SS" — start of clip (yt-dlp --download-sections)
+    clip_end: Optional[str] = None             # "HH:MM:SS" — end of clip (yt-dlp --download-sections)
+    download_quality: Optional[str] = "720p"   # 1080p | 720p | 480p
+    cookie_content: Optional[str] = None       # Content of cookies file (Netscape format)
+
 
 
 

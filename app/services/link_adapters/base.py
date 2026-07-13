@@ -12,6 +12,11 @@ class BaseAdapter(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def download(self, url: str, output_path: str) -> str:
-        """Tải nội dung media từ URL và lưu vào output_path"""
+    def download(self, url: str, output_path: str, **kwargs) -> str:
+        """Tải nội dung media từ URL và lưu vào output_path.
+        
+        Supported kwargs:
+            clip_start (str|None): "HH:MM:SS" — start time for partial download
+            clip_end   (str|None): "HH:MM:SS" — end time for partial download
+        """
         pass

@@ -1,4 +1,33 @@
 import os
+import sys
+
+# Khắc phục lỗi DLL load failed (WinError 127) và lỗi crash duplicate MKL trên Windows
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# Lọc sạch PATH để loại bỏ CUDA Toolkit hệ thống (tránh xung đột phiên bản CUDA DLL)
+path_list = os.environ.get("PATH", "").split(os.pathsep)
+cleaned_paths = []
+for p in path_list:
+    if not p:
+        continue
+    p_lower = p.lower()
+    if "nvidia gpu computing toolkit" in p_lower or "cuda" in p_lower:
+        if "envs\\voiceai" not in p_lower and "envs/voiceai" not in p_lower:
+            continue
+    cleaned_paths.append(p)
+
+python_dir = os.path.dirname(sys.executable)
+library_bin = os.path.join(python_dir, "Library", "bin")
+if os.name == 'nt' and os.path.exists(library_bin):
+    cleaned_paths.insert(0, library_bin)
+    if hasattr(os, "add_dll_directory"):
+        try:
+            os.add_dll_directory(library_bin)
+        except Exception:
+            pass
+
+os.environ["PATH"] = os.pathsep.join(cleaned_paths)
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

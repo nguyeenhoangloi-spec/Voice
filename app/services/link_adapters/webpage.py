@@ -55,7 +55,7 @@ class WebpageAdapter(BaseAdapter):
                 "error": f"Lỗi quét trang web: {str(e)}"
             }
 
-    def download(self, url: str, output_path: str) -> str:
+    def download(self, url: str, output_path: str, **kwargs) -> str:
         # Lấy lại metadata để lấy link media thật
         meta = self.extract_metadata(url)
         if not meta.get("success") or "media_url" not in meta:

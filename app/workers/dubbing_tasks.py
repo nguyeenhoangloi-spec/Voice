@@ -203,7 +203,17 @@ def run_dubbing_pipeline(job_id: str):
                 elif step_num == 3:
                     if job.source_type == "link":
                         adapter = get_adapter_for_url(job.source_url)
-                        meta = adapter.extract_metadata(job.source_url)
+                        
+                        # Load download configurations
+                        v_conf = job.voice_config or {}
+                        if isinstance(v_conf, str):
+                            try:
+                                v_conf = json.loads(v_conf)
+                            except Exception:
+                                v_conf = {}
+                        cookie_content = v_conf.get("cookie_content") or None
+
+                        meta = adapter.extract_metadata(job.source_url, cookie_content=cookie_content)
                         if meta.get("duration"):
                             job.duration = meta["duration"]
                         step_record.log_message = f"Metadata: {meta.get('title', 'N/A')}, {job.duration}s."
@@ -214,16 +224,40 @@ def run_dubbing_pipeline(job_id: str):
                 elif step_num == 4:
                     if job.source_type == "link":
                         adapter = get_adapter_for_url(job.source_url)
-                        adapter.download(job.source_url, source_path)
+                        
+                        # Load download configurations
+                        v_conf = job.voice_config or {}
+                        if isinstance(v_conf, str):
+                            try:
+                                v_conf = json.loads(v_conf)
+                            except Exception:
+                                v_conf = {}
+                        cookie_content = v_conf.get("cookie_content") or None
+                        download_quality = v_conf.get("download_quality") or "720p"
+
+                        # Support partial download (time-range clip)
+                        clip_start = getattr(job, 'clip_start', None)
+                        clip_end = getattr(job, 'clip_end', None)
+                        
+                        adapter.download(
+                            job.source_url, 
+                            source_path,
+                            clip_start=clip_start, 
+                            clip_end=clip_end,
+                            download_quality=download_quality,
+                            cookie_content=cookie_content
+                        )
                         if not os.path.exists(source_path):
                             raise FileNotFoundError(f"Download that bai: file khong ton tai tai {source_path}")
                         file_size = os.path.getsize(source_path)
-                        step_record.log_message = f"Da tai thanh cong ({file_size // 1024} KB)."
+                        clip_info = f" [{clip_start}-{clip_end}]" if clip_start or clip_end else ""
+                        step_record.log_message = f"Da tai thanh cong{clip_info} ({file_size // 1024} KB) - Chat luong: {download_quality}."
                     elif job.source_type == "upload" and job.source_url and os.path.exists(job.source_url):
                         shutil.copy(job.source_url, source_path)
                         step_record.log_message = "Da sao chep file upload."
                     else:
                         raise FileNotFoundError("Khong tim thay file nguon.")
+
 
                 # ===================== STEP 5: Validate media =====================
                 elif step_num == 5:
@@ -361,8 +395,38 @@ def run_dubbing_pipeline(job_id: str):
 
                 # ===================== STEP 12: Optimize translation =====================
                 elif step_num == 12:
-                    # In production, we'd do timing-aware text length optimization
-                    step_record.log_message = "Toi uu ban dich theo do dai thoi gian: Dat."
+                    from app.services.dubbing_engine import optimize_translation_constraints
+                    voice_config = job.voice_config or {}
+                    if isinstance(voice_config, str):
+                        voice_config = json.loads(voice_config)
+
+                    # Get Gemini key for LLM-powered shortening
+                    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+                    segments_data, opt_stats = optimize_translation_constraints(
+                        segments_data, gemini_key=gemini_key
+                    )
+
+                    # Sync optimized translations back to DB
+                    db_segs = db.query(TranscriptSegment).filter(
+                        TranscriptSegment.job_id == job_id
+                    ).order_by(TranscriptSegment.segment_index.asc()).all()
+                    for db_seg, data_seg in zip(db_segs, segments_data):
+                        db_seg.translation = data_seg.get("translation", db_seg.translation)
+
+                    total = len(segments_data)
+                    overrun = opt_stats.get("total_overrun", 0)
+                    llm_cnt = opt_stats.get("llm_shortened", 0)
+                    fb_cnt = opt_stats.get("fallback_shortened", 0)
+
+                    if overrun == 0:
+                        step_record.log_message = f"Tất cả {total} đoạn dịch đều vừa đúng khung thời gian."
+                    else:
+                        step_record.log_message = (
+                            f"Tối ưu {overrun}/{total} đoạn dịch quá dài: "
+                            f"{llm_cnt} rút gọn thông minh (Gemini), "
+                            f"{fb_cnt} rút gọn cơ học (fallback)."
+                        )
 
                 # ===================== STEP 13: Select voice =====================
                 elif step_num == 13:

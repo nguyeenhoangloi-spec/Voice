@@ -170,19 +170,41 @@ def download_youtube_subtitles(url: str, job_id: str) -> list:
     os.makedirs(os.path.dirname(temp_sub_prefix), exist_ok=True)
 
     logger.info(f"Downloading YouTube subtitles for: {url}")
-    # Run yt-dlp to download subtitles (prefer original language, otherwise download any available)
-    cmd = [
-        "yt-dlp",
-        "--write-subs",
-        "--write-auto-subs",
-        "--sub-langs", "origin,.*",
-        "--skip-download",
-        "-o", temp_sub_prefix,
-        url
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    def _run_sub_download(sub_langs: str, extra_args: list) -> subprocess.CompletedProcess:
+        cmd = [
+            "yt-dlp",
+            "--write-subs",
+            "--write-auto-subs",
+            "--sub-langs", sub_langs,
+            "--skip-download",
+            "-o", temp_sub_prefix,
+            *extra_args,
+            url
+        ]
+        return subprocess.run(cmd, capture_output=True, text=True)
+
+    def _has_vtt() -> bool:
+        return bool(glob.glob(temp_sub_prefix + "*.vtt"))
+
+    # Strategy 1: Vietnamese auto-translated subs with Edge cookies (best case)
+    result = _run_sub_download("vi-en,vi,en", ["--cookies-from-browser", "edge"])
+    if not _has_vtt():
+        # Strategy 2: Vietnamese auto-translated subs without cookies (public videos)
+        logger.info("Sub strategy 1 produced no VTT. Trying vi-en without cookies...")
+        result = _run_sub_download("vi-en,vi,en", [])
+    if not _has_vtt():
+        # Strategy 3: Original language + any language with Edge cookies
+        logger.info("Sub strategy 2 produced no VTT. Trying origin,.*  with Edge cookies...")
+        result = _run_sub_download("origin,.*", ["--cookies-from-browser", "edge"])
+    if not _has_vtt():
+        # Strategy 4: Original language + any language without cookies
+        logger.info("Sub strategy 3 produced no VTT. Trying origin,.* without cookies...")
+        result = _run_sub_download("origin,.*", [])
+
     logger.info(f"yt-dlp sub download stdout: {result.stdout[:500]}")
-    
+
+
     # Find downloaded subtitle file with priority
     sub_files = glob.glob(temp_sub_prefix + "*")
     vtt_file = None
@@ -691,6 +713,34 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     from app.utils.ffmpeg_utils import inject_ffmpeg_to_path
     inject_ffmpeg_to_path()
     
+    # Sửa lỗi DLL load failed (WinError 127) cho ctranslate2/faster-whisper trên Windows
+    import sys
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    
+    path_list = os.environ.get("PATH", "").split(os.pathsep)
+    cleaned_paths = []
+    for p in path_list:
+        if not p:
+            continue
+        p_lower = p.lower()
+        if "nvidia gpu computing toolkit" in p_lower or "cuda" in p_lower:
+            if "envs\\voiceai" not in p_lower and "envs/voiceai" not in p_lower:
+                continue
+        cleaned_paths.append(p)
+
+    python_dir = os.path.dirname(sys.executable)
+    library_bin = os.path.join(python_dir, "Library", "bin")
+    if os.name == 'nt' and os.path.exists(library_bin):
+        cleaned_paths.insert(0, library_bin)
+        if hasattr(os, "add_dll_directory"):
+            try:
+                os.add_dll_directory(library_bin)
+            except Exception:
+                pass
+        logger.info(f"[WhisperX] Cleaned CUDA paths and registered DLL directory: {library_bin}")
+
+    os.environ["PATH"] = os.pathsep.join(cleaned_paths)
+
     import whisperx
     import torch
 
@@ -702,12 +752,40 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     if model_name not in ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]:
         model_name = "base"
 
-    logger.info(f"Loading WhisperX model ({model_name}) on device: {device} (compute: {compute_type})...")
-    model = whisperx.load_model(model_name, device, compute_type=compute_type)
+    model = None
+    try:
+        logger.info(f"Loading WhisperX model ({model_name}) on device: {device} (compute: {compute_type})...")
+        model = whisperx.load_model(model_name, device, compute_type=compute_type)
+    except Exception as cuda_err:
+        if device == "cuda":
+            logger.warning(f"Failed to load WhisperX on CUDA: {cuda_err}. Falling back to CPU...")
+            device = "cpu"
+            compute_type = "float32"
+            try:
+                model = whisperx.load_model(model_name, device, compute_type=compute_type)
+            except Exception as cpu_err:
+                raise RuntimeError(f"Failed to load WhisperX on both GPU and CPU. GPU error: {cuda_err}, CPU error: {cpu_err}")
+        else:
+            raise cuda_err
 
     logger.info(f"Transcribing audio with WhisperX: {audio_path}")
     audio = whisperx.load_audio(audio_path)
-    result = model.transcribe(audio, batch_size=16)
+    
+    result = None
+    try:
+        result = model.transcribe(audio, batch_size=16)
+    except Exception as trans_err:
+        if device == "cuda":
+            logger.warning(f"WhisperX transcription failed on CUDA: {trans_err}. Retrying on CPU...")
+            device = "cpu"
+            compute_type = "float32"
+            try:
+                model = whisperx.load_model(model_name, device, compute_type=compute_type)
+                result = model.transcribe(audio, batch_size=16)
+            except Exception as cpu_trans_err:
+                raise RuntimeError(f"Failed to transcribe on both GPU and CPU. GPU error: {trans_err}, CPU error: {cpu_trans_err}")
+        else:
+            raise trans_err
 
     # Align whisper segments for high precision timestamps
     language_code = result.get("language", "en")
@@ -1273,6 +1351,121 @@ def _compress_translation(text: str, max_words: int) -> str:
         result = result.rstrip(',') + "..."
     logger.info(f"Compressed translation from {len(words)} to {len(truncated)} words")
     return result
+
+
+def _smart_shorten_with_llm(text: str, max_words: int, gemini_key: str) -> str:
+    """
+    Use Gemini to intelligently shorten a Vietnamese sentence to fit max_words
+    while preserving the full meaning. Falls back to _compress_translation if API fails.
+    """
+    prompt = (
+        f"Rút gọn câu tiếng Việt sau xuống còn TỐI ĐA {max_words} từ, "
+        f"ưu tiên giữ nguyên ý chính và nghe tự nhiên khi đọc to. "
+        f"Không được cắt bỏ ý nghĩa cốt lõi. "
+        f"Chỉ trả về câu đã rút gọn, không giải thích thêm.\n\n"
+        f"Câu gốc: \"{text}\""
+    )
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        resp = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=15.0)
+        resp.raise_for_status()
+        data = resp.json()
+        shortened = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        # Remove any surrounding quotes if LLM added them
+        shortened = shortened.strip('"').strip("'")
+        if shortened and len(shortened.split()) <= max_words * 1.15:  # allow 15% tolerance
+            return shortened
+    except Exception as e:
+        logger.warning(f"Gemini shortening failed: {e}")
+    # Fallback to mechanical compression
+    return _compress_translation(text, max_words)
+
+
+def optimize_translation_constraints(segments: list, gemini_key: str = "") -> tuple:
+    """
+    Step 12: Translation Constraint Optimization.
+
+    Analyzes each segment's translation and optimizes it to fit within the
+    video slot duration. Uses a two-level strategy:
+      - Level 1 (LLM): Call Gemini to intelligently rewrite/shorten the translation
+        while preserving meaning. Only applied when overrun > 50%.
+      - Level 2 (Fallback): Mechanical truncation at sentence boundaries
+        using _compress_translation().
+
+    Returns:
+        (optimized_segments, stats_dict) where stats_dict contains counts of:
+        - 'ok': segments that fit naturally
+        - 'llm_shortened': segments shortened via Gemini
+        - 'fallback_shortened': segments shortened via mechanical truncation
+        - 'total_overrun': count of segments that needed shortening
+    """
+    # Natural Vietnamese speech rate: 2.8 words/second
+    NATURAL_WPS = 2.8
+    # Max allowed rate with atempo speedup (1.4x) + TTS rate boost (1.5x total ~= 4.2 wps)
+    MAX_WPS_WITH_SPEEDUP = 4.2
+    # Overrun threshold: only shorten if reading time > slot * 1.5
+    OVERRUN_THRESHOLD = 1.5
+
+    stats = {"ok": 0, "llm_shortened": 0, "fallback_shortened": 0, "total_overrun": 0}
+
+    # Rate limit: Gemini API calls — track count to avoid 429 errors
+    llm_calls = 0
+    MAX_LLM_CALLS_PER_RUN = 30
+
+    for idx, seg in enumerate(segments):
+        translation = seg.get("translation", "").strip()
+        if not translation:
+            stats["ok"] += 1
+            continue
+
+        start_time = seg.get("start", 0.0)
+        end_time = seg.get("end", start_time + 3.0)
+        slot_duration = max(end_time - start_time, 0.5)
+
+        word_count = len(translation.split())
+        estimated_read_time = word_count / NATURAL_WPS
+
+        # Check if translation fits comfortably within the slot
+        if estimated_read_time <= slot_duration * OVERRUN_THRESHOLD:
+            stats["ok"] += 1
+            continue
+
+        # --- Segment is too long: needs optimization ---
+        stats["total_overrun"] += 1
+        overrun_ratio = estimated_read_time / slot_duration
+        # Target word count: how many words can fit at max speedup rate
+        target_words = max(3, int(slot_duration * MAX_WPS_WITH_SPEEDUP))
+
+        logger.info(
+            f"Seg {idx}: translation='{translation[:40]}...' "
+            f"({word_count} words, {slot_duration:.1f}s slot, "
+            f"overrun={overrun_ratio:.2f}x) → target ≤{target_words} words"
+        )
+
+        # Level 1: Use Gemini if available and quota not exhausted
+        if gemini_key and llm_calls < MAX_LLM_CALLS_PER_RUN and overrun_ratio > 1.8:
+            shortened = _smart_shorten_with_llm(translation, target_words, gemini_key)
+            if shortened != translation and len(shortened.split()) <= target_words * 1.15:
+                seg["translation"] = shortened
+                stats["llm_shortened"] += 1
+                llm_calls += 1
+                logger.info(f"Seg {idx}: LLM shortened to '{shortened[:50]}...'")
+                continue
+
+        # Level 2: Mechanical fallback
+        shortened = _compress_translation(translation, target_words)
+        seg["translation"] = shortened
+        stats["fallback_shortened"] += 1
+        logger.info(f"Seg {idx}: Fallback shortened to '{shortened[:50]}...'")
+
+    logger.info(
+        f"Translation optimization complete: {stats['ok']} ok, "
+        f"{stats['llm_shortened']} LLM-shortened, "
+        f"{stats['fallback_shortened']} fallback-shortened "
+        f"(total overrun: {stats['total_overrun']})"
+    )
+    return segments, stats
 
 
 def generate_ssml_for_segment(seg: dict, voice: str = "vi-VN-HoaiMyNeural",

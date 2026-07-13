@@ -163,11 +163,15 @@ def api_create_job(
         "bg_volume_db": req.bg_volume_db if req.bg_volume_db is not None else -18,
         "generate_subtitles": req.generate_subtitles,
         "burn_subtitles": req.burn_subtitles or False,
-        "translation_mode": req.translation_mode,
+        "translation_mode": req.translation_mode or "natural",
         "video_context": req.video_context or "neutral",
         "video_topic": req.video_topic or "",
         "whisper_model": req.whisper_model or "base",
-        "asr_method": req.asr_method or "whisper"
+        "asr_method": req.asr_method or "whisper",
+        "clip_start": req.clip_start or None,
+        "clip_end": req.clip_end or None,
+        "download_quality": req.download_quality or "720p",
+        "cookie_content": req.cookie_content or None,
     }
     
     new_job = DubbingJob(
@@ -175,6 +179,8 @@ def api_create_job(
         user_id=user.id,
         source_url=extract_clean_url(req.source_url),
         source_type=req.source_type,
+        clip_start=req.clip_start or None,
+        clip_end=req.clip_end or None,
         status="pending",
         progress_percent=0,
         current_step=1,
@@ -182,6 +188,7 @@ def api_create_job(
         duration=req.duration,
         voice_config=voice_config
     )
+
     db.add(new_job)
     
     for idx, name in enumerate(PIPELINE_STEPS):
@@ -795,6 +802,191 @@ def get_voice_sample_audio(voice_id: str):
                     
     media_type = "audio/mpeg" if file_path.suffix == ".mp3" else "audio/wav"
     return FileResponse(str(file_path), media_type=media_type)
+
+
+@router.post("/job/{job_id}/translate-segment")
+async def api_translate_segment(
+    job_id: str,
+    payload: dict,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Dịch một đoạn thoại bằng AI (Gemini → fallback Google Translate).
+    Payload: { text: str, context?: str }
+    Response: { translation: str, engine: str }
+    """
+    text: str = (payload.get("text") or "").strip()
+    context: str = (payload.get("context") or "neutral").strip()
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Thiếu trường 'text' để dịch.")
+
+    # ── Cache lookup ──────────────────────────────────────────────────────
+    import hashlib, json as _json
+    cache_dir = settings.STORAGE_DIR / "translate_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.md5(f"{text}|vi|{context}".encode()).hexdigest()
+    cache_file = cache_dir / f"{cache_key}.json"
+
+    if cache_file.exists():
+        try:
+            cached = _json.loads(cache_file.read_text(encoding="utf-8"))
+            return {"translation": cached["translation"], "engine": "cache"}
+        except Exception:
+            pass  # Corrupted cache, re-translate
+
+    # ── Translate using AI ────────────────────────────────────────────────
+    translation: str = ""
+    engine_used: str = "google"
+
+    # --- Attempt 1: Gemini API ---
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if gemini_key:
+        try:
+            import httpx as _httpx
+            prompt = (
+                f"Bạn là chuyên gia lồng tiếng phim ảnh Việt Nam với 20 năm kinh nghiệm.\n"
+                f"Ngữ cảnh video: {context}\n\n"
+                f"Dịch câu sau sang tiếng Việt tự nhiên, phù hợp để lồng tiếng (dubbing).\n"
+                f"Giữ nguyên ý nghĩa, độ ngắn và nhịp điệu của câu gốc.\n"
+                f"CHỈ trả về bản dịch tiếng Việt, KHÔNG giải thích, KHÔNG thêm ngoặc kép.\n\n"
+                f"Câu gốc: {text}"
+            )
+            async with _httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+                    json={"contents": [{"parts": [{"text": prompt}]}]},
+                    headers={"Content-Type": "application/json"}
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    translation = (
+                        data.get("candidates", [{}])[0]
+                        .get("content", {})
+                        .get("parts", [{}])[0]
+                        .get("text", "")
+                        .strip()
+                    )
+                    if translation:
+                        engine_used = "gemini"
+        except Exception as e:
+            logger.warning(f"[Translate] Gemini API failed: {e}")
+
+    # --- Attempt 2: Google Translate fallback ---
+    if not translation:
+        try:
+            from concurrent.futures import ThreadPoolExecutor
+            def _google_translate():
+                from deep_translator import GoogleTranslator
+                return GoogleTranslator(source="auto", target="vi").translate(text)
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                translation = await asyncio.get_event_loop().run_in_executor(pool, _google_translate)
+            engine_used = "google"
+        except Exception as e:
+            logger.error(f"[Translate] Google Translate failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Không thể dịch câu này: {e}")
+
+    # ── Write cache ───────────────────────────────────────────────────────
+    try:
+        cache_file.write_text(
+            _json.dumps({"translation": translation, "engine": engine_used}, ensure_ascii=False),
+            encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+    return {"translation": translation, "engine": engine_used}
+
+
+@router.post("/job/{job_id}/preview-tts")
+async def api_preview_segment_tts(
+    job_id: str,
+    payload: dict,
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    API sinh nhanh âm thanh nghe thử (Preview TTS) cho một phân đoạn thoại.
+    Được gọi từ Timeline Editor khi người dùng bấm nút 'Nghe thử'.
+
+    Request body:
+        - translation (str): Bản dịch tiếng Việt cần chuyển thành giọng nói
+        - voice (str, optional): Mã giọng đọc (default: vi-VN-HoaiMyNeural)
+        - rate (str, optional): Tốc độ đọc, ví dụ '+0%', '+15%' (default: '+0%')
+        - segment_id (int, optional): ID phân đoạn để định danh file cache
+    """
+    from fastapi.responses import FileResponse
+
+    # Validate request
+    translation = payload.get("translation", "").strip()
+    if not translation:
+        raise HTTPException(status_code=400, detail="Nội dung bản dịch không được trống.")
+
+    voice = payload.get("voice", "vi-VN-HoaiMyNeural")
+    rate = payload.get("rate", "+0%")
+    segment_id = payload.get("segment_id", "temp")
+
+    # Verify job belongs to user (security check)
+    job = db.query(DubbingJob).filter(DubbingJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ lồng tiếng.")
+    if job.user_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập tác vụ này.")
+
+    # Create preview audio in storage/previews/
+    preview_dir = settings.STORAGE_DIR / "previews"
+    os.makedirs(preview_dir, exist_ok=True)
+
+    # Unique filename per job+segment for caching (can re-use if same text)
+    import hashlib
+    cache_key = hashlib.md5(f"{voice}:{rate}:{translation}".encode()).hexdigest()[:12]
+    preview_path = str(preview_dir / f"{job_id}_prev_{segment_id}_{cache_key}.mp3")
+
+    # Check cache: if audio already generated, return immediately
+    if os.path.exists(preview_path) and os.path.getsize(preview_path) > 100:
+        return FileResponse(
+            preview_path,
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "public, max-age=300"}
+        )
+
+    # Generate TTS audio (run in thread pool to avoid blocking event loop)
+    import asyncio
+    import concurrent.futures
+    from app.services.dubbing_engine import generate_tts_audio, preprocess_text_for_tts
+
+    try:
+        cleaned_text = preprocess_text_for_tts(translation)
+        if cleaned_text and cleaned_text[-1] not in '.!?,;:…':
+            cleaned_text += '.'
+
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            await loop.run_in_executor(
+                pool,
+                lambda: generate_tts_audio(
+                    text=cleaned_text,
+                    output_path=preview_path,
+                    voice=voice,
+                    rate=rate
+                )
+            )
+    except Exception as e:
+        logger.error(f"Preview TTS failed for job {job_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi sinh giọng nói thử: {str(e)}"
+        )
+
+    if not os.path.exists(preview_path) or os.path.getsize(preview_path) < 100:
+        raise HTTPException(status_code=500, detail="File âm thanh preview bị rỗng hoặc không tồn tại.")
+
+    return FileResponse(
+        preview_path,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=300"}
+    )
 
 
 @router.post("/history/delete/{job_id}")
