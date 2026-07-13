@@ -27,6 +27,7 @@ class JobCreateRequest(BaseModel):
     asr_method: Optional[str] = "whisper"      # whisper | softsub | ocr
     clip_start: Optional[str] = None           # "HH:MM:SS" — start of clip (yt-dlp --download-sections)
     clip_end: Optional[str] = None             # "HH:MM:SS" — end of clip (yt-dlp --download-sections)
+    exact_cut: Optional[bool] = True           # True = precise cut (force keyframes, slower CPU); False = fast cut (keyframe-aligned, near-zero CPU overhead)
     download_quality: Optional[str] = "720p"   # 1080p | 720p | 480p
     cookie_content: Optional[str] = None       # Content of cookies file (Netscape format)
 

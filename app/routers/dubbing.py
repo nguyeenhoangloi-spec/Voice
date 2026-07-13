@@ -170,6 +170,7 @@ def api_create_job(
         "asr_method": req.asr_method or "whisper",
         "clip_start": req.clip_start or None,
         "clip_end": req.clip_end or None,
+        "exact_cut": req.exact_cut if req.exact_cut is not None else True,
         "download_quality": req.download_quality or "720p",
         "cookie_content": req.cookie_content or None,
     }

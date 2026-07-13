@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import json
 import logging
+import threading
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,10 @@ from app.database import SessionLocal
 from app.models.job import DubbingJob, JobStep, TranscriptSegment, Export
 from app.services.link_adapters import get_adapter_for_url
 from app.utils.ffmpeg_utils import get_ffmpeg_path, inject_ffmpeg_to_path
+
+# Limit concurrent FFmpeg re-encode jobs to prevent CPU saturation.
+# -c:v copy jobs (no burn_subtitles) skip the semaphore — they are I/O bound.
+_ffmpeg_encode_semaphore = threading.Semaphore(3)
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +239,22 @@ def run_dubbing_pipeline(job_id: str):
                                 v_conf = {}
                         cookie_content = v_conf.get("cookie_content") or None
                         download_quality = v_conf.get("download_quality") or "720p"
+                        burn_subtitles = bool(v_conf.get("burn_subtitles", False))
+
+                        # Backend guard: re-encoding 1080p with burn_subtitles is very
+                        # CPU-heavy on weak machines. Cap at 720p automatically and log
+                        # a warning so the user can see it in the job step log.
+                        if burn_subtitles and download_quality == "1080p":
+                            logger.warning(
+                                "burn_subtitles=True + 1080p detected — auto-downgrade to 720p "
+                                "to prevent CPU overload. Change quality to 720p or disable "
+                                "burn_subtitles to remove this limit."
+                            )
+                            download_quality = "720p"
+
+                        # exact_cut: True (default) = force keyframes at cuts (precise but CPU-heavy)
+                        #            False           = fast cut aligned to nearest keyframe
+                        exact_cut = bool(v_conf.get("exact_cut", True))
 
                         # Support partial download (time-range clip)
                         clip_start = getattr(job, 'clip_start', None)
@@ -245,7 +266,8 @@ def run_dubbing_pipeline(job_id: str):
                             clip_start=clip_start, 
                             clip_end=clip_end,
                             download_quality=download_quality,
-                            cookie_content=cookie_content
+                            cookie_content=cookie_content,
+                            exact_cut=exact_cut
                         )
                         if not os.path.exists(source_path):
                             raise FileNotFoundError(f"Download that bai: file khong ton tai tai {source_path}")
@@ -530,18 +552,28 @@ def run_dubbing_pipeline(job_id: str):
                     _ensure_source_video(job, source_path)
 
                     burn_sub = voice_config.get("burn_subtitles", False)
-                    merge_tts_with_video(
-                        video_path=source_path,
-                        segments=segments_data,
-                        bg_music_path=bg_music,
-                        output_video_path=final_video,
-                        output_audio_path=final_audio,
-                        keep_bg_music=keep_bg,
-                        bg_volume_db=bg_volume_db,
-                        burn_subtitles=burn_sub,
-                        srt_path=srt_path
-                    )
-                    step_record.log_message = f"Ket xuat video long tieng thanh cong ({os.path.getsize(final_video) // 1024} KB)."
+                    # Acquire semaphore only for re-encode jobs (burn_subtitles=True).
+                    # Stream-copy jobs (-c:v copy) are I/O bound and not limited.
+                    _sem = _ffmpeg_encode_semaphore if burn_sub else None
+                    if _sem:
+                        logger.info("[Step18] Waiting for FFmpeg encode slot (semaphore)...")
+                        _sem.acquire()
+                    try:
+                        merge_tts_with_video(
+                            video_path=source_path,
+                            segments=segments_data,
+                            bg_music_path=bg_music,
+                            output_video_path=final_video,
+                            output_audio_path=final_audio,
+                            keep_bg_music=keep_bg,
+                            bg_volume_db=bg_volume_db,
+                            burn_subtitles=burn_sub,
+                            srt_path=srt_path
+                        )
+                    finally:
+                        if _sem:
+                            _sem.release()
+                    step_record.log_message = f"Ket xuat video long tieng thanh cong ({os.path.getsize(final_video) // 1024} KB)."  
 
                 # ===================== STEP 19: Quality check =====================
                 elif step_num == 19:

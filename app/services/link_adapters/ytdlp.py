@@ -24,7 +24,8 @@ def _extract_youtube_id(url: str) -> str:
 
 
 def _get_ytdlp_base_opts() -> dict:
-    """Base options for yt-dlp: quiet, no playlist, challenge solver config."""
+    """Base options for yt-dlp: quiet, no playlist, challenge solver config,
+    parallel fragment downloads and auto-retry on transient network errors."""
     import shutil
     import os
 
@@ -34,6 +35,12 @@ def _get_ytdlp_base_opts() -> dict:
         "noplaylist": True,
         "ignoreconfig": True,
         "remote_components": ["ejs:github"],
+        # Download up to 4 DASH/HLS fragments simultaneously.
+        # Safe default: not aggressive enough to trigger IP-rate-limiting.
+        "concurrent_fragment_downloads": 4,
+        # Retry the whole request and individual fragments on transient failures.
+        "retries": 5,
+        "fragment_retries": 5,
     }
 
     # Try to find Node.js runtime to solve YouTube signature/cipher challenge (EJS)
@@ -173,6 +180,9 @@ class YTDLPAdapter(BaseAdapter):
         clip_end = kwargs.get("clip_end") or None
         download_quality = kwargs.get("download_quality") or "720p"
         cookie_content = kwargs.get("cookie_content") or None
+        # exact_cut=True: insert keyframe at cut point (precise, more CPU).
+        # exact_cut=False: snap to nearest existing keyframe (fast, may be off by <1s).
+        exact_cut = bool(kwargs.get("exact_cut", True))
 
         # Build partial download range options
         download_sections_opt = {}
@@ -183,9 +193,10 @@ class YTDLPAdapter(BaseAdapter):
                 "download_ranges": yt_dlp.utils.download_range_func(
                     None, [(_hms_to_seconds(start), _hms_to_seconds(end))]
                 ),
-                "force_keyframes_at_cuts": True,
+                "force_keyframes_at_cuts": exact_cut,
             }
-            logger.info(f"[YTDLPAdapter] Partial download: {start} to {end}")
+            mode_label = "precise" if exact_cut else "fast (keyframe-aligned)"
+            logger.info(f"[YTDLPAdapter] Partial download: {start} to {end} — cut mode: {mode_label}")
 
         # Map download quality to yt-dlp format selection
         height = "720"
@@ -194,8 +205,17 @@ class YTDLPAdapter(BaseAdapter):
         elif download_quality == "480p":
             height = "480"
 
-        FMT_STR = f"bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}][ext=mp4]/best[height<={height}]"
-        FMT_STR_RELAXED = f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
+        # Priority: MP4+M4A (remux, no re-encode) → MP4+any audio (may re-encode audio)
+        # → best height MP4 → best height any. Each slash is a fallback tier.
+        FMT_STR = (
+            f"bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]"
+            f"/bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/"
+            f"bestvideo[height<={height}][ext=mp4]+bestaudio"
+            f"/bestvideo[height<={height}]+bestaudio[ext=m4a]"
+            f"/bestvideo[height<={height}]+bestaudio"
+            f"/best[height<={height}][ext=mp4]/best[height<={height}]"
+        )
+        FMT_STR_RELAXED = f"bestvideo[height<={height}]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
 
         with _temp_cookie_file(cookie_content) as cookie_file:
             strategies = []

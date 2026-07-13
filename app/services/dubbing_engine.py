@@ -2110,6 +2110,10 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
         escaped_srt_path = srt_path.replace("\\", "/").replace(":", "\\:")
         vf_filter = f"drawbox=y=ih-ih/10:w=iw:h=ih/10:color=black@0.7:t=fill,subtitles='{escaped_srt_path}'"
         
+        # Limit FFmpeg to 2 threads to keep the web server responsive when
+        # multiple jobs run simultaneously. Each job does re-encode only when
+        # burn_subtitles=True; -c:v copy jobs are unaffected.
+        safe_threads = str(min(2, max(1, (os.cpu_count() or 2) // 2)))
         cmd_video = [
             ffmpeg, "-y",
             "-i", video_path,
@@ -2117,15 +2121,17 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             "-vf", vf_filter,
             "-c:v", "libx264",     # Re-encode video stream
             "-preset", "superfast",
-            "-crf", "22",
+            "-crf", "24",          # CRF 24: good balance quality/size/CPU
+            "-threads", safe_threads,
             "-c:a", "aac",
             "-b:a", "192k",
             "-map", "0:v:0",
             "-map", "1:a:0",
+            "-movflags", "+faststart",  # Move moov atom to front for web streaming
             "-shortest",
             output_video_path
         ]
-        logger.info(f"Re-encoding video with subtitle burn-in and drawbox mask: {vf_filter}")
+        logger.info(f"Re-encoding video with subtitle burn-in and drawbox mask: {vf_filter} (threads={safe_threads}, crf=24)")
     else:
         cmd_video = [
             ffmpeg, "-y",
@@ -2136,6 +2142,7 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
             "-b:a", "192k",
             "-map", "0:v:0",         # Use video from first input
             "-map", "1:a:0",         # Use audio from second input
+            "-movflags", "+faststart",  # Move moov atom to front for web streaming
             "-shortest",
             output_video_path
         ]
