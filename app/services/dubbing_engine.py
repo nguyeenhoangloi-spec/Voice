@@ -705,7 +705,11 @@ def ocr_video_subtitles(video_path: str) -> list:
     return cleaned_segments
 
 
-def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
+# Global caches for WhisperX models to prevent memory leaks and redundant disk loading
+_whisper_model_cache = {}
+_whisper_align_cache = {}
+
+def transcribe_audio(audio_path: str, whisper_model: str = "base", alignment_mode: str = "segment") -> list:
     """
     Transcribe audio using WhisperX (local model with word-level alignment).
     Returns list of segments with start, end, text, speaker.
@@ -744,6 +748,7 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
     import whisperx
     import torch
     import functools
+    import gc
     
     # Monkeypatch torch.load to bypass PyTorch 2.6+ weights_only restriction for trusted local checkpoints
     orig_load = torch.load
@@ -762,20 +767,36 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
         model_name = "base"
 
     model = None
-    try:
-        logger.info(f"Loading WhisperX model ({model_name}) on device: {device} (compute: {compute_type})...")
-        model = whisperx.load_model(model_name, device, compute_type=compute_type)
-    except Exception as cuda_err:
-        if device == "cuda":
-            logger.warning(f"Failed to load WhisperX on CUDA: {cuda_err}. Falling back to CPU...")
-            device = "cpu"
-            compute_type = "float32"
-            try:
-                model = whisperx.load_model(model_name, device, compute_type=compute_type)
-            except Exception as cpu_err:
-                raise RuntimeError(f"Failed to load WhisperX on both GPU and CPU. GPU error: {cuda_err}, CPU error: {cpu_err}")
-        else:
-            raise cuda_err
+    global _whisper_model_cache
+    cache_key = (model_name, device, compute_type)
+    
+    if cache_key in _whisper_model_cache:
+        logger.info(f"[WhisperX Cache] Retrieving cached model: {cache_key}")
+        model = _whisper_model_cache[cache_key]
+    else:
+        # Clear other cached models to protect RAM before loading new one
+        _whisper_model_cache.clear()
+        gc.collect()
+        if device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
+        try:
+            logger.info(f"Loading WhisperX model ({model_name}) on device: {device} (compute: {compute_type})...")
+            model = whisperx.load_model(model_name, device, compute_type=compute_type)
+            _whisper_model_cache[cache_key] = model
+        except Exception as cuda_err:
+            if device == "cuda":
+                logger.warning(f"Failed to load WhisperX on CUDA: {cuda_err}. Falling back to CPU...")
+                device = "cpu"
+                compute_type = "float32"
+                cache_key = (model_name, device, compute_type)
+                try:
+                    model = whisperx.load_model(model_name, device, compute_type=compute_type)
+                    _whisper_model_cache[cache_key] = model
+                except Exception as cpu_err:
+                    raise RuntimeError(f"Failed to load WhisperX on both GPU and CPU. GPU error: {cuda_err}, CPU error: {cpu_err}")
+            else:
+                raise cuda_err
 
     logger.info(f"Transcribing audio with WhisperX: {audio_path}")
     audio = whisperx.load_audio(audio_path)
@@ -789,7 +810,9 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
             device = "cpu"
             compute_type = "float32"
             try:
+                # Reload on CPU
                 model = whisperx.load_model(model_name, device, compute_type=compute_type)
+                _whisper_model_cache[(model_name, device, compute_type)] = model
                 result = model.transcribe(audio, batch_size=16)
             except Exception as cpu_trans_err:
                 raise RuntimeError(f"Failed to transcribe on both GPU and CPU. GPU error: {trans_err}, CPU error: {cpu_trans_err}")
@@ -798,15 +821,30 @@ def transcribe_audio(audio_path: str, whisper_model: str = "base") -> list:
 
     # Align whisper segments for high precision timestamps
     language_code = result.get("language", "en")
-    logger.info(f"Loading WhisperX alignment model for language: {language_code}...")
-    try:
-        model_a, metadata = whisperx.load_align_model(language_code=language_code, device=device)
-        logger.info("Aligning segments with Wav2Vec2 alignment model...")
-        aligned_result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
-        segments_source = aligned_result.get("segments", [])
-    except Exception as e:
-        logger.warning(f"WhisperX alignment failed: {e}. Falling back to unaligned segments.")
+    
+    if alignment_mode == "none":
+        logger.info("[WhisperX] alignment_mode is 'none' — skipping alignment step.")
         segments_source = result.get("segments", [])
+    else:
+        logger.info(f"Loading WhisperX alignment model for language: {language_code}...")
+        global _whisper_align_cache
+        align_key = (language_code, device)
+        try:
+            if align_key in _whisper_align_cache:
+                logger.info(f"[WhisperX Cache] Retrieving cached alignment model: {align_key}")
+                model_a, metadata = _whisper_align_cache[align_key]
+            else:
+                _whisper_align_cache.clear()
+                gc.collect()
+                model_a, metadata = whisperx.load_align_model(language_code=language_code, device=device)
+                _whisper_align_cache[align_key] = (model_a, metadata)
+                
+            logger.info("Aligning segments with Wav2Vec2 alignment model...")
+            aligned_result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            segments_source = aligned_result.get("segments", [])
+        except Exception as e:
+            logger.warning(f"WhisperX alignment failed: {e}. Falling back to unaligned segments.")
+            segments_source = result.get("segments", [])
 
     segments = []
     for seg in segments_source:
@@ -1761,7 +1799,8 @@ DEFAULT_SPEAKER_VOICE_MAP = {
 def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                                voice: str = "vi-VN-HoaiMyNeural",
                                video_context: str = "neutral",
-                               voice_map: dict = None) -> list:
+                               voice_map: dict = None,
+                               tts_workers: int = 4) -> list:
     """
     Generate TTS audio for each translated segment using timing-aware SSML parameters.
     Supports multi-speaker: each segment can use a different voice based on its 'speaker' field.
@@ -1780,8 +1819,8 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
         effective_voice_map = voice_map or DEFAULT_SPEAKER_VOICE_MAP
         logger.info(f"Multi-speaker detected ({len(speakers)} speakers) → voice map: {effective_voice_map}")
 
-    # Tăng workers lên 10 để tăng tốc độ tải TTS song song đáng kể (rất an toàn, không lo bị Microsoft block)
-    max_workers = 10
+    # Use configured max workers or default to 4
+    max_workers = tts_workers if tts_workers and tts_workers > 0 else 4
     logger.info(f"Bắt đầu sinh TTS song song cho {len(segments)} segments sử dụng {max_workers} workers...")
 
     def process_single_segment(idx_seg_tuple):
@@ -1819,37 +1858,47 @@ def generate_all_tts_segments(segments: list, audio_dir: str, job_id: str,
                 rate=ssml_config["rate"]
             )
 
-            # ─── KHỚP NHỊP TỰ ĐỘNG: Co dãn âm thanh bằng FFmpeg atempo nếu dài hơn slot video ─
-            slot_ms = max(0, (seg.get("end", 0) - seg.get("start", 0)) * 1000)
-            if os.path.exists(output_path):
+            # ─── KHỚP NHỊP TỰ ĐỘNG & TRIM SILENCE NGAY TẠI ĐÂY ───
+            slot_ms = max(0.0, (seg.get("end", 0.0) - seg.get("start", 0.0)) * 1000.0)
+            if os.path.exists(output_path) and slot_ms > 0:
                 from pydub import AudioSegment as _AS
                 _AS.converter = get_ffmpeg_path()
                 try:
                     _AS.ffprobe = get_ffprobe_path()
                 except Exception:
                     pass
+                
                 try:
-                    actual_ms = len(_AS.from_file(output_path))
+                    # Trim silence of the raw file first
+                    sound = _AS.from_file(output_path)
+                    sound, _, _ = _trim_silence(sound, silence_threshold=-45.0)
+                    sound.export(output_path, format="mp3")
+                    
+                    actual_ms = len(sound)
                     # Nếu âm thanh thực tế dài hơn slot video
                     if actual_ms > slot_ms:
                         speed_factor = actual_ms / slot_ms
-                        # Giới hạn tăng tốc tối đa 1.4x để tránh biến dạng giọng nói quá nhiều
-                        speed_factor = min(speed_factor, 1.4)
+                        # Giới hạn tăng tốc tối đa 1.3x để tránh biến dạng giọng nói quá nhiều
+                        speed_factor = min(speed_factor, 1.3)
                         
                         if speed_factor > 1.05:  # Lệch trên 5% mới co dãn
                             _adjust_audio_speed(output_path, speed_factor)
-                            # Cập nhật lại thời lượng sau khi tăng tốc
+                            
+                            # Trim silence again after speedup to be clean
                             try:
-                                actual_ms = len(_AS.from_file(output_path))
+                                sound = _AS.from_file(output_path)
+                                sound, _, _ = _trim_silence(sound, silence_threshold=-45.0)
+                                sound.export(output_path, format="mp3")
+                                actual_ms = len(sound)
                             except Exception:
                                 pass
                                 
+                    seg["actual_tts_duration"] = actual_ms / 1000.0
                     if actual_ms > slot_ms * 1.2:
-                        logger.info(f"Seg {idx}: audio={actual_ms:.0f}ms, slot={slot_ms:.0f}ms (vẫn đè nhẹ sau khi tăng tốc tối đa 1.4x)")
+                        logger.info(f"Seg {idx}: audio={actual_ms:.0f}ms, slot={slot_ms:.0f}ms (vẫn đè nhẹ sau khi tăng tốc tối đa 1.3x)")
                 except Exception as _e:
                     logger.warning(f"Seg {idx}: auto-stretch check FAILED ({type(_e).__name__}: {_e})")
             # ───────────────────────────────────────────────────────────────
-
 
             return idx, output_path
 
@@ -1974,7 +2023,8 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
                           keep_bg_music: bool = True,
                           bg_volume_db: int = -18,
                           burn_subtitles: bool = False,
-                          srt_path: str = "") -> tuple:
+                          srt_path: str = "",
+                          ffmpeg_threads: int = 2) -> tuple:
     """
     Merge all TTS audio segments into a single audio track,
     then combine with the original video (replacing original audio).
@@ -2002,7 +2052,7 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
     # (extra 5s buffer - will be trimmed back to video_duration_ms after all overlays)
     mixed_audio = AudioSegment.silent(duration=video_duration_ms + 5000)
 
-     # Overlay each TTS segment at its correct timestamp (TRUNCATE-TO-FIT mode)
+    # Overlay each TTS segment at its correct timestamp (TRUNCATE-TO-FIT mode)
     # Mỗi câu thoại LUÔN bắt đầu đúng thời điểm gốc trên video.
     # Nếu câu trước dài quá → cắt + fade-out 200ms, KHÔNG đẩy lùi câu sau.
     overlay_count = 0
@@ -2013,49 +2063,13 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
         try:
             tts_audio = AudioSegment.from_file(seg["audio_path"])
             
-            # Trim silence at start and end to get exact voicing duration
-            tts_audio, s_trim, e_trim = _trim_silence(tts_audio, silence_threshold=-45.0)
-            
+            # Since the file on disk is already trimmed and adjusted in the TTS generation step,
+            # we just load it directly. We do not trim or adjust speed again to avoid duplicate atempo bug.
             start_ms = int(seg["start"] * 1000)
 
             # Tính thời lượng tối đa cho phép cho câu thoại này
-            # = thời lượng slot gốc trên video (end - start)
             slot_end_ms = int(seg.get("end", seg["start"] + 3.0) * 1000)
             max_duration_ms = slot_end_ms - start_ms
-
-            # Nếu audio dài hơn slot → ưu tiên nén bằng ffmpeg atempo (tối đa 1.3x)
-            # trước khi cắt, để đảm bảo đọc hết câu mà không mất chữ cuối.
-            MAX_ATEMPO = 1.3
-            if max_duration_ms > 0 and len(tts_audio) > max_duration_ms:
-                original_len = len(tts_audio)
-                speed_factor = original_len / max_duration_ms  # e.g. 1.2 nếu dài hơn 20%
-
-                if speed_factor <= MAX_ATEMPO:
-                    # Trường hợp 1: Có thể nén vừa khít trong slot
-                    audio_path = seg["audio_path"]
-                    _adjust_audio_speed(audio_path, speed_factor)
-                    try:
-                        tts_audio = AudioSegment.from_file(audio_path)
-                        tts_audio, _, _ = _trim_silence(tts_audio, silence_threshold=-45.0)
-                        logger.info(
-                            f"Seg {idx}: atempo {speed_factor:.2f}x → {original_len}ms → "
-                            f"{len(tts_audio)}ms (khớp slot {max_duration_ms}ms)"
-                        )
-                    except Exception as reload_err:
-                        logger.warning(f"Seg {idx}: Không đọc lại audio sau atempo: {reload_err}")
-                else:
-                    # Trường hợp 2: Quá dài ngay cả ở 1.3x → nén tối đa rồi để tràn nhẹ
-                    audio_path = seg["audio_path"]
-                    _adjust_audio_speed(audio_path, MAX_ATEMPO)
-                    try:
-                        tts_audio = AudioSegment.from_file(audio_path)
-                        tts_audio, _, _ = _trim_silence(tts_audio, silence_threshold=-45.0)
-                    except Exception:
-                        pass
-                    logger.warning(
-                        f"Seg {idx}: audio {original_len}ms vẫn quá dài so với slot {max_duration_ms}ms "
-                        f"ngay cả ở {MAX_ATEMPO}x. Cho phép tràn nhẹ để không mất chữ."
-                    )
 
             # Thay thế hard-cut: Cho phép tràn nhẹ lên đến 1.35x slot gốc trước khi áp dụng fade out graceful
             allowed_limit_ms = int(max_duration_ms * 1.35) if max_duration_ms > 0 else len(tts_audio)
@@ -2129,10 +2143,12 @@ def merge_tts_with_video(video_path: str, segments: list, bg_music_path: str,
         escaped_srt_path = srt_path.replace("\\", "/").replace(":", "\\:")
         vf_filter = f"drawbox=y=ih-ih/10:w=iw:h=ih/10:color=black@0.7:t=fill,subtitles='{escaped_srt_path}'"
         
-        # Limit FFmpeg to 2 threads to keep the web server responsive when
-        # multiple jobs run simultaneously. Each job does re-encode only when
-        # burn_subtitles=True; -c:v copy jobs are unaffected.
-        safe_threads = str(min(2, max(1, (os.cpu_count() or 2) // 2)))
+        # Limit FFmpeg to configured threads to keep the web server responsive.
+        if not ffmpeg_threads or ffmpeg_threads <= 0:
+            safe_threads = str(min(2, max(1, (os.cpu_count() or 2) // 2)))
+        else:
+            safe_threads = str(min(ffmpeg_threads, os.cpu_count() or 4))
+            
         cmd_video = [
             ffmpeg, "-y",
             "-i", video_path,

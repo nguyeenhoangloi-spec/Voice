@@ -173,6 +173,10 @@ def api_create_job(
         "exact_cut": req.exact_cut if req.exact_cut is not None else True,
         "download_quality": req.download_quality or "720p",
         "cookie_content": req.cookie_content or None,
+        "performance_mode": req.performance_mode or "balanced",
+        "alignment_mode": req.alignment_mode or "segment",
+        "tts_workers": req.tts_workers if req.tts_workers is not None else 4,
+        "ffmpeg_threads": req.ffmpeg_threads if req.ffmpeg_threads is not None else 2,
     }
     
     new_job = DubbingJob(
@@ -282,6 +286,16 @@ def get_job_status_json(job_id: str, user=Depends(get_current_user), db: Session
             "file_path": f"/storage/exports/{os.path.basename(exp.file_path)}"
         })
 
+    # Load performance stats from JSON if exists
+    perf_stats = {}
+    perf_file = settings.TEMP_DIR / f"{job_id}_perf.json"
+    if os.path.exists(perf_file):
+        try:
+            with open(perf_file, "r", encoding="utf-8") as f:
+                perf_stats = json.load(f)
+        except Exception:
+            pass
+
     return {
         "job_id": job.id,
         "status": job.status,
@@ -291,7 +305,8 @@ def get_job_status_json(job_id: str, user=Depends(get_current_user), db: Session
         "error_message": job.error_message,
         "steps": steps_data,
         "segments": segments_data,
-        "exports": exports_data
+        "exports": exports_data,
+        "performance_stats": perf_stats
     }
 
 @router.get("/job/{job_id}/events")

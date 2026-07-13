@@ -308,6 +308,7 @@
         <div style="display: flex; align-items: center; gap: 8px;">
             <span class="step-badge" id="step-badge-{{ step.step_number }}">{{ step.step_number }}</span>
             <span class="step-name">{{ step.name }}</span>
+            <span id="step-time-{{ step.step_number }}" style="font-size: 11px; color: var(--color-primary); margin-left: 8px; font-family: monospace;"></span>
         </div>
         <div class="step-status-icon" id="step-icon-{{ step.step_number }}"></div>
     </div>
@@ -508,6 +509,17 @@
                     } else {
                         row.className = "step-row step-pending";
                         icon.innerHTML = `<i data-lucide="circle" style="width: 14px; height: 14px; color: var(--text-tertiary);"></i>`;
+                    }
+
+                    // Render duration benchmark
+                    const timeSpan = document.getElementById(`step-time-${step.step_number}`);
+                    if (timeSpan) {
+                        if (data.performance_stats && data.performance_stats[step.step_number]) {
+                            const duration = data.performance_stats[step.step_number].duration_seconds;
+                            timeSpan.innerText = `(${duration}s)`;
+                        } else {
+                            timeSpan.innerText = "";
+                        }
                     }
                 }
 

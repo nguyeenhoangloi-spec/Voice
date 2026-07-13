@@ -117,6 +117,25 @@ def run_dubbing_pipeline(job_id: str):
         job.status = "processing"
         db.commit()
 
+        # Load voice configuration early
+        voice_config = job.voice_config or {}
+        if isinstance(voice_config, str):
+            try:
+                voice_config = json.loads(voice_config)
+            except Exception:
+                voice_config = {}
+
+        # Performance logging structure
+        perf_data = {}
+        perf_file = os.path.join(str(settings.TEMP_DIR), f"{job_id}_perf.json")
+        # Load existing performance data if resuming
+        if os.path.exists(perf_file):
+            try:
+                with open(perf_file, "r", encoding="utf-8") as f:
+                    perf_data = json.load(f)
+            except Exception:
+                pass
+
         # File paths
         source_path = str(settings.TEMP_DIR / f"{job_id}_source.mp4")
         extracted_audio = str(settings.AUDIO_DIR / f"{job_id}_original.wav")
@@ -136,9 +155,6 @@ def run_dubbing_pipeline(job_id: str):
 
         # Load existing segments and voice configuration from database if resuming a pipeline
         if start_step > 1:
-            voice_config = job.voice_config or {}
-            if isinstance(voice_config, str):
-                voice_config = json.loads(voice_config)
             gender = voice_config.get("voice_gender", "female")
             region = voice_config.get("voice_region", "south")
             voice_profile = voice_config.get("voice_profile", "auto")
@@ -148,7 +164,6 @@ def run_dubbing_pipeline(job_id: str):
             else:
                 from app.services.dubbing_engine import select_voice
                 voice_name = select_voice(gender, region)
-
 
             db_segments = db.query(TranscriptSegment).filter(
                 TranscriptSegment.job_id == job_id
@@ -166,11 +181,31 @@ def run_dubbing_pipeline(job_id: str):
 
         for step_num in range(start_step, 21):
             step_name = PIPELINE_STEPS[step_num - 1]
+            step_start_time = time.perf_counter()
 
             # Mark step as processing
             job.current_step = step_num
             job.current_step_name = step_name
-            job.progress_percent = int(((step_num - 1) / 20) * 100)
+
+            # Dynamic progress calculation based on performance weights
+            BASE_WEIGHTS = {
+                1: 1, 2: 1, 3: 1, 4: 10, 5: 1, 6: 2, 7: 20, 8: 25, 9: 1, 10: 1,
+                11: 5, 12: 5, 13: 1, 14: 15, 15: 2, 16: 2, 17: 2, 18: 8, 19: 1, 20: 1
+            }
+            keep_bg = voice_config.get("keep_bg_music", True)
+            burn_sub = voice_config.get("burn_subtitles", False)
+            step_weights = dict(BASE_WEIGHTS)
+            if not keep_bg:
+                step_weights[7] = 0
+            if burn_sub:
+                step_weights[18] = 25
+            else:
+                step_weights[18] = 8
+            
+            total_weight = sum(step_weights.values())
+            completed_weight = sum(step_weights[i] for i in range(1, step_num))
+            current_weight = step_weights.get(step_num, 0) / 2.0
+            job.progress_percent = min(99, max(0, int(((completed_weight + current_weight) / total_weight) * 100)))
 
             step_record = db.query(JobStep).filter(
                 JobStep.job_id == job_id,
@@ -298,13 +333,18 @@ def run_dubbing_pipeline(job_id: str):
 
                 # ===================== STEP 7: Separate vocals (Demucs AI) =====================
                 elif step_num == 7:
-                    from app.services.dubbing_engine import separate_vocals
-                    # Chạy tách nhạc nền bằng Demucs (có tự động fallback bên trong hàm)
-                    real_separation = separate_vocals(extracted_audio, vocal_audio, bg_music, job_id)
-                    if real_separation:
-                        step_record.log_message = "Tach loi thoai va nhac nen thanh cong bang AI (Demucs)."
+                    keep_bg = voice_config.get("keep_bg_music", True)
+                    if not keep_bg:
+                        step_record.log_message = "Bo qua tach nhac nen AI (Demucs) do keep_bg_music = False."
+                        logger.info("Skipping Demucs audio separation since keep_bg_music=False.")
                     else:
-                        step_record.log_message = "Demucs khong kha dung. Da su dung phuong an du phong (giu nhac goc co tieng)."
+                        from app.services.dubbing_engine import separate_vocals
+                        # Chạy tách nhạc nền bằng Demucs (có tự động fallback bên trong hàm)
+                        real_separation = separate_vocals(extracted_audio, vocal_audio, bg_music, job_id)
+                        if real_separation:
+                            step_record.log_message = "Tach loi thoai va nhac nen thanh cong bang AI (Demucs)."
+                        else:
+                            step_record.log_message = "Demucs khong kha dung. Da su dung phuong an du phong (giu nhac goc co tieng)."
 
                 # ===================== STEP 8: Speech recognition (ASR / Subtitle / OCR) =====================
                 elif step_num == 8:
@@ -314,28 +354,41 @@ def run_dubbing_pipeline(job_id: str):
                         voice_config = json.loads(voice_config)
                     whisper_model = voice_config.get("whisper_model", "base")
                     asr_method = voice_config.get("asr_method", "whisper")
+                    perf_mode = voice_config.get("performance_mode", "balanced")
+                    align_mode = voice_config.get("alignment_mode", "segment")
                     
                     segments_data = []
                     method_used = asr_method
                     
-                    # ─── PHƯƠNG ÁN 1: Tải phụ đề có sẵn (YouTube Softsub) ───
-                    if asr_method == "softsub":
+                    # ─── AUTO-SOFTSUB: Try to download YouTube subtitles first if in fast/balanced mode ───
+                    # to skip WhisperX transcription and save CPU/time.
+                    try_softsub_first = (asr_method == "softsub") or (
+                        perf_mode in ("fast", "balanced") and job.source_type == "link" and job.source_url
+                    )
+
+                    if try_softsub_first:
                         if job.source_type == "link" and job.source_url:
                             try:
-                                logger.info(f"Trying to download YouTube subtitles for Job {job_id}...")
+                                logger.info(f"Auto-trying to download YouTube subtitles for Job {job_id}...")
                                 segments_data = download_youtube_subtitles(job.source_url, job_id)
-                                if not segments_data:
-                                    raise ValueError("Không tìm thấy dữ liệu phụ đề tiếng Anh.")
-                                logger.info(f"Loaded {len(segments_data)} segments from YouTube subtitles.")
+                                if segments_data:
+                                    method_used = "softsub"
+                                    logger.info(f"Successfully loaded {len(segments_data)} segments from YouTube subtitles.")
+                                else:
+                                    if asr_method == "softsub":
+                                        raise ValueError("Không tìm thấy dữ liệu phụ đề tiếng Anh.")
                             except Exception as e:
-                                logger.warning(f"Failed to load YouTube subtitles: {e}. Fallback to Whisper ASR...")
-                                method_used = "whisper"
+                                logger.warning(f"Failed to load YouTube subtitles: {e}.")
+                                if asr_method == "softsub":
+                                    logger.warning("Fallback to Whisper ASR...")
+                                    method_used = "whisper"
                         else:
-                            logger.warning("Softsub only works with links. Fallback to Whisper ASR...")
-                            method_used = "whisper"
-
+                            if asr_method == "softsub":
+                                logger.warning("Softsub only works with links. Fallback to Whisper ASR...")
+                                method_used = "whisper"
+                    
                     # ─── PHƯƠNG ÁN 2: Nhận diện chữ trên màn hình (Video OCR) ───
-                    if asr_method == "ocr" or method_used == "ocr":
+                    if (asr_method == "ocr" or method_used == "ocr") and not segments_data:
                         try:
                             logger.info(f"Running Video OCR for Job {job_id}...")
                             segments_data = ocr_video_subtitles(source_path)
@@ -345,13 +398,15 @@ def run_dubbing_pipeline(job_id: str):
                         except Exception as e:
                             logger.warning(f"Video OCR failed: {e}. Fallback to Whisper ASR...")
                             method_used = "whisper"
-
+                    
                     # ─── PHƯƠNG ÁN 3: Nhận diện giọng nói mặc định (Whisper ASR) ───
                     if method_used == "whisper" or not segments_data:
-                        logger.info(f"Running Whisper ASR (model: {whisper_model}) for Job {job_id}...")
-                        segments_data = transcribe_audio(extracted_audio, whisper_model=whisper_model)
+                        # Use vocal_audio (separated vocals) if available to improve WhisperX accuracy, otherwise fallback to extracted_audio
+                        asr_audio = vocal_audio if (os.path.exists(vocal_audio) and os.path.getsize(vocal_audio) > 100) else extracted_audio
+                        logger.info(f"Running Whisper ASR (model: {whisper_model}, alignment: {align_mode}, input: {asr_audio}) for Job {job_id}...")
+                        segments_data = transcribe_audio(asr_audio, whisper_model=whisper_model, alignment_mode=align_mode)
                         method_used = "whisper"
-
+                    
                     # Save segments to database
                     for idx, seg in enumerate(segments_data):
                         new_seg = TranscriptSegment(
@@ -365,7 +420,7 @@ def run_dubbing_pipeline(job_id: str):
                             status="completed"
                         )
                         db.add(new_seg)
-
+                    
                     unique_speakers = set(s.get("speaker", "Speaker 1") for s in segments_data)
                     method_labels = {
                         "whisper": "Whisper ASR",
@@ -504,6 +559,7 @@ def run_dubbing_pipeline(job_id: str):
                             "Speaker 4": opposite_voice,
                         }
 
+                    tts_workers = voice_config.get("tts_workers", 4)
                     segments_data = generate_all_tts_segments(
                         segments_data,
                         str(settings.AUDIO_DIR),
@@ -511,6 +567,7 @@ def run_dubbing_pipeline(job_id: str):
                         voice=voice_name,
                         video_context=video_context,
                         voice_map=voice_map,
+                        tts_workers=tts_workers
                     )
 
                     # Update audio paths in DB
@@ -558,6 +615,7 @@ def run_dubbing_pipeline(job_id: str):
                     if _sem:
                         logger.info("[Step18] Waiting for FFmpeg encode slot (semaphore)...")
                         _sem.acquire()
+                    ffmpeg_threads = voice_config.get("ffmpeg_threads", 2)
                     try:
                         merge_tts_with_video(
                             video_path=source_path,
@@ -568,7 +626,8 @@ def run_dubbing_pipeline(job_id: str):
                             keep_bg_music=keep_bg,
                             bg_volume_db=bg_volume_db,
                             burn_subtitles=burn_sub,
-                            srt_path=srt_path
+                            srt_path=srt_path,
+                            ffmpeg_threads=ffmpeg_threads
                         )
                     finally:
                         if _sem:
@@ -613,9 +672,25 @@ def run_dubbing_pipeline(job_id: str):
 
                 # Mark step completed
                 if step_record:
-                    step_record.status = "completed"
+                    if step_num == 7 and not keep_bg:
+                        step_record.status = "skipped"
+                    else:
+                        step_record.status = "completed"
                     step_record.completed_at = datetime.utcnow()
                 db.commit()
+
+                # Log step performance
+                step_duration = time.perf_counter() - step_start_time
+                perf_data[str(step_num)] = {
+                    "name": step_name,
+                    "duration_seconds": round(step_duration, 2),
+                    "status": step_record.status if step_record else "completed"
+                }
+                try:
+                    with open(perf_file, "w", encoding="utf-8") as f:
+                        json.dump(perf_data, f, ensure_ascii=False, indent=2)
+                except Exception as pe:
+                    logger.warning(f"Failed to write perf log: {pe}")
 
             except Exception as e:
                 logger.error(f"Pipeline step {step_num} failed: {str(e)}")

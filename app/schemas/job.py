@@ -30,6 +30,12 @@ class JobCreateRequest(BaseModel):
     exact_cut: Optional[bool] = True           # True = precise cut (force keyframes, slower CPU); False = fast cut (keyframe-aligned, near-zero CPU overhead)
     download_quality: Optional[str] = "720p"   # 1080p | 720p | 480p
     cookie_content: Optional[str] = None       # Content of cookies file (Netscape format)
+    
+    # New performance optimization options
+    performance_mode: Optional[str] = "balanced"  # fast | balanced | quality
+    alignment_mode: Optional[str] = "segment"    # none | segment | word
+    tts_workers: Optional[int] = 4
+    ffmpeg_threads: Optional[int] = 2
 
 
 

@@ -182,6 +182,40 @@
                 <span class="step-number-badge">2</span> Cấu hình lồng tiếng
             </h2>
             
+            <!-- Cấu hình hiệu năng & Tốc độ -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md); margin-top: 5px; padding-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.06);">
+                <div class="form-group">
+                    <label for="performance-mode" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Chế độ hiệu năng</label>
+                    <select id="performance-mode" class="form-control" onchange="onPerformanceModeChange(this.value)">
+                        <option value="fast">Xuất nhanh (Fast - Tối ưu CPU/Tốc độ)</option>
+                        <option value="balanced" selected>Cân bằng (Balanced - Khuyên dùng)</option>
+                        <option value="quality">Chất lượng cao (Quality - Tối ưu chuẩn xác)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="alignment-mode" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Cơ chế căn chỉnh timeline</label>
+                    <select id="alignment-mode" class="form-control">
+                        <option value="none">Không căn chỉnh (Nhanh nhất)</option>
+                        <option value="segment" selected>Theo câu (Segment level)</option>
+                        <option value="word">Theo từ (Word alignment - WhisperX)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="perf-advanced-options" style="display: none; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md); margin-top: 5px; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm);">
+                <div class="form-group">
+                    <label for="tts-workers" class="form-label" style="font-size: 12px; color: var(--text-secondary);">Số worker TTS song song (1-10)</label>
+                    <input type="number" id="tts-workers" class="form-control" min="1" max="10" value="4">
+                </div>
+                <div class="form-group">
+                    <label for="ffmpeg-threads" class="form-label" style="font-size: 12px; color: var(--text-secondary);">Số CPU threads cho FFmpeg (1-8)</label>
+                    <input type="number" id="ffmpeg-threads" class="form-control" min="1" max="8" value="2">
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: -5px; margin-bottom: 5px;">
+                <a href="javascript:void(0)" id="toggle-perf-advanced" style="font-size: 11px; color: var(--color-primary); font-weight: 700; text-decoration: none;">⚙️ Hiện cấu hình luồng CPU nâng cao</a>
+            </div>
+            
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md);">
                 <div class="form-group">
                     <label for="tts-engine" class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Công nghệ lồng tiếng (TTS)</label>
@@ -443,6 +477,70 @@
 {% block extra_js %}
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        // Toggle advanced options
+        const togglePerfAdvanced = document.getElementById("toggle-perf-advanced");
+        const perfAdvancedOptions = document.getElementById("perf-advanced-options");
+        if (togglePerfAdvanced && perfAdvancedOptions) {
+            togglePerfAdvanced.addEventListener("click", () => {
+                if (perfAdvancedOptions.style.display === "none" || !perfAdvancedOptions.style.display) {
+                    perfAdvancedOptions.style.display = "grid";
+                    togglePerfAdvanced.textContent = "⚙️ Ẩn cấu hình luồng CPU nâng cao";
+                } else {
+                    perfAdvancedOptions.style.display = "none";
+                    togglePerfAdvanced.textContent = "⚙️ Hiện cấu hình luồng CPU nâng cao";
+                }
+            });
+        }
+
+        // Performance Mode Change Handler
+        window.onPerformanceModeChange = function(mode) {
+            const whisperModelSelect = document.getElementById("whisper-model");
+            const asrMethodSelect = document.getElementById("asr-method");
+            const alignmentModeSelect = document.getElementById("alignment-mode");
+            const keepBgMusicCheckbox = document.getElementById("keep-bg-music");
+            const burnSubtitlesCheckbox = document.getElementById("burn-subtitles");
+            const ttsWorkersInput = document.getElementById("tts-workers");
+            const ffmpegThreadsInput = document.getElementById("ffmpeg-threads");
+
+            if (mode === "fast") {
+                if (whisperModelSelect) whisperModelSelect.value = "base";
+                if (alignmentModeSelect) alignmentModeSelect.value = "none";
+                if (keepBgMusicCheckbox) {
+                    keepBgMusicCheckbox.checked = false;
+                    const section = document.getElementById("bg-volume-section");
+                    if (section) section.style.display = "none";
+                }
+                if (burnSubtitlesCheckbox) burnSubtitlesCheckbox.checked = false;
+                if (ttsWorkersInput) ttsWorkersInput.value = 6;
+                if (ffmpegThreadsInput) ffmpegThreadsInput.value = 4;
+                showToast("Đã chuyển sang chế độ Xuất nhanh: Tắt Demucs, Tắt Align, Tăng worker TTS song song.", "info");
+            } else if (mode === "balanced") {
+                if (whisperModelSelect) whisperModelSelect.value = "base";
+                if (alignmentModeSelect) alignmentModeSelect.value = "segment";
+                if (keepBgMusicCheckbox) {
+                    keepBgMusicCheckbox.checked = true;
+                    const section = document.getElementById("bg-volume-section");
+                    if (section) section.style.display = "block";
+                }
+                if (burnSubtitlesCheckbox) burnSubtitlesCheckbox.checked = false;
+                if (ttsWorkersInput) ttsWorkersInput.value = 4;
+                if (ffmpegThreadsInput) ffmpegThreadsInput.value = 2;
+                showToast("Đã chuyển sang chế độ Cân bằng (Khuyên dùng).", "info");
+            } else if (mode === "quality") {
+                if (whisperModelSelect) whisperModelSelect.value = "small";
+                if (alignmentModeSelect) alignmentModeSelect.value = "word";
+                if (keepBgMusicCheckbox) {
+                    keepBgMusicCheckbox.checked = true;
+                    const section = document.getElementById("bg-volume-section");
+                    if (section) section.style.display = "block";
+                }
+                if (burnSubtitlesCheckbox) burnSubtitlesCheckbox.checked = true;
+                if (ttsWorkersInput) ttsWorkersInput.value = 4;
+                if (ffmpegThreadsInput) ffmpegThreadsInput.value = 2;
+                showToast("Đã chuyển sang chế độ Chất lượng cao: Bật Word alignment, Bật Hardsub, Bật Demucs.", "info");
+            }
+        };
+
         // Cấu hình danh sách đầy đủ các giọng đọc của engine
         const ttsEngineSelect = document.getElementById("tts-engine");
         const voiceGenderSelect = document.getElementById("voice-gender");
@@ -881,6 +979,10 @@
                         clip_end: document.getElementById("enable-clip").checked ? (document.getElementById("clip-end").value.trim() || null) : null,
                         download_quality: document.getElementById("download-quality").value,
                         cookie_content: document.getElementById("enable-cookie").checked ? (document.getElementById("cookie-content").value.trim() || null) : null,
+                        performance_mode: document.getElementById("performance-mode").value,
+                        alignment_mode: document.getElementById("alignment-mode").value,
+                        tts_workers: parseInt(document.getElementById("tts-workers").value) || 4,
+                        ffmpeg_threads: parseInt(document.getElementById("ffmpeg-threads").value) || 2,
                     })
 
 
